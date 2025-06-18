@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Ghost Connection Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f0f8ff;
+            border-left: 4px solid #2196F3;
+        }
+        .expected {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .bug {
+            color: #f44336;
+            font-weight: bold;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test voor Ghost Connection Bug Fix</h1>
+    
+    <div class="test-section">
+        <h2>Beschrijving van de Bug</h2>
+        <p>Bij het plaatsen van een tussennode verdwijnt de originele verbinding, maar komt deze visueel terug wanneer:</p>
+        <ul>
+            <li>Een van de nieuwe verbindingen wordt geselecteerd</li>
+            <li>Een "ghost" verbinding verschijnt tussen de hoofdnode en de nieuwe node (niet de tussennode)</li>
+            <li>Bij klikken op deze ghost verbinding verschijnt er een nieuwe verbindingslijn</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Testprocedure</h2>
+        
+        <div class="step">
+            <strong>Stap 1:</strong> Open <code>index.html</code> in je browser
+        </div>
+        
+        <div class="step">
+            <strong>Stap 2:</strong> Maak twee nodes en verbind ze
+        </div>
+        
+        <div class="step">
+            <strong>Stap 3:</strong> Klik op het <code>+</code> icoon op de verbinding om een tussennode toe te voegen
+        </div>
+        
+        <div class="step">
+            <strong>Stap 4:</strong> Selecteer een van de nieuwe verbindingen door erop te klikken
+        </div>
+        
+        <div class="step">
+            <strong>Verwacht resultaat:</strong> 
+            <span class="expected">De geselecteerde verbinding wordt blauw, geen ghost verbindingen verschijnen</span>
+        </div>
+        
+        <div class="step">
+            <strong>Bug resultaat (voor fix):</strong> 
+            <span class="bug">Een ghost verbinding verschijnt tussen de oorspronkelijke nodes</span>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Wat is er gefixed?</h2>
+        <ul>
+            <li><strong>rendering.js regel 38:</strong> <code>refreshConnections()</code> vervangen door <code>drawConnection(connection)</code></li>
+            <li><strong>rendering.js regel 419:</strong> <code>refreshConnections()</code> vervangen door <code>drawConnection(connection)</code></li>
+            <li><strong>utils.js regel 148:</strong> Dubbele <code>refreshConnections()</code> verwijderd</li>
+            <li><strong>rendering.js:</strong> Extra check toegevoegd of verbinding nog bestaat in connections array</li>
+            <li><strong>rendering.js:</strong> Oude DOM elementen proper opruimen voordat nieuwe worden toegevoegd</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Debug Commands</h2>
+        <p>Gebruik deze commands in de browser console om de status te checken:</p>
+        <code>
+            console.log('Aantal verbindingen:', connections.length);<br>
+            console.log('Verbindingen:', connections.map(c => ({ id: c.id, source: c.source, target: c.target })));<br>
+            console.log('DOM verbindingen:', document.querySelectorAll('.connection').length);
+        </code>
+    </div>
+</body>
+</html>
