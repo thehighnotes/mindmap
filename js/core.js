@@ -106,7 +106,7 @@ function initializeReferences() {
     saveBtn = document.getElementById('save-btn');
     loadBtn = document.getElementById('load-btn');
     exportMermaidBtn = document.getElementById('export-mermaid-btn');
-    importMermaidBtn = document.getElementById('import-mermaid-btn');
+    importMermaidBtn = document.getElementById('import-mermaid-btn'); // Will be null since button is removed
     exportImageBtn = document.getElementById('export-image-btn');
     centerBtn = document.getElementById('center-btn');
     clearBtn = document.getElementById('clear-btn');

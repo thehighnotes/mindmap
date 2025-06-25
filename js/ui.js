@@ -49,7 +49,7 @@ function handleMouseUp(e) {
             
             // Blijf geselecteerd na verslepen
             if (currentSelectedNode === draggedNode.id) {
-                nodeEl.style.boxShadow = '0 0 0 2px #2196F3, 0 5px 15px rgba(0,0,0,0.3)';
+                nodeEl.style.boxShadow = '0 0 0 4px #2196F3, 0 0 0 8px rgba(33, 150, 243, 0.3), 0 0 20px rgba(33, 150, 243, 0.6), 0 8px 25px rgba(0,0,0,0.4)';
             } else {
                 nodeEl.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
             }
@@ -291,6 +291,23 @@ function setupContextMenuActions() {
             }
             
             showToast('Subknooppunt toegevoegd');
+        }
+        contextMenu.style.display = 'none';
+    });
+    
+    // Batch children via context menu
+    document.getElementById('context-batch-children').addEventListener('click', function() {
+        const nodeId = contextMenu.dataset.nodeId;
+        const node = nodes.find(n => n.id === nodeId);
+        if (node) {
+            // Selecteer de node en open batch text modal
+            selectNode(nodeId);
+            
+            const batchModal = document.getElementById('batch-text-modal');
+            const batchInput = document.getElementById('batch-text-input');
+            batchInput.value = '';
+            batchModal.style.display = 'flex';
+            batchInput.focus();
         }
         contextMenu.style.display = 'none';
     });
@@ -580,10 +597,12 @@ function setupEventListeners() {
     });
     
     // Mermaid import
-    importMermaidBtn.addEventListener('click', function() {
-        importContent.value = '';
-        importModal.style.display = 'flex';
-    });
+    if (importMermaidBtn) {
+        importMermaidBtn.addEventListener('click', function() {
+            importContent.value = '';
+            importModal.style.display = 'flex';
+        });
+    }
     cancelImport.addEventListener('click', function() {
         importModal.style.display = 'none';
     });
@@ -592,8 +611,10 @@ function setupEventListeners() {
     // Afbeelding export
     exportImageBtn.addEventListener('click', exportAsImage);
     
-    // Auto-layout
-    autoLayoutBtn.addEventListener('click', arrangeNodes);
+    // Auto-layout (removed button, add null check)
+    if (autoLayoutBtn) {
+        autoLayoutBtn.addEventListener('click', arrangeNodes);
+    }
     
     // Hulp tonen
     helpBtn.addEventListener('click', function() {
@@ -896,22 +917,98 @@ function setupEventListeners() {
         document.addEventListener('mouseup', blockOtherClicks, true);
     });
     
-    // Tool buttons
-    document.getElementById('select-tool').addEventListener('click', function() {
-        selectToolHandler('select-tool');
-    });
+    // Tool buttons (with null checks for removed buttons)
+    const selectTool = document.getElementById('select-tool');
+    if (selectTool) {
+        selectTool.addEventListener('click', function() {
+            selectToolHandler('select-tool');
+        });
+    }
     
-    document.getElementById('add-node-tool').addEventListener('click', function() {
-        selectToolHandler('add-node-tool');
-    });
+    const addNodeTool = document.getElementById('add-node-tool');
+    if (addNodeTool) {
+        addNodeTool.addEventListener('click', function() {
+            selectToolHandler('add-node-tool');
+        });
+    }
     
-    document.getElementById('connect-tool').addEventListener('click', function() {
-        selectToolHandler('connect-tool');
-    });
+    const connectTool = document.getElementById('connect-tool');
+    if (connectTool) {
+        connectTool.addEventListener('click', function() {
+            selectToolHandler('connect-tool');
+        });
+    }
     
     document.getElementById('delete-tool').addEventListener('click', function() {
         selectToolHandler('delete-tool');
     });
+    
+    // Batch Text Entry event handlers
+    const batchTextTool = document.getElementById('batch-text-tool');
+    if (batchTextTool) {
+        batchTextTool.addEventListener('click', function() {
+            if (!currentSelectedNode) {
+                showToast('Selecteer eerst een node om child nodes aan toe te voegen', true);
+                return;
+            }
+            
+            const batchModal = document.getElementById('batch-text-modal');
+            const batchInput = document.getElementById('batch-text-input');
+            batchInput.value = '';
+            batchModal.style.display = 'flex';
+            batchInput.focus();
+        });
+    }
+    
+    const confirmBatchText = document.getElementById('confirm-batch-text');
+    if (confirmBatchText) {
+        confirmBatchText.addEventListener('click', function() {
+            const textInput = document.getElementById('batch-text-input').value;
+            const connectSiblings = document.getElementById('auto-connect-siblings').checked;
+            
+            if (textInput.trim() && currentSelectedNode) {
+                createBatchChildNodes(currentSelectedNode, textInput, connectSiblings);
+                document.getElementById('batch-text-modal').style.display = 'none';
+            } else {
+                showToast('Voer tekst in en zorg dat er een node geselecteerd is', true);
+            }
+        });
+    }
+    
+    const cancelBatchText = document.getElementById('cancel-batch-text');
+    if (cancelBatchText) {
+        cancelBatchText.addEventListener('click', function() {
+            document.getElementById('batch-text-modal').style.display = 'none';
+        });
+    }
+    
+    // Template Dropdown event handlers
+    const templateTool = document.getElementById('template-tool');
+    const templateDropdown = document.getElementById('template-dropdown');
+    
+    if (templateTool && templateDropdown) {
+        templateTool.addEventListener('click', function(e) {
+            e.stopPropagation();
+            templateDropdown.classList.toggle('show');
+        });
+        
+        // Sluit dropdown bij klik buiten
+        document.addEventListener('click', function() {
+            templateDropdown.classList.remove('show');
+        });
+        
+        // Template selectie handlers
+        document.querySelectorAll('.template-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const templateKey = this.getAttribute('data-template');
+                const centerX = canvas.offsetWidth / 2 + Math.random() * 200 - 100;
+                const centerY = canvas.offsetHeight / 2 + Math.random() * 200 - 100;
+                
+                createTemplateNodeGroup(templateKey, centerX, centerY);
+                templateDropdown.classList.remove('show');
+            });
+        });
+    }
     
     // Installeer verbeterde event listeners
     setupImprovedEventListeners();
@@ -935,6 +1032,13 @@ function deselectAll() {
         n.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
         n.classList.remove('ctrl-select-source');
         n.classList.remove('ctrl-selectable');
+        // Reset transform en z-index
+        if (n.style.transform.includes('scale(1.03)')) {
+            n.style.transform = n.style.transform.replace(' scale(1.03)', '');
+        } else if (n.style.transform === 'scale(1.03)') {
+            n.style.transform = '';
+        }
+        n.style.zIndex = '2';
     });
     
     // Reset verbinding selecties
@@ -956,7 +1060,9 @@ function updateSelectionStatus() {
     if (currentSelectedNode && !currentSelectedNode.startsWith('conn-')) {
         const nodeEl = document.getElementById(currentSelectedNode);
         if (nodeEl) {
-            nodeEl.style.boxShadow = '0 0 0 2px #2196F3, 0 5px 15px rgba(0,0,0,0.3)';
+            nodeEl.style.boxShadow = '0 0 0 4px #2196F3, 0 0 0 8px rgba(33, 150, 243, 0.3), 0 0 20px rgba(33, 150, 243, 0.6), 0 8px 25px rgba(0,0,0,0.4)';
+            nodeEl.style.transform = nodeEl.style.transform.includes('rotate') ? nodeEl.style.transform + ' scale(1.03)' : 'scale(1.03)';
+            nodeEl.style.zIndex = '10';
         }
     }
     
@@ -1085,7 +1191,7 @@ function handleAltSelectMode(e) {
             if (nodeEl) {
                 nodeEl.style.zIndex = 2;
                 // Behoud wel de selectie-highlight
-                nodeEl.style.boxShadow = '0 0 0 2px #2196F3, 0 5px 15px rgba(0,0,0,0.3)';
+                nodeEl.style.boxShadow = '0 0 0 4px #2196F3, 0 0 0 8px rgba(33, 150, 243, 0.3), 0 0 20px rgba(33, 150, 243, 0.6), 0 8px 25px rgba(0,0,0,0.4)';
             }
         }
         

@@ -50,9 +50,15 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
             nodeEl.style.alignItems = 'center';
             break;
         case 'diamond':
+            nodeEl.classList.add('diamond-node');
             nodeEl.style.transform = 'rotate(45deg)';
             nodeEl.style.width = '100px';
             nodeEl.style.height = '100px';
+            nodeEl.style.display = 'flex';
+            nodeEl.style.flexDirection = 'column';
+            nodeEl.style.justifyContent = 'center';
+            nodeEl.style.alignItems = 'center';
+            nodeEl.style.textAlign = 'center';
             break;
         default: // rectangle
             nodeEl.style.borderRadius = '3px';
@@ -327,7 +333,12 @@ function handleNodeMouseDown(e, node) {
     }
     
     // Stel huidige geselecteerde knooppunt in
+    // Alleen deselecteren als er geen CTRL+click actie wordt uitgevoerd
+    if (!e.ctrlKey) {
+        deselectAll();
+    }
     currentSelectedNode = node.id;
+    updateSelectionStatus();
     
     // Als we in branch modus zijn, maak een verbinding met dit knooppunt
     if (branchingMode && branchSourceNode && branchSourceNode !== node.id) {
@@ -865,4 +876,178 @@ function assignLevelsToComponent(component, nodeMap) {
             }
         });
     }
+}
+
+/**
+ * Batch Text Entry - Voegt meerdere child nodes toe aan geselecteerde node
+ */
+function createBatchChildNodes(parentNodeId, textInput, connectSiblings = false) {
+    if (!parentNodeId || !textInput) {
+        showToast('Geen parent node geselecteerd of tekst ingevoerd', true);
+        return;
+    }
+    
+    // Sla staat op voor undo
+    saveStateForUndo();
+    
+    const parentNode = nodes.find(n => n.id === parentNodeId);
+    if (!parentNode) {
+        showToast('Parent node niet gevonden', true);
+        return;
+    }
+    
+    // Split tekst op regels en filter lege regels
+    const lines = textInput.split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+    
+    if (lines.length === 0) {
+        showToast('Geen geldige tekst ingevoerd', true);
+        return;
+    }
+    
+    const createdNodes = [];
+    const angleStep = (2 * Math.PI) / lines.length;
+    const radius = 120;
+    
+    // Maak child nodes in cirkel rond parent
+    lines.forEach((line, index) => {
+        const angle = index * angleStep;
+        const x = parentNode.x + Math.cos(angle) * radius;
+        const y = parentNode.y + Math.sin(angle) * radius;
+        
+        const childNode = createNode(line, '', '#4CAF50', x, y, 'rounded', parentNode);
+        createdNodes.push(childNode);
+        
+        // Verbind child met parent
+        createConnection(parentNode.id, childNode.id);
+    });
+    
+    // Verbind siblings onderling als optie is aangevinkt
+    if (connectSiblings && createdNodes.length > 1) {
+        for (let i = 0; i < createdNodes.length; i++) {
+            const nextIndex = (i + 1) % createdNodes.length;
+            createConnection(createdNodes[i].id, createdNodes[nextIndex].id);
+        }
+    }
+    
+    showToast(`${lines.length} child nodes toegevoegd!`);
+    return createdNodes;
+}
+
+/**
+ * Template Node Groups - Predefinieerde node structuren
+ */
+const nodeTemplates = {
+    swot: {
+        name: 'SWOT Analyse',
+        nodes: [
+            { title: 'SWOT Analyse', x: 0, y: 0, color: '#2196F3', shape: 'rounded', isCenter: true },
+            { title: 'Sterke punten', x: -150, y: -100, color: '#4CAF50', shape: 'rectangle' },
+            { title: 'Zwakke punten', x: 150, y: -100, color: '#F44336', shape: 'rectangle' },
+            { title: 'Kansen', x: -150, y: 100, color: '#FF9800', shape: 'rectangle' },
+            { title: 'Bedreigingen', x: 150, y: 100, color: '#9C27B0', shape: 'rectangle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4]
+        ]
+    },
+    
+    meeting: {
+        name: 'Meeting Agenda',
+        nodes: [
+            { title: 'Meeting Agenda', x: 0, y: 0, color: '#2196F3', shape: 'rounded', isCenter: true },
+            { title: 'Agenda punten', x: -120, y: -80, color: '#4CAF50', shape: 'rectangle' },
+            { title: 'Actiepunten', x: 120, y: -80, color: '#FF9800', shape: 'rectangle' },
+            { title: 'Deelnemers', x: -120, y: 80, color: '#9C27B0', shape: 'rectangle' },
+            { title: 'Follow-up', x: 120, y: 80, color: '#607D8B', shape: 'rectangle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4]
+        ]
+    },
+    
+    project: {
+        name: 'Project Planning',
+        nodes: [
+            { title: 'Project', x: 0, y: 0, color: '#2196F3', shape: 'rounded', isCenter: true },
+            { title: 'Planning', x: -150, y: -100, color: '#4CAF50', shape: 'rectangle' },
+            { title: 'Resources', x: 150, y: -100, color: '#FF9800', shape: 'rectangle' },
+            { title: 'Risicos', x: -150, y: 100, color: '#F44336', shape: 'rectangle' },
+            { title: 'Milestones', x: 150, y: 100, color: '#9C27B0', shape: 'rectangle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4]
+        ]
+    },
+    
+    decision: {
+        name: 'Beslisboom',
+        nodes: [
+            { title: 'Beslissing', x: 0, y: 0, color: '#2196F3', shape: 'diamond', isCenter: true },
+            { title: 'Optie A', x: -120, y: 100, color: '#4CAF50', shape: 'rectangle' },
+            { title: 'Optie B', x: 120, y: 100, color: '#FF9800', shape: 'rectangle' },
+            { title: 'Gevolgen A', x: -120, y: 200, color: '#8BC34A', shape: 'circle' },
+            { title: 'Gevolgen B', x: 120, y: 200, color: '#FFC107', shape: 'circle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [1, 3], [2, 4]
+        ]
+    },
+    
+    brainstorm: {
+        name: 'Brainstorm Sessie',
+        nodes: [
+            { title: 'Brainstorm Topic', x: 0, y: 0, color: '#2196F3', shape: 'rounded', isCenter: true },
+            { title: 'Idee 1', x: -100, y: -120, color: '#4CAF50', shape: 'circle' },
+            { title: 'Idee 2', x: 100, y: -120, color: '#FF9800', shape: 'circle' },
+            { title: 'Idee 3', x: -100, y: 120, color: '#9C27B0', shape: 'circle' },
+            { title: 'Idee 4', x: 100, y: 120, color: '#F44336', shape: 'circle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4]
+        ]
+    }
+};
+
+function createTemplateNodeGroup(templateKey, centerX = 400, centerY = 300) {
+    const template = nodeTemplates[templateKey];
+    if (!template) {
+        showToast('Template niet gevonden', true);
+        return;
+    }
+    
+    // Sla staat op voor undo
+    saveStateForUndo();
+    
+    const createdNodes = [];
+    
+    // Maak alle nodes
+    template.nodes.forEach((nodeTemplate, index) => {
+        const x = centerX + nodeTemplate.x;
+        const y = centerY + nodeTemplate.y;
+        
+        const node = createNode(
+            nodeTemplate.title,
+            '',
+            nodeTemplate.color,
+            x,
+            y,
+            nodeTemplate.shape || 'rectangle',
+            null,
+            nodeTemplate.isCenter || false
+        );
+        
+        createdNodes.push(node);
+    });
+    
+    // Maak alle verbindingen
+    template.connections.forEach(([fromIndex, toIndex]) => {
+        if (createdNodes[fromIndex] && createdNodes[toIndex]) {
+            createConnection(createdNodes[fromIndex].id, createdNodes[toIndex].id);
+        }
+    });
+    
+    showToast(`${template.name} template toegevoegd!`);
+    return createdNodes;
 }

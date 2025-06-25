@@ -14,9 +14,7 @@
             <button class="btn btn-save" id="save-btn" title="Sla de mindmap op als bestand">Opslaan</button>
             <button class="btn btn-save" id="load-btn" title="Laad een opgeslagen mindmap">Laden</button>
             <button class="btn btn-export" id="export-mermaid-btn" title="Exporteer naar Mermaid syntax">Exporteer naar Mermaid</button>
-            <button class="btn btn-import" id="import-mermaid-btn" title="Importeer een Mermaid diagram">Importeer van Mermaid</button>
             <button class="btn btn-save" id="export-image-btn" title="Sla op als afbeelding">Exporteer als Afbeelding</button>
-            <button class="btn btn-layout" id="auto-layout-btn" title="Automatisch organiseren">Auto-Layout</button>
             <button class="btn" id="center-btn" title="Centreer de mindmap">Centreren</button>
             <button class="btn" id="clear-btn" title="Wis de mindmap">Wissen</button>
             <button class="btn" id="help-btn" title="Toon help">Help</button>
@@ -25,26 +23,6 @@
     
     <div class="main-container">
         <div class="toolbar">
-            <button class="tool-btn active" id="select-tool" title="Selecteer en verplaats (S)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-                </svg>
-            </button>
-            <button class="tool-btn" id="add-node-tool" title="Voeg knooppunt toe (A)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="12" y1="8" x2="12" y2="16"></line>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                </svg>
-            </button>
-            <button class="tool-btn" id="connect-tool" title="Verbind knooppunten (C)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-            </button>
-            <div class="tool-divider"></div>
             <button class="tool-btn" id="delete-tool" title="Verwijder element (D)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -52,6 +30,33 @@
                 </svg>
             </button>
             <div class="tool-divider"></div>
+            <button class="tool-btn" id="batch-text-tool" title="Voeg meerdere child nodes toe">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </button>
+            <div class="template-dropdown">
+                <button class="tool-btn" id="template-tool" title="Voeg template node groep toe">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <rect x="7" y="7" width="3" height="3"></rect>
+                        <rect x="14" y="7" width="3" height="3"></rect>
+                        <rect x="7" y="14" width="3" height="3"></rect>
+                        <rect x="14" y="14" width="3" height="3"></rect>
+                    </svg>
+                </button>
+                <div class="template-dropdown-content" id="template-dropdown">
+                    <div class="template-item" data-template="swot">SWOT Analyse</div>
+                    <div class="template-item" data-template="meeting">Meeting Agenda</div>
+                    <div class="template-item" data-template="project">Project Planning</div>
+                    <div class="template-item" data-template="decision">Beslisboom</div>
+                    <div class="template-item" data-template="brainstorm">Brainstorm Sessie</div>
+                </div>
+            </div>
             <button class="tool-btn" id="undo-btn" title="Ongedaan maken (Ctrl+Z)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"></path>
@@ -287,6 +292,7 @@
         <div class="context-menu-item" id="context-edit">Bewerken</div>
         <div class="context-menu-item" id="context-rename">Hernoemen</div>
         <div class="context-menu-item" id="context-create-child">Nieuw subknooppunt</div>
+        <div class="context-menu-item" id="context-batch-children">Meerdere child nodes toevoegen</div>
         <div class="context-menu-item" id="context-branch">Y-vertakking maken</div>
         <div class="context-menu-item" id="context-set-root">Als hoofdknooppunt instellen</div>
         <div class="context-menu-divider"></div>
@@ -308,6 +314,30 @@
         <div class="context-menu-item" id="connection-delete">Verwijderen</div>
     </div>
     
+    <!-- Batch text entry modal -->
+    <div class="modal" id="batch-text-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Voeg Meerdere Child Nodes Toe</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Typ elke nieuwe child node op een aparte regel:</p>
+                <textarea id="batch-text-input" placeholder="Marketing&#10;Sales&#10;Development&#10;Support"></textarea>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="auto-connect-siblings" checked>
+                        Verbind child nodes onderling
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancel-batch-text">Annuleren</button>
+                <button class="btn btn-save" id="confirm-batch-text">Child Nodes Toevoegen</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast notificatie -->
     <div class="toast" id="toast"></div>
     
