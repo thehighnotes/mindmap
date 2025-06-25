@@ -1278,3 +1278,31 @@ body {
     background-color: #4CAF50;
     color: white;
 }
+
+/* Version number styling */
+.version {
+    font-size: 0.7em;
+    color: #888;
+    font-weight: normal;
+    margin-left: 10px;
+    opacity: 0.8;
+}
+
+/* Attribution styling */
+.attribution {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #ccc;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    z-index: 1000;
+    pointer-events: none;
+    user-select: none;
+}
+
+.attribution p {
+    margin: 0;
+}
