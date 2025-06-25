@@ -249,8 +249,6 @@ function selectToolHandler(toolId) {
     removeTemporaryConnectionLine();
 }
 
-<<<<<<< HEAD
-=======
 // Update tool states based on current selection
 function updateToolStates() {
     const batchTextTool = document.getElementById('batch-text-tool');
@@ -267,7 +265,6 @@ function updateToolStates() {
     }
 }
 
->>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
 // Canvas offset en zoom bijwerken
 function updateCanvasTransform() {
     canvas.style.transform = `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoomLevel})`;

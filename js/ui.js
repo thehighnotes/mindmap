@@ -964,16 +964,9 @@ function setupEventListeners() {
     if (confirmBatchText) {
         confirmBatchText.addEventListener('click', function() {
             const textInput = document.getElementById('batch-text-input').value;
-<<<<<<< HEAD
-            const connectSiblings = document.getElementById('auto-connect-siblings').checked;
             
             if (textInput.trim() && currentSelectedNode) {
-                createBatchChildNodes(currentSelectedNode, textInput, connectSiblings);
-=======
-            
-            if (textInput.trim() && currentSelectedNode) {
-                createBatchChildNodes(currentSelectedNode, textInput);
->>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
+                createBatchChildNodes(currentSelectedNode, textInput, false);
                 document.getElementById('batch-text-modal').style.display = 'none';
             } else {
                 showToast('Voer tekst in en zorg dat er een node geselecteerd is', true);
@@ -1051,14 +1044,11 @@ function deselectAll() {
     currentSelectedNode = null;
     currentSelectedConnection = null;
     
-<<<<<<< HEAD
-=======
     // Update tool states based on selection
     if (typeof updateToolStates === 'function') {
         updateToolStates();
     }
     
->>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
     // Vernieuw verbindingen om selectiestatus te updaten
     refreshConnections();
     
@@ -1080,14 +1070,11 @@ function updateSelectionStatus() {
         }
     }
     
-<<<<<<< HEAD
-=======
     // Update tool states based on selection
     if (typeof updateToolStates === 'function') {
         updateToolStates();
     }
     
->>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
     // Vernieuw verbindingen om selectiestatus te updaten
     refreshConnections();
 }

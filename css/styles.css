@@ -205,8 +205,6 @@ body {
     cursor: not-allowed;
 }
 
-<<<<<<< HEAD
-=======
 .tool-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -217,8 +215,6 @@ body {
     background-color: #2a2a2a;
     transform: none;
 }
-
->>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
 .tool-btn svg {
     width: 24px;
     height: 24px;
