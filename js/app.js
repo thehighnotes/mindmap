@@ -35,6 +35,14 @@ document.addEventListener('DOMContentLoaded', function() {
         initMindmap();
     }
     
+<<<<<<< HEAD
+=======
+    // Update initial tool states
+    if (typeof updateToolStates === 'function') {
+        updateToolStates();
+    }
+    
+>>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
     // Verifieer na een korte vertraging dat alle benodigde functies beschikbaar zijn
     setTimeout(() => {
         // Test een paar cruciale functies om te zorgen dat ze werken

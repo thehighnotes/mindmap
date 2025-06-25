@@ -881,7 +881,11 @@ function assignLevelsToComponent(component, nodeMap) {
 /**
  * Batch Text Entry - Voegt meerdere child nodes toe aan geselecteerde node
  */
+<<<<<<< HEAD
 function createBatchChildNodes(parentNodeId, textInput, connectSiblings = false) {
+=======
+function createBatchChildNodes(parentNodeId, textInput) {
+>>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
     if (!parentNodeId || !textInput) {
         showToast('Geen parent node geselecteerd of tekst ingevoerd', true);
         return;
@@ -923,6 +927,7 @@ function createBatchChildNodes(parentNodeId, textInput, connectSiblings = false)
         createConnection(parentNode.id, childNode.id);
     });
     
+<<<<<<< HEAD
     // Verbind siblings onderling als optie is aangevinkt
     if (connectSiblings && createdNodes.length > 1) {
         for (let i = 0; i < createdNodes.length; i++) {
@@ -931,6 +936,8 @@ function createBatchChildNodes(parentNodeId, textInput, connectSiblings = false)
         }
     }
     
+=======
+>>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
     showToast(`${lines.length} child nodes toegevoegd!`);
     return createdNodes;
 }

@@ -249,6 +249,25 @@ function selectToolHandler(toolId) {
     removeTemporaryConnectionLine();
 }
 
+<<<<<<< HEAD
+=======
+// Update tool states based on current selection
+function updateToolStates() {
+    const batchTextTool = document.getElementById('batch-text-tool');
+    
+    if (batchTextTool) {
+        // Batch text tool is only enabled when a node is selected
+        if (currentSelectedNode && !currentSelectedNode.startsWith('conn-')) {
+            batchTextTool.disabled = false;
+            batchTextTool.title = "Voeg meerdere child nodes toe";
+        } else {
+            batchTextTool.disabled = true;
+            batchTextTool.title = "Selecteer eerst een node om child nodes toe te voegen";
+        }
+    }
+}
+
+>>>>>>> 9a8c686 (Add test HTML for Ghost Connection bug fix with detailed steps and console commands)
 // Canvas offset en zoom bijwerken
 function updateCanvasTransform() {
     canvas.style.transform = `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoomLevel})`;
