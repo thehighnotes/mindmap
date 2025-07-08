@@ -9,7 +9,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Mindmap Brainstorm Tool <span class="version">v0.9</span></h1>
+        <h1>Mindmap Brainstorm Tool <span class="version">v0.91</span></h1>
         <div class="button-group">
             <button class="btn btn-save" id="save-btn" title="Sla de mindmap op als bestand">Opslaan</button>
             <button class="btn btn-save" id="load-btn" title="Laad een opgeslagen mindmap">Laden</button>
@@ -55,6 +55,9 @@
                     <div class="template-item" data-template="project">Project Planning</div>
                     <div class="template-item" data-template="decision">Beslisboom</div>
                     <div class="template-item" data-template="brainstorm">Brainstorm Sessie</div>
+                    <div class="template-item" data-template="kanban">Kanban Board</div>
+                    <div class="template-item" data-template="mindfulness">Mindfulness Map</div>
+                    <div class="template-item" data-template="weekplanning">Weekplanning</div>
                 </div>
             </div>
             <button class="tool-btn" id="undo-btn" title="Ongedaan maken (Ctrl+Z)">
@@ -94,6 +97,7 @@
                 <div class="zoom-level" id="zoom-level">100%</div>
                 <button class="zoom-btn" id="zoom-out" title="Zoom uit">−</button>
                 <button class="zoom-btn" id="zoom-reset" title="Reset zoom">⟳</button>
+                <button class="zoom-btn" id="zoom-to-selection" title="Zoom naar selectie (Ctrl+F)">🔍</button>
             </div>
         </div>
     </div>
@@ -256,6 +260,10 @@
                     <li><strong>Spatiebalk (houden):</strong> Tijdelijke pan modus</li>
                     <li><strong>Delete/Backspace:</strong> Verwijder geselecteerd element</li>
                     <li><strong>Ctrl+Z:</strong> Ongedaan maken</li>
+                    <li><strong>Ctrl+C:</strong> Kopieer geselecteerde node</li>
+                    <li><strong>Ctrl+V:</strong> Plak gekopieerde node</li>
+                    <li><strong>Ctrl+F:</strong> Zoom naar selectie</li>
+                    <li><strong>Tab:</strong> Voeg snel child node toe</li>
                     <li><strong>Ctrl+S:</strong> Opslaan</li>
                     <li><strong>Ctrl+O:</strong> Laden</li>
                     <li><strong>Ctrl+E:</strong> Exporteren naar Mermaid</li>
@@ -272,12 +280,23 @@
                     <li>Gebruik "Opslaan" om het volledige mindmap-project als JSON-bestand op te slaan voor later gebruik.</li>
                 </ul>
                 
+                <h4>Nieuwe Features:</h4>
+                <ul>
+                    <li><strong>Copy/Paste:</strong> Kopieer en plak knooppunten inclusief verbindingen</li>
+                    <li><strong>Uitgebreide Templates:</strong> Nieuwe templates zoals Kanban Board, Mindfulness Map en Weekplanning</li>
+                    <li><strong>Slimme Bulk Positionering:</strong> Nieuwe child nodes worden automatisch in vrije ruimte geplaatst</li>
+                    <li><strong>Zoom naar Selectie:</strong> Focus snel op geselecteerde elementen</li>
+                    <li><strong>Verbindingslabels Roteren:</strong> Labels volgen automatisch de hoek van verbindingen</li>
+                </ul>
+                
                 <h4>Tips & Trucs:</h4>
                 <ul>
                     <li><strong>Eerste gebruik tips:</strong> Bij het eerste gebruik zie je automatisch handige tips. Deze kun je altijd opnieuw bekijken met onderstaande knop.</li>
                     <li><strong>Tips uitgeschakeld?</strong> Als je de tips per ongeluk hebt uitgeschakeld, klik dan op "Toon Beginners Tips" hieronder.</li>
                     <li><strong>Snel werken:</strong> Gebruik de + knoppen op knooppunten voor het snel toevoegen van nieuwe ideeën.</li>
                     <li><strong>Organiseren:</strong> Sleep knooppunten om je mindmap overzichtelijk te houden.</li>
+                    <li><strong>Kopiëren:</strong> Gebruik Ctrl+C/V om knooppunten te dupliceren</li>
+                    <li><strong>Snelle child nodes:</strong> Druk Tab terwijl een node geselecteerd is</li>
                 </ul>
             </div>
             <div class="modal-footer">
@@ -295,6 +314,8 @@
         <div class="context-menu-item" id="context-batch-children">Meerdere child nodes toevoegen</div>
         <div class="context-menu-item" id="context-branch">Y-vertakking maken</div>
         <div class="context-menu-item" id="context-set-root">Als hoofdknooppunt instellen</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="context-disconnect-mode">Verbindingen bewerken</div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" id="context-delete">Verwijderen</div>
     </div>
@@ -354,6 +375,7 @@
     <script src="js/ui.js"></script>
     <script src="js/export.js"></script>
     <script src="js/app.js"></script>
+    
     
     <!-- Attribution -->
     <div class="attribution">

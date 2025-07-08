@@ -208,7 +208,13 @@ function makeEditable(element, node) {
     selection.removeAllRanges();
     selection.addRange(range);
     
-    // Event handlers
+    // Event handlers - gebruik named functions voor cleanup
+    const handlers = {
+        blur: null,
+        keydown: null,
+        mousedown: null
+    };
+    
     const saveEdit = function() {
         const newText = element.innerText.trim();
         // Alleen opslaan als er tekst is
@@ -231,6 +237,11 @@ function makeEditable(element, node) {
             element.innerText = node.title;
         }
         
+        // Cleanup alle event listeners
+        element.removeEventListener('blur', handlers.blur);
+        element.removeEventListener('keydown', handlers.keydown);
+        element.removeEventListener('mousedown', handlers.mousedown);
+        
         // Markeer dat het bewerken is voltooid met een kleine vertraging
         // om onbedoelde drag initialisatie te voorkomen direct na bewerken
         setTimeout(() => {
@@ -242,26 +253,33 @@ function makeEditable(element, node) {
         }, 100);
     };
     
-    // Event handlers voor opslaan bij blur of enter
-    element.addEventListener('blur', saveEdit, { once: true });
-    element.addEventListener('keydown', function(e) {
+    handlers.blur = saveEdit;
+    handlers.keydown = function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             element.blur(); // Dit triggert de blur event handler
         } else if (e.key === 'Escape') {
             element.innerText = node.title;
             element.contentEditable = false;
+            // Cleanup bij escape
+            element.removeEventListener('blur', handlers.blur);
+            element.removeEventListener('keydown', handlers.keydown);
+            element.removeEventListener('mousedown', handlers.mousedown);
         }
-    });
+    };
     
-    // Voorkom interferentie met drag evenementen
-    element.addEventListener('mousedown', function(e) {
+    handlers.mousedown = function(e) {
         // Wanneer in edit mode, laat de mousedown event niet doorgaan naar de parent node
         // zodat we niet onbedoeld het drag mechanisme activeren
         if (element.contentEditable === 'true') {
             e.stopPropagation();
         }
-    });
+    };
+    
+    // Voeg event listeners toe
+    element.addEventListener('blur', handlers.blur, { once: true });
+    element.addEventListener('keydown', handlers.keydown);
+    element.addEventListener('mousedown', handlers.mousedown);
 }
 
 // Event handler voor mousedown op een knooppunt
@@ -302,6 +320,44 @@ function handleNodeMouseDown(e, node) {
         return;
     }
     
+    // ALT+drag voor node reconnection
+    if (e.altKey && !e.ctrlKey && !isFromContentEditable) {
+        e.preventDefault();
+        
+        // Sla de huidige staat op voor undo
+        if (typeof saveStateForUndo === 'function') {
+            saveStateForUndo();
+        }
+        
+        const actualNode = nodes.find(n => n.id === node.id);
+        if (!actualNode) {
+            console.error(`[handleNodeMouseDown] Kon node niet vinden in nodes array: ${node.id}`);
+            return;
+        }
+        
+        // Start reconnect mode
+        nodeEl.classList.add('reconnecting');
+        window.reconnectingNode = {
+            node: actualNode,
+            originalParents: connections
+                .filter(conn => conn.target === actualNode.id)
+                .map(conn => conn.source)
+        };
+        
+        // Start ook normale drag
+        draggedNode = actualNode;
+        mouseStartPos = { x: e.clientX, y: e.clientY };
+        nodeStartPos = { x: actualNode.x, y: actualNode.y };
+        isDragging = true;
+        
+        // Visual feedback
+        nodeEl.style.zIndex = 10;
+        nodeEl.style.boxShadow = '0 0 20px rgba(255, 152, 0, 0.8)';
+        
+        showToast('Sleep naar een andere node om te herverbinden');
+        return;
+    }
+    
     // Verplaatsen van knooppunt starten - alleen als we niet op een contentEditable element hebben geklikt
     if (!e.ctrlKey && !isFromContentEditable) { // Ctrl voorkomt verplaatsen
         // Sla de huidige staat eerst op VOORDAT we gaan slepen
@@ -335,10 +391,45 @@ function handleNodeMouseDown(e, node) {
     // Stel huidige geselecteerde knooppunt in
     // Alleen deselecteren als er geen CTRL+click actie wordt uitgevoerd
     if (!e.ctrlKey) {
-        deselectAll();
+        // Gebruik deselectAll als het beschikbaar is, anders gebruik fallback
+        if (typeof deselectAll === 'function') {
+            deselectAll();
+        } else {
+            // Fallback deselectie logica
+            document.querySelectorAll('.node').forEach(n => {
+                n.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+                n.classList.remove('ctrl-select-source');
+                n.classList.remove('ctrl-selectable');
+                if (n.style.transform.includes('scale(1.03)')) {
+                    n.style.transform = n.style.transform.replace(' scale(1.03)', '');
+                } else if (n.style.transform === 'scale(1.03)') {
+                    n.style.transform = '';
+                }
+                n.style.zIndex = '2';
+            });
+            currentSelectedNode = null;
+            currentSelectedConnection = null;
+        }
     }
     currentSelectedNode = node.id;
-    updateSelectionStatus();
+    
+    // Gebruik updateSelectionStatus als het beschikbaar is, anders gebruik fallback
+    if (typeof updateSelectionStatus === 'function') {
+        updateSelectionStatus();
+    } else {
+        // Fallback selectie status logica
+        const nodeEl = document.getElementById(node.id);
+        if (nodeEl) {
+            nodeEl.style.boxShadow = '0 0 0 4px #2196F3, 0 0 0 8px rgba(33, 150, 243, 0.3), 0 0 20px rgba(33, 150, 243, 0.6), 0 8px 25px rgba(0,0,0,0.4)';
+            nodeEl.style.transform = nodeEl.style.transform.includes('rotate') ? nodeEl.style.transform + ' scale(1.03)' : 'scale(1.03)';
+            nodeEl.style.zIndex = '10';
+        }
+        
+        // Vernieuw verbindingen als functie beschikbaar is
+        if (typeof refreshConnections === 'function') {
+            refreshConnections();
+        }
+    }
     
     // Als we in branch modus zijn, maak een verbinding met dit knooppunt
     if (branchingMode && branchSourceNode && branchSourceNode !== node.id) {
@@ -907,12 +998,17 @@ function createBatchChildNodes(parentNodeId, textInput, connectSiblings = false)
     }
     
     const createdNodes = [];
-    const angleStep = (2 * Math.PI) / lines.length;
-    const radius = 120;
     
-    // Maak child nodes in cirkel rond parent
+    // SLIMME POSITIONERING: Vind optimale sector voor nieuwe nodes
+    const optimalStartAngle = findOptimalSectorForBulkNodes(parentNode, lines.length);
+    const maxSpreadAngle = Math.PI; // Max 180 graden spreiding
+    const actualSpread = Math.min(maxSpreadAngle, (lines.length - 1) * 0.3);
+    const angleStep = lines.length > 1 ? actualSpread / (lines.length - 1) : 0;
+    const radius = 150 + (lines.length > 5 ? lines.length * 5 : 0); // Dynamische radius
+    
+    // Maak child nodes in optimale sector
     lines.forEach((line, index) => {
-        const angle = index * angleStep;
+        const angle = optimalStartAngle + (index * angleStep) - (actualSpread / 2);
         const x = parentNode.x + Math.cos(angle) * radius;
         const y = parentNode.y + Math.sin(angle) * radius;
         
@@ -933,6 +1029,49 @@ function createBatchChildNodes(parentNodeId, textInput, connectSiblings = false)
     
     showToast(`${lines.length} child nodes toegevoegd!`);
     return createdNodes;
+}
+
+// Hulpfunctie voor slimme bulk node positionering
+function findOptimalSectorForBulkNodes(parentNode, nodeCount) {
+    // Analyseer bestaande child nodes en hun posities
+    const existingChildren = connections
+        .filter(conn => conn.source === parentNode.id)
+        .map(conn => nodes.find(n => n.id === conn.target))
+        .filter(Boolean);
+    
+    // Bereken bezette hoeken
+    const occupiedAngles = existingChildren.map(child => {
+        const dx = child.x - parentNode.x;
+        const dy = child.y - parentNode.y;
+        return Math.atan2(dy, dx);
+    });
+    
+    // Vind grootste lege sector
+    if (occupiedAngles.length === 0) {
+        return 0; // Start bij 0 graden (rechts) als er geen children zijn
+    }
+    
+    // Sorteer hoeken
+    occupiedAngles.sort((a, b) => a - b);
+    
+    // Vind grootste gap
+    let maxGap = 0;
+    let bestStartAngle = 0;
+    
+    for (let i = 0; i < occupiedAngles.length; i++) {
+        const current = occupiedAngles[i];
+        const next = occupiedAngles[(i + 1) % occupiedAngles.length];
+        
+        let gap = next - current;
+        if (gap < 0) gap += 2 * Math.PI; // Wrap around
+        
+        if (gap > maxGap) {
+            maxGap = gap;
+            bestStartAngle = current + gap * 0.1; // Start 10% in de gap
+        }
+    }
+    
+    return bestStartAngle;
 }
 
 /**
@@ -1007,6 +1146,51 @@ const nodeTemplates = {
         connections: [
             [0, 1], [0, 2], [0, 3], [0, 4]
         ]
+    },
+    
+    kanban: {
+        name: 'Kanban Board',
+        nodes: [
+            { title: 'Kanban Board', x: 0, y: 0, color: '#2196F3', shape: 'rounded', isCenter: true },
+            { title: 'Te Doen', x: -200, y: 100, color: '#F44336', shape: 'rectangle' },
+            { title: 'In Uitvoering', x: 0, y: 100, color: '#FF9800', shape: 'rectangle' },
+            { title: 'Review', x: 200, y: 100, color: '#9C27B0', shape: 'rectangle' },
+            { title: 'Gereed', x: 400, y: 100, color: '#4CAF50', shape: 'rectangle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4]
+        ]
+    },
+    
+    mindfulness: {
+        name: 'Mindfulness Map',
+        nodes: [
+            { title: 'Mindfulness', x: 0, y: 0, color: '#00BCD4', shape: 'circle', isCenter: true },
+            { title: 'Ademhaling', x: -150, y: -100, color: '#03A9F4', shape: 'circle' },
+            { title: 'Observatie', x: 150, y: -100, color: '#03A9F4', shape: 'circle' },
+            { title: 'Acceptatie', x: -150, y: 100, color: '#03A9F4', shape: 'circle' },
+            { title: 'Loslaten', x: 150, y: 100, color: '#03A9F4', shape: 'circle' },
+            { title: 'Hier & Nu', x: 0, y: 150, color: '#00ACC1', shape: 'circle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4], [0, 5],
+            [1, 5], [2, 5], [3, 5], [4, 5]
+        ]
+    },
+    
+    weekplanning: {
+        name: 'Weekplanning',
+        nodes: [
+            { title: 'Week Planning', x: 0, y: 0, color: '#607D8B', shape: 'rounded', isCenter: true },
+            { title: 'Maandag', x: -300, y: 100, color: '#455A64', shape: 'rectangle' },
+            { title: 'Dinsdag', x: -150, y: 100, color: '#455A64', shape: 'rectangle' },
+            { title: 'Woensdag', x: 0, y: 100, color: '#455A64', shape: 'rectangle' },
+            { title: 'Donderdag', x: 150, y: 100, color: '#455A64', shape: 'rectangle' },
+            { title: 'Vrijdag', x: 300, y: 100, color: '#455A64', shape: 'rectangle' }
+        ],
+        connections: [
+            [0, 1], [0, 2], [0, 3], [0, 4], [0, 5]
+        ]
     }
 };
 
@@ -1050,4 +1234,584 @@ function createTemplateNodeGroup(templateKey, centerX = 400, centerY = 300) {
     
     showToast(`${template.name} template toegevoegd!`);
     return createdNodes;
+}
+
+// ==========================
+// NODE DISCONNECTION FUNCTIONALITY
+// ==========================
+
+/**
+ * IMPROVED: Visual disconnect mode - shows connection preview when hovering over nodes
+ * @param {string} nodeId - The ID of the node to start disconnect mode for
+ */
+function startDisconnectMode(nodeId) {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) {
+        showToast('Knooppunt niet gevonden', true);
+        return;
+    }
+    
+    // Vind alle verbindingen
+    const incomingConnections = connections.filter(conn => conn.target === nodeId);
+    const outgoingConnections = connections.filter(conn => conn.source === nodeId);
+    
+    if (incomingConnections.length === 0 && outgoingConnections.length === 0) {
+        showToast('Knooppunt heeft geen verbindingen om te ontkoppelen', true);
+        return;
+    }
+    
+    // Enter disconnect mode
+    window.disconnectMode = {
+        nodeId: nodeId,
+        connections: [...incomingConnections, ...outgoingConnections],
+        previewConnections: [],
+        active: true
+    };
+    
+    // Visual feedback
+    const nodeEl = document.getElementById(nodeId);
+    if (nodeEl) {
+        nodeEl.classList.add('disconnect-mode');
+    }
+    
+    // Highlight all connections of this node
+    [...incomingConnections, ...outgoingConnections].forEach(conn => {
+        const connEl = document.getElementById(conn.id);
+        if (connEl) {
+            connEl.classList.add('disconnect-highlight');
+        }
+    });
+    
+    // Show instruction tooltip
+    showDisconnectTooltip(nodeEl, 'Klik op een verbinding om deze te verwijderen, of sleep naar een ander knooppunt om te herverbinden');
+    
+    // Add escape handler
+    document.addEventListener('keydown', handleDisconnectEscape);
+    
+    // Add outside click handler to cancel disconnect mode
+    document.addEventListener('click', handleDisconnectOutsideClick);
+    
+    // Add connection click handlers
+    [...incomingConnections, ...outgoingConnections].forEach(conn => {
+        const connEl = document.getElementById(conn.id);
+        if (connEl) {
+            connEl.addEventListener('click', handleConnectionDisconnect);
+        }
+    });
+}
+
+/**
+ * Handle clicking on a connection during disconnect mode
+ */
+function handleConnectionDisconnect(e) {
+    if (!window.disconnectMode || !window.disconnectMode.active) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const connectionId = e.currentTarget.id;
+    const connection = connections.find(conn => conn.id === connectionId);
+    
+    if (!connection) return;
+    
+    // Save state for undo
+    if (typeof saveStateForUndo === 'function') {
+        saveStateForUndo();
+    }
+    
+    // Show reconnection options
+    showReconnectionOptions(connection, e.clientX, e.clientY);
+}
+
+/**
+ * Show reconnection options when disconnecting a connection
+ */
+function showReconnectionOptions(connection, x, y) {
+    const modal = document.createElement('div');
+    modal.className = 'reconnect-options-modal';
+    modal.style.cssText = `
+        position: fixed;
+        left: ${x}px;
+        top: ${y}px;
+        background: #2d2d2d;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 12px;
+        z-index: 10000;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        min-width: 200px;
+    `;
+    
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+    
+    modal.innerHTML = `
+        <div style="color: #e0e0e0; font-size: 14px; margin-bottom: 8px;">Verbinding verwijderen:</div>
+        <div style="color: #999; font-size: 12px; margin-bottom: 12px;">${sourceNode?.title || 'Node'} → ${targetNode?.title || 'Node'}</div>
+        <button class="reconnect-btn" data-action="disconnect-only" style="
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 6px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        ">Gewoon verwijderen</button>
+        <button class="reconnect-btn" data-action="disconnect-reconnect" style="
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 6px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        ">Verwijderen en andere verbindingen aanpassen</button>
+        <button class="reconnect-btn" data-action="cancel" style="
+            display: block;
+            width: 100%;
+            padding: 8px;
+            background: #666;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        ">Annuleren</button>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Handle button clicks
+    modal.querySelectorAll('.reconnect-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const action = e.target.dataset.action;
+            
+            if (action === 'disconnect-only') {
+                deleteConnection(connection.id);
+                showToast('Verbinding verwijderd');
+            } else if (action === 'disconnect-reconnect') {
+                handleSmartDisconnect(connection);
+            }
+            
+            modal.remove();
+            exitDisconnectMode();
+        });
+    });
+    
+    // Close on outside click
+    setTimeout(() => {
+        document.addEventListener('click', function closeModal(e) {
+            if (!modal.contains(e.target)) {
+                modal.remove();
+                exitDisconnectMode();
+                document.removeEventListener('click', closeModal);
+            }
+        });
+    }, 100);
+}
+
+/**
+ * Handle smart disconnect - removes connection and intelligently reconnects
+ */
+function handleSmartDisconnect(connection) {
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const targetNode = nodes.find(n => n.id === connection.target);
+    
+    if (!sourceNode || !targetNode) return;
+    
+    // Find other connections that might need to be reconnected
+    const sourceOtherConnections = connections.filter(conn => 
+        conn.id !== connection.id && (conn.source === connection.source || conn.target === connection.source)
+    );
+    const targetOtherConnections = connections.filter(conn => 
+        conn.id !== connection.id && (conn.source === connection.target || conn.target === connection.target)
+    );
+    
+    // Delete the connection
+    deleteConnection(connection.id);
+    
+    // Show preview of what will happen
+    let message = `Verbinding ${sourceNode.title} → ${targetNode.title} verwijderd`;
+    
+    // If both nodes have other connections, suggest reconnecting
+    if (sourceOtherConnections.length > 0 && targetOtherConnections.length > 0) {
+        message += '. Andere verbindingen blijven intact.';
+    }
+    
+    showToast(message);
+    
+    // Refresh connections
+    if (typeof refreshConnections === 'function') {
+        refreshConnections();
+    }
+    
+    // Update minimap
+    if (typeof updateMinimap === 'function') {
+        updateMinimap();
+    }
+}
+
+/**
+ * Exit disconnect mode
+ */
+function exitDisconnectMode() {
+    if (!window.disconnectMode) return;
+    
+    // Remove visual feedback
+    const nodeEl = document.getElementById(window.disconnectMode.nodeId);
+    if (nodeEl) {
+        nodeEl.classList.remove('disconnect-mode');
+    }
+    
+    // Remove connection highlights
+    document.querySelectorAll('.connection').forEach(connEl => {
+        connEl.classList.remove('disconnect-highlight');
+        connEl.removeEventListener('click', handleConnectionDisconnect);
+    });
+    
+    // Remove tooltip
+    hideDisconnectTooltip();
+    
+    // Remove event listeners
+    document.removeEventListener('keydown', handleDisconnectEscape);
+    document.removeEventListener('click', handleDisconnectOutsideClick);
+    
+    // Clear mode
+    window.disconnectMode = null;
+}
+
+/**
+ * Handle escape key during disconnect mode
+ */
+function handleDisconnectEscape(e) {
+    if (e.key === 'Escape' && window.disconnectMode) {
+        exitDisconnectMode();
+        showToast('Ontkoppelen geannuleerd');
+    }
+}
+
+/**
+ * Handle clicks outside disconnect mode to cancel it
+ */
+function handleDisconnectOutsideClick(e) {
+    if (!window.disconnectMode) return;
+    
+    // Check if click is on a connection in disconnect mode
+    const connectionElement = e.target.closest('.connection');
+    if (connectionElement && connectionElement.classList.contains('disconnect-highlight')) {
+        return; // Let the connection click handler handle this
+    }
+    
+    // Check if click is on the disconnect mode node
+    const nodeElement = e.target.closest('.node');
+    if (nodeElement && nodeElement.id === window.disconnectMode.nodeId) {
+        return; // Allow interaction with the disconnect mode node
+    }
+    
+    // Check if click is on the modal
+    if (e.target.closest('.reconnect-options-modal')) {
+        return; // Allow interaction with the modal
+    }
+    
+    // Exit disconnect mode for any other clicks
+    exitDisconnectMode();
+}
+
+/**
+ * Show tooltip for disconnect mode
+ */
+function showDisconnectTooltip(nodeEl, message) {
+    hideDisconnectTooltip(); // Remove any existing tooltip
+    
+    const tooltip = document.createElement('div');
+    tooltip.id = 'disconnect-tooltip';
+    tooltip.style.cssText = `
+        position: absolute;
+        background: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        max-width: 200px;
+        z-index: 10001;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        border: 1px solid #555;
+    `;
+    tooltip.textContent = message;
+    
+    // Position tooltip above the node
+    const rect = nodeEl.getBoundingClientRect();
+    tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+    tooltip.style.top = (rect.top - 50) + 'px';
+    tooltip.style.transform = 'translateX(-50%)';
+    
+    document.body.appendChild(tooltip);
+}
+
+/**
+ * Hide disconnect tooltip
+ */
+function hideDisconnectTooltip() {
+    const tooltip = document.getElementById('disconnect-tooltip');
+    if (tooltip) {
+        tooltip.remove();
+    }
+}
+
+/**
+ * LEGACY: Keep for backward compatibility
+ * @param {string} nodeId - The ID of the node to disconnect
+ * @param {boolean} reconnectRemaining - Whether to reconnect the remaining nodes (default: true)
+ */
+function disconnectNode(nodeId, reconnectRemaining = true) {
+    // Use the new visual disconnect mode instead
+    startDisconnectMode(nodeId);
+}
+
+/**
+ * Insert a node into an existing connection
+ * @param {string} connectionId - The ID of the connection to insert into
+ * @param {number} x - X coordinate for the new node
+ * @param {number} y - Y coordinate for the new node
+ * @param {string} title - Title for the new node (optional)
+ * @param {string} color - Color for the new node (optional)
+ * @param {string} shape - Shape for the new node (optional)
+ */
+function insertNodeIntoConnection(connectionId, x, y, title = 'Nieuw knooppunt', color = '#4CAF50', shape = 'rounded') {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) {
+        showToast('Verbinding niet gevonden', true);
+        return null;
+    }
+    
+    // Sla huidige staat op voor undo functionaliteit
+    if (typeof saveStateForUndo === 'function') {
+        saveStateForUndo();
+    }
+    
+    // Maak een nieuwe node
+    const newNode = createNode(title, '', color, x, y, shape, null, false);
+    
+    if (!newNode) {
+        showToast('Kon knooppunt niet maken', true);
+        return null;
+    }
+    
+    // Bewaar originele verbinding info
+    const originalSource = connection.source;
+    const originalTarget = connection.target;
+    const originalLabel = connection.label;
+    const originalStyleClass = connection.styleClass;
+    
+    // Verwijder de originele verbinding
+    deleteConnection(connectionId);
+    
+    // Maak nieuwe verbindingen: source -> newNode -> target
+    const conn1 = createConnection(originalSource, newNode.id);
+    const conn2 = createConnection(newNode.id, originalTarget);
+    
+    // Kopieer originele eigenschappen naar beide nieuwe verbindingen
+    if (conn1) {
+        conn1.label = originalLabel;
+        conn1.styleClass = originalStyleClass;
+    }
+    if (conn2) {
+        conn2.label = originalLabel;
+        conn2.styleClass = originalStyleClass;
+    }
+    
+    // Vernieuw verbindingen
+    if (typeof refreshConnections === 'function') {
+        refreshConnections();
+    }
+    
+    // Update minimap
+    if (typeof updateMinimap === 'function') {
+        updateMinimap();
+    }
+    
+    // Selecteer de nieuwe node
+    currentSelectedNode = newNode.id;
+    
+    showToast('Knooppunt ingevoegd in verbinding');
+    return newNode;
+}
+
+/**
+ * IMPROVED: Check if a node can be dropped into a connection with better validation
+ * @param {string} nodeId - The ID of the node to check
+ * @param {string} connectionId - The ID of the connection to check
+ * @returns {boolean} True if the node can be dropped into the connection
+ */
+function canDropNodeIntoConnection(nodeId, connectionId) {
+    const node = nodes.find(n => n.id === nodeId);
+    const connection = connections.find(conn => conn.id === connectionId);
+    
+    if (!node || !connection) {
+        return false;
+    }
+    
+    // Kan niet droppen als de node al deel uitmaakt van deze verbinding
+    if (connection.source === nodeId || connection.target === nodeId) {
+        return false;
+    }
+    
+    // Kan niet droppen als dit een circulaire verbinding zou creëren
+    if (wouldCreateCircularConnection(nodeId, connection)) {
+        return false;
+    }
+    
+    // Extra check: don't allow dropping into branch connections
+    if (connection.isYBranch || connection.isTrueBranch) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Check if dropping a node into a connection would create a circular reference
+ * @param {string} nodeId - The ID of the node to check
+ * @param {object} connection - The connection object
+ * @returns {boolean} True if it would create a circular reference
+ */
+function wouldCreateCircularConnection(nodeId, connection) {
+    // Implementeer een eenvoudige cyclus-detectie
+    const visited = new Set();
+    const stack = [connection.source];
+    
+    while (stack.length > 0) {
+        const current = stack.pop();
+        
+        if (current === nodeId) {
+            return true; // Cyclus gevonden
+        }
+        
+        if (!visited.has(current)) {
+            visited.add(current);
+            
+            // Voeg alle ouders toe aan de stack
+            const parentConnections = connections.filter(conn => conn.target === current);
+            parentConnections.forEach(conn => {
+                if (!visited.has(conn.source)) {
+                    stack.push(conn.source);
+                }
+            });
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Handle dropping a node into a connection
+ * @param {string} nodeId - The ID of the node being dropped
+ * @param {string} connectionId - The ID of the connection to drop into
+ * @param {number} x - X coordinate of the drop position
+ * @param {number} y - Y coordinate of the drop position
+ */
+function dropNodeIntoConnection(nodeId, connectionId, x, y) {
+    if (!canDropNodeIntoConnection(nodeId, connectionId)) {
+        showToast('Kan knooppunt niet in deze verbinding plaatsen', true);
+        return;
+    }
+    
+    const node = nodes.find(n => n.id === nodeId);
+    const connection = connections.find(conn => conn.id === connectionId);
+    
+    if (!node || !connection) {
+        showToast('Knooppunt of verbinding niet gevonden', true);
+        return;
+    }
+    
+    // Sla huidige staat op voor undo functionaliteit
+    if (typeof saveStateForUndo === 'function') {
+        saveStateForUndo();
+    }
+    
+    // Verplaats het knooppunt naar de drop positie (exact waar gedropt)
+    // Get actual node dimensions from DOM element
+    const nodeEl = document.getElementById(nodeId);
+    let nodeWidth = 120; // Default width
+    let nodeHeight = 60; // Default height
+    
+    if (nodeEl) {
+        const rect = nodeEl.getBoundingClientRect();
+        nodeWidth = rect.width / zoomLevel;
+        nodeHeight = rect.height / zoomLevel;
+    }
+    
+    // Center the node on the drop position (subtract half width/height)
+    node.x = x - (nodeWidth / 2);
+    node.y = y - (nodeHeight / 2);
+    
+    // Update DOM positie
+    if (nodeEl) {
+        nodeEl.style.left = node.x + 'px';
+        nodeEl.style.top = node.y + 'px';
+    }
+    
+    // Bewaar originele verbinding info
+    const originalSource = connection.source;
+    const originalTarget = connection.target;
+    const originalLabel = connection.label;
+    const originalStyleClass = connection.styleClass;
+    
+    // Verwijder alle bestaande verbindingen van dit knooppunt
+    const nodeConnections = connections.filter(conn => 
+        conn.source === nodeId || conn.target === nodeId
+    );
+    nodeConnections.forEach(conn => {
+        deleteConnection(conn.id);
+    });
+    
+    // Verwijder de originele verbinding
+    deleteConnection(connectionId);
+    
+    // Maak nieuwe verbindingen: source -> node -> target
+    const conn1 = createConnection(originalSource, nodeId);
+    const conn2 = createConnection(nodeId, originalTarget);
+    
+    // Kopieer originele eigenschappen naar beide nieuwe verbindingen
+    if (conn1) {
+        conn1.label = originalLabel;
+        conn1.styleClass = originalStyleClass;
+    }
+    if (conn2) {
+        conn2.label = originalLabel;
+        conn2.styleClass = originalStyleClass;
+    }
+    
+    // Force refresh van alle verbindingen om er zeker van te zijn dat ze correct getekend worden
+    if (typeof resetConnectionCache === 'function') {
+        resetConnectionCache(); // Reset cache voor alle nodes
+    }
+    
+    // Update related connections voor alle betrokken nodes
+    if (typeof updateRelatedConnections === 'function') {
+        updateRelatedConnections(nodeId, false); // false = final update
+        updateRelatedConnections(originalSource, false);
+        updateRelatedConnections(originalTarget, false);
+    }
+    
+    // Vernieuw verbindingen
+    if (typeof refreshConnections === 'function') {
+        refreshConnections();
+    }
+    
+    // Update minimap
+    if (typeof updateMinimap === 'function') {
+        updateMinimap();
+    }
+    
+    // Selecteer het knooppunt
+    currentSelectedNode = nodeId;
+    
+    showToast('Knooppunt ingevoegd in verbinding');
 }

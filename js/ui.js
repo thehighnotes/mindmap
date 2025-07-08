@@ -4,6 +4,105 @@
 
 // Event handler voor mouseup (na verplaatsen)
 function handleMouseUp(e) {
+    // Handle reconnect drop eerst
+    if (window.reconnectingNode && isDragging) {
+        const dropTarget = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
+        
+        if (dropTarget && dropTarget.id !== window.reconnectingNode.node.id) {
+            const wouldCreateCycle = checkWouldCreateCycle(dropTarget.id, window.reconnectingNode.node.id);
+            
+            if (!wouldCreateCycle) {
+                // Verwijder oude verbindingen
+                window.reconnectingNode.originalParents.forEach(parentId => {
+                    const conn = connections.find(
+                        c => c.source === parentId && c.target === window.reconnectingNode.node.id
+                    );
+                    if (conn) {
+                        deleteConnection(conn.id);
+                    }
+                });
+                
+                // Maak nieuwe verbinding
+                createConnection(dropTarget.id, window.reconnectingNode.node.id);
+                
+                showToast('Node succesvol herverbonden!');
+            } else {
+                showToast('Kan geen circulaire verbinding maken', true);
+            }
+        }
+        
+        // Cleanup
+        document.querySelectorAll('.node').forEach(n => {
+            n.classList.remove('reconnecting', 'potential-new-parent');
+        });
+        window.reconnectingNode = null;
+    }
+    
+    // IMPROVED: Handle drop into connection with better detection
+    if (isDragging && draggedNode && !window.reconnectingNode) {
+        // Use larger search area for better sensitivity
+        const searchRadius = 15;
+        let dropTarget = null;
+        
+        // Check multiple points around the mouse cursor for better hit detection
+        for (let offsetX = -searchRadius; offsetX <= searchRadius; offsetX += 5) {
+            for (let offsetY = -searchRadius; offsetY <= searchRadius; offsetY += 5) {
+                const testX = e.clientX + offsetX;
+                const testY = e.clientY + offsetY;
+                const element = document.elementFromPoint(testX, testY);
+                
+                if (element) {
+                    // Check for connection-related elements
+                    const connectionElement = element.closest('.connection') || 
+                                            element.closest('.connection-path') ||
+                                            element.closest('.connection-hitzone') ||
+                                            (element.tagName === 'path' && element.closest('#connections-container'));
+                    
+                    if (connectionElement) {
+                        // Find the actual connection element with an ID
+                        dropTarget = connectionElement.id ? connectionElement : 
+                                   connectionElement.closest('[id^="conn-"]');
+                        if (dropTarget) break;
+                    }
+                }
+            }
+            if (dropTarget) break;
+        }
+        
+        if (dropTarget && canDropNodeIntoConnection(draggedNode.id, dropTarget.id)) {
+            // Calculate drop position in canvas coordinates - CORRECTED calculation
+            const canvasRect = canvas.getBoundingClientRect();
+            // Don't subtract canvasOffset here as it's already applied in CSS transform
+            const dropX = (e.clientX - canvasRect.left) / zoomLevel;
+            const dropY = (e.clientY - canvasRect.top) / zoomLevel;
+            
+            // Drop the node into the connection
+            dropNodeIntoConnection(draggedNode.id, dropTarget.id, dropX, dropY);
+            
+            // Update selection status
+            updateSelectionStatus();
+            
+            // Clean up drop target highlights
+            document.querySelectorAll('.connection').forEach(conn => {
+                conn.classList.remove('drop-target', 'drop-invalid');
+            });
+            
+            // Hide preview
+            hideDropPreview();
+            
+            // Exit early to avoid normal drag completion
+            isDragging = false;
+            draggedNode = null;
+            return;
+        }
+    }
+    
+    // Clean up drop highlights if not dropped into connection
+    document.querySelectorAll('.connection').forEach(conn => {
+        conn.classList.remove('drop-target', 'drop-invalid');
+    });
+    hideDropPreview();
+    
     // Reset drag status
     if (isDragging && draggedNode) {
         // Controleer of de node daadwerkelijk is verplaatst
@@ -82,6 +181,10 @@ function handleMouseUp(e) {
 // Cache voor het bijhouden van node verbindingen
 let nodeConnectionsCache = {};
 
+// Queue voor connection updates om race conditions te voorkomen
+let connectionUpdateQueue = [];
+let isProcessingConnectionQueue = false;
+
 /**
  * Reset de cache voor een specifieke node of voor alle nodes
  * @param {string|null} nodeId - Optionele node ID om voor te resetten, null voor alle nodes
@@ -97,54 +200,80 @@ function resetConnectionCache(nodeId = null) {
 }
 
 /**
+ * Helper functie om circulaire dependencies te detecteren
+ * @param {string} sourceId - ID van source node
+ * @param {string} targetId - ID van target node
+ * @returns {boolean} - True als een circulaire dependency zou ontstaan
+ */
+function checkWouldCreateCycle(sourceId, targetId) {
+    const visited = new Set();
+    const queue = [targetId];
+    
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (current === sourceId) return true;
+        
+        if (!visited.has(current)) {
+            visited.add(current);
+            const children = connections
+                .filter(c => c.source === current)
+                .map(c => c.target);
+            queue.push(...children);
+        }
+    }
+    
+    return false;
+}
+
+/**
  * Performance-geoptimaliseerde functie om alleen verbindingen te updaten
  * die gerelateerd zijn aan de gegeven node ID, inclusief aftakkingspunten
  * @param {string} nodeId - ID van de node waarvan verbindingen moeten worden bijgewerkt
  * @param {boolean} isForDrag - Geeft aan of deze update voor het slepen van een node is
  */
 function updateRelatedConnections(nodeId, isForDrag = true) {
-    // Bouw de cache op als die nog niet bestaat voor deze node
-    if (!nodeConnectionsCache[nodeId]) {
-        nodeConnectionsCache[nodeId] = connections.filter(conn => 
-            conn.source === nodeId || conn.target === nodeId ||
-            (conn.isTrueBranch && conn.branchNodeId === nodeId)
-        );
-    }
+    // Voeg update toe aan queue om race conditions te voorkomen
+    connectionUpdateQueue.push({ nodeId, isForDrag });
     
-    // Cache van de update zodat alleen de relevante verbindingen worden bijgewerkt
-    const relatedConnections = nodeConnectionsCache[nodeId];
-    
-    // Optimalisatie: Als er geen verbindingen zijn voor deze node, stoppen we
-    if (relatedConnections.length === 0) return;
-    
-    // Update alleen de verbindingen die aan deze node gerelateerd zijn
-    // Gebruik requestAnimationFrame voor vloeiendere beweging
-    if (!window.isUpdatingConnections) {
-        window.isUpdatingConnections = true;
+    if (!isProcessingConnectionQueue) {
+        isProcessingConnectionQueue = true;
         
-        // Gebruik requestAnimationFrame voor soepelere animatie
         requestAnimationFrame(() => {
-            // Bereken eerst alle controlepunten opnieuw bij een sleepactie
-            // Dit zorgt voor mooiere curves bij het verslepen over grotere afstanden
-            if (isForDrag) {
+            // Process alle queued updates
+            while (connectionUpdateQueue.length > 0) {
+                const { nodeId, isForDrag } = connectionUpdateQueue.shift();
+                
+                // Bouw de cache op als die nog niet bestaat voor deze node
+                if (!nodeConnectionsCache[nodeId]) {
+                    nodeConnectionsCache[nodeId] = connections.filter(conn => 
+                        conn.source === nodeId || conn.target === nodeId ||
+                        (conn.isTrueBranch && conn.branchNodeId === nodeId)
+                    );
+                }
+                
+                // Cache van de update zodat alleen de relevante verbindingen worden bijgewerkt
+                const relatedConnections = nodeConnectionsCache[nodeId];
+                
+                // Optimalisatie: Als er geen verbindingen zijn voor deze node, ga naar volgende
+                if (relatedConnections.length === 0) continue;
+                
+                // Bereken eerst alle controlepunten opnieuw bij een sleepactie
+                if (isForDrag) {
+                    relatedConnections.forEach(conn => {
+                        recalculateControlPoint(conn, true);
+                    });
+                }
+                
+                // Teken alle verbindingen opnieuw
                 relatedConnections.forEach(conn => {
-                    // Herbereken het controlepunt voor een betere UX
-                    // Behoud de richting van de curve tijdens het slepen
-                    recalculateControlPoint(conn, true);
+                    drawConnection(conn);
                 });
+                
+                // Update ook alle aftakkingspunten die aan deze node gerelateerd zijn
+                updateBranchStartPointsForNode(nodeId);
             }
             
-            // Teken alle verbindingen opnieuw
-            relatedConnections.forEach(conn => {
-                // Gebruik de bestaande drawConnection functie om deze verbinding te updaten
-                drawConnection(conn);
-            });
-            
-            // Update ook alle aftakkingspunten die aan deze node gerelateerd zijn
-            // Dit is cruciaal voor het correct bijwerken van branch verbindingen
-            updateBranchStartPointsForNode(nodeId);
-            
-            window.isUpdatingConnections = false;
+            isProcessingConnectionQueue = false;
         });
     }
 }
@@ -217,9 +346,99 @@ function handleMouseMove(e) {
         if (Math.random() < 0.2 && showMinimap) {
             updateMinimap();
         }
-    } 
+    }
+    
+    // Highlight potential nieuwe parents tijdens ALT+drag
+    if (window.reconnectingNode && isDragging) {
+        const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+        const targetNode = elementUnderMouse?.closest('.node');
+        
+        // Reset alle highlights
+        document.querySelectorAll('.node').forEach(n => {
+            n.classList.remove('potential-new-parent');
+        });
+        
+        if (targetNode && targetNode.id !== window.reconnectingNode.node.id) {
+            // Check voor circulaire dependencies
+            const targetId = targetNode.id;
+            const wouldCreateCycle = checkWouldCreateCycle(targetId, window.reconnectingNode.node.id);
+            
+            if (!wouldCreateCycle) {
+                targetNode.classList.add('potential-new-parent');
+            }
+        }
+    }
+    
+    // IMPROVED: Highlight connections during regular drag for drop-into-connection functionality
+    if (isDragging && draggedNode && !window.reconnectingNode) {
+        // Use enhanced detection with search radius
+        const searchRadius = 10;
+        let connectionElement = null;
+        
+        // Check multiple points around the mouse cursor for better hit detection
+        for (let offsetX = -searchRadius; offsetX <= searchRadius; offsetX += 3) {
+            for (let offsetY = -searchRadius; offsetY <= searchRadius; offsetY += 3) {
+                const testX = e.clientX + offsetX;
+                const testY = e.clientY + offsetY;
+                const element = document.elementFromPoint(testX, testY);
+                
+                if (element) {
+                    // Check for connection-related elements
+                    const foundConnection = element.closest('.connection') || 
+                                          element.closest('.connection-path') ||
+                                          element.closest('.connection-hitzone') ||
+                                          (element.tagName === 'path' && element.closest('#connections-container'));
+                    
+                    if (foundConnection) {
+                        // Find the actual connection element with an ID
+                        connectionElement = foundConnection.id ? foundConnection : 
+                                          foundConnection.closest('[id^="conn-"]');
+                        if (connectionElement) break;
+                    }
+                }
+            }
+            if (connectionElement) break;
+        }
+        
+        // Reset alle connection highlights
+        document.querySelectorAll('.connection').forEach(conn => {
+            conn.classList.remove('drop-target', 'drop-invalid');
+        });
+        
+        if (connectionElement) {
+            const connectionId = connectionElement.id;
+            const connection = connections.find(c => c.id === connectionId);
+            
+            // Check if we can drop this node into this connection
+            if (canDropNodeIntoConnection(draggedNode.id, connectionId)) {
+                connectionElement.classList.add('drop-target');
+                
+                // Show preview tooltip
+                const sourceNode = nodes.find(n => n.id === connection.source);
+                const targetNode = nodes.find(n => n.id === connection.target);
+                showDropPreview(e.clientX, e.clientY, `Invoegen tussen "${sourceNode?.title}" en "${targetNode?.title}"`);
+            } else {
+                connectionElement.classList.add('drop-invalid');
+                showDropPreview(e.clientX, e.clientY, 'Kan hier niet invoegen', true);
+            }
+        } else {
+            hideDropPreview();
+        }
+    } else {
+        // Clean up when not dragging
+        document.querySelectorAll('.connection').forEach(conn => {
+            conn.classList.remove('drop-target', 'drop-invalid');
+        });
+        hideDropPreview();
+        
+        // Also clean up ctrl tooltips if not in ctrl mode
+        if (!ctrlSelectMode) {
+            hideCtrlTooltip();
+        }
+    }
+    
     // Pan canvas
-    else if (canvasDragging) {
+    if (canvasDragging) {
         const moveX = e.clientX - canvasDragStart.x;
         const moveY = e.clientY - canvasDragStart.y;
         
@@ -230,8 +449,9 @@ function handleMouseMove(e) {
         
         updateCanvasTransform();
     }
+    
     // Update tijdelijke verbindingslijn
-    else if (currentTool === 'connect' && sourceNode) {
+    if (currentTool === 'connect' && sourceNode) {
         const sourceNodeObj = nodes.find(n => n.id === sourceNode);
         if (sourceNodeObj) {
             showTemporaryConnectionLine(sourceNodeObj, e);
@@ -241,8 +461,22 @@ function handleMouseMove(e) {
 
 // Context menu acties voor nodes
 function setupContextMenuActions() {
+    console.log('Setting up context menu actions...');
+    
+    // Controleer of alle DOM elementen bestaan
+    const contextEditEl = document.getElementById('context-edit');
+    if (!contextEditEl) {
+        console.error('context-edit element not found');
+        return;
+    }
+    
+    console.log('context-edit element found, adding event listener...');
+    
     // Bewerken via context menu
-    document.getElementById('context-edit').addEventListener('click', function() {
+    contextEditEl.addEventListener('click', function(e) {
+        console.log('Context edit clicked!');
+        e.stopPropagation();
+        e.preventDefault();
         const nodeId = contextMenu.dataset.nodeId;
         const node = nodes.find(n => n.id === nodeId);
         if (node) {
@@ -252,212 +486,294 @@ function setupContextMenuActions() {
     });
     
     // Hernoemen via context menu
-    document.getElementById('context-rename').addEventListener('click', function() {
-        const nodeId = contextMenu.dataset.nodeId;
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-            const nodeEl = document.getElementById(node.id);
-            if (nodeEl) {
-                const titleEl = nodeEl.querySelector('.node-title');
-                if (titleEl) {
-                    makeEditable(titleEl, node);
+    const contextRenameEl = document.getElementById('context-rename');
+    if (contextRenameEl) {
+        contextRenameEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                const nodeEl = document.getElementById(node.id);
+                if (nodeEl) {
+                    const titleEl = nodeEl.querySelector('.node-title');
+                    if (titleEl) {
+                        makeEditable(titleEl, node);
+                    }
                 }
             }
-        }
-        contextMenu.style.display = 'none';
-    });
+            contextMenu.style.display = 'none';
+        });
+    }
     
     // Nieuw subknooppunt via context menu
-    document.getElementById('context-create-child').addEventListener('click', function() {
-        const nodeId = contextMenu.dataset.nodeId;
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-            // Bereken positie voor nieuw knooppunt
-            const angleOffset = Math.random() * Math.PI;
-            const distance = 200;
-            const childX = node.x + Math.cos(angleOffset) * distance;
-            const childY = node.y + Math.sin(angleOffset) * distance;
-            
-            // Maak nieuw knooppunt
-            const childNode = createNode('Nieuw idee', '', node.color, childX, childY, 'rounded', node.id);
-            
-            // Open direct bewerken van de titel
-            const childEl = document.getElementById(childNode.id);
-            if (childEl) {
-                const titleEl = childEl.querySelector('.node-title');
-                if (titleEl) {
-                    makeEditable(titleEl, childNode);
+    const contextCreateChildEl = document.getElementById('context-create-child');
+    if (contextCreateChildEl) {
+        contextCreateChildEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                // Bereken positie voor nieuw knooppunt
+                const angleOffset = Math.random() * Math.PI;
+                const distance = 200;
+                const childX = node.x + Math.cos(angleOffset) * distance;
+                const childY = node.y + Math.sin(angleOffset) * distance;
+                
+                // Maak nieuw knooppunt
+                const childNode = createNode('Nieuw idee', '', node.color, childX, childY, 'rounded', node.id);
+                
+                // Open direct bewerken van de titel
+                const childEl = document.getElementById(childNode.id);
+                if (childEl) {
+                    const titleEl = childEl.querySelector('.node-title');
+                    if (titleEl) {
+                        makeEditable(titleEl, childNode);
+                    }
                 }
+                
+                showToast('Subknooppunt toegevoegd');
             }
-            
-            showToast('Subknooppunt toegevoegd');
-        }
-        contextMenu.style.display = 'none';
-    });
+            contextMenu.style.display = 'none';
+        });
+    }
     
     // Batch children via context menu
-    document.getElementById('context-batch-children').addEventListener('click', function() {
-        const nodeId = contextMenu.dataset.nodeId;
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-            // Selecteer de node en open batch text modal
-            selectNode(nodeId);
-            
-            const batchModal = document.getElementById('batch-text-modal');
-            const batchInput = document.getElementById('batch-text-input');
-            batchInput.value = '';
-            batchModal.style.display = 'flex';
-            batchInput.focus();
-        }
-        contextMenu.style.display = 'none';
-    });
+    const contextBatchChildrenEl = document.getElementById('context-batch-children');
+    if (contextBatchChildrenEl) {
+        contextBatchChildrenEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                // Selecteer de node en open batch text modal
+                selectNode(nodeId);
+                
+                const batchModal = document.getElementById('batch-text-modal');
+                const batchInput = document.getElementById('batch-text-input');
+                batchInput.value = '';
+                batchModal.style.display = 'flex';
+                batchInput.focus();
+            }
+            contextMenu.style.display = 'none';
+        });
+    }
     
     // Y-vertakking via context menu
-    document.getElementById('context-branch').addEventListener('click', function() {
-        const nodeId = contextMenu.dataset.nodeId;
-        const node = nodes.find(n => n.id === nodeId);
-        if (node) {
-            // Start branch modus met deze node als bron
-            branchingMode = true;
-            branchSourceNode = node.id;
-            
-            showToast('Klik op een ander knooppunt om een Y-vertakking te maken', false);
-            canvas.style.cursor = 'crosshair';
-            
-            // Tijdelijke globale klik handler om de bestemming te bepalen
-            function handleBranchTarget(e) {
-                if (e.target.classList.contains('node') || e.target.closest('.node')) {
-                    const targetNode = e.target.classList.contains('node') ? 
-                        e.target : e.target.closest('.node');
-                    const targetId = targetNode.id;
-                    
-                    // Maak alleen een verbinding als het een ander knooppunt is
-                    if (targetId !== branchSourceNode) {
-                        createConnection(branchSourceNode, targetId, true);
-                        showToast('Y-vertakking gemaakt');
+    const contextBranchEl = document.getElementById('context-branch');
+    if (contextBranchEl) {
+        contextBranchEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            const node = nodes.find(n => n.id === nodeId);
+            if (node) {
+                // Start branch modus met deze node als bron
+                branchingMode = true;
+                branchSourceNode = node.id;
+                
+                showToast('Klik op een ander knooppunt om een Y-vertakking te maken', false);
+                canvas.style.cursor = 'crosshair';
+                
+                // Tijdelijke globale klik handler om de bestemming te bepalen
+                function handleBranchTarget(e) {
+                    if (e.target.classList.contains('node') || e.target.closest('.node')) {
+                        const targetNode = e.target.classList.contains('node') ? 
+                            e.target : e.target.closest('.node');
+                        const targetId = targetNode.id;
+                        
+                        // Maak alleen een verbinding als het een ander knooppunt is
+                        if (targetId !== branchSourceNode) {
+                            createConnection(branchSourceNode, targetId, true);
+                            showToast('Y-vertakking gemaakt');
+                        }
+                        
+                        // Reset branch modus
+                        branchingMode = false;
+                        branchSourceNode = null;
+                        canvas.style.cursor = 'default';
+                        
+                        // Verwijder deze event listener
+                        document.removeEventListener('click', handleBranchTarget);
                     }
-                    
-                    // Reset branch modus
-                    branchingMode = false;
-                    branchSourceNode = null;
-                    canvas.style.cursor = 'default';
-                    
-                    // Verwijder deze event listener
-                    document.removeEventListener('click', handleBranchTarget);
                 }
+                
+                document.addEventListener('click', handleBranchTarget);
             }
             
-            document.addEventListener('click', handleBranchTarget);
-        }
-        
-        contextMenu.style.display = 'none';
-    });
+            contextMenu.style.display = 'none';
+        });
+    }
     
     // Hoofdknooppunt instellen via context menu
-    document.getElementById('context-set-root').addEventListener('click', function() {
-        const nodeId = contextMenu.dataset.nodeId;
-        setRootNode(nodeId);
-        contextMenu.style.display = 'none';
-    });
+    const contextSetRootEl = document.getElementById('context-set-root');
+    if (contextSetRootEl) {
+        contextSetRootEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            setRootNode(nodeId);
+            contextMenu.style.display = 'none';
+        });
+    }
+    
+    // Verbindingen bewerken via context menu
+    const contextDisconnectModeEl = document.getElementById('context-disconnect-mode');
+    if (contextDisconnectModeEl) {
+        contextDisconnectModeEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            startDisconnectMode(nodeId);
+            contextMenu.style.display = 'none';
+        });
+    }
     
     // Verwijderen via context menu
-    document.getElementById('context-delete').addEventListener('click', function() {
-        const nodeId = contextMenu.dataset.nodeId;
-        deleteNode(nodeId);
-        contextMenu.style.display = 'none';
-    });
+    const contextDeleteEl = document.getElementById('context-delete');
+    if (contextDeleteEl) {
+        contextDeleteEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const nodeId = contextMenu.dataset.nodeId;
+            deleteNode(nodeId);
+            contextMenu.style.display = 'none';
+        });
+    }
 }
 
 // Context menu acties voor verbindingen
 function setupConnectionContextMenuActions() {
     // Bewerken via context menu
-    document.getElementById('connection-edit').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            openConnectionEditor(connection);
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionEditEl = document.getElementById('connection-edit');
+    if (connectionEditEl) {
+        connectionEditEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                openConnectionEditor(connection);
+            }
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
     // Vertakking maken via context menu
-    document.getElementById('connection-branch').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            // Vind de verbinding element en controlepunt
-            const connectionEl = document.getElementById(connection.id);
-            if (connectionEl) {
-                const sourceNode = nodes.find(n => n.id === connection.source);
-                const targetNode = nodes.find(n => n.id === connection.target);
-                
-                if (sourceNode && targetNode) {
-                    const sourceCenter = { x: sourceNode.x + 60, y: sourceNode.y + 30 };
-                    const targetCenter = { x: targetNode.x + 60, y: targetNode.y + 30 };
+    const connectionBranchEl = document.getElementById('connection-branch');
+    if (connectionBranchEl) {
+        connectionBranchEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                // Vind de verbinding element en controlepunt
+                const connectionEl = document.getElementById(connection.id);
+                if (connectionEl) {
+                    const sourceNode = nodes.find(n => n.id === connection.source);
+                    const targetNode = nodes.find(n => n.id === connection.target);
                     
-                    const midX = (sourceCenter.x + targetCenter.x) / 2;
-                    const midY = (sourceCenter.y + targetCenter.y) / 2;
-                    
-                    startBranchFromConnection(connection, midX, midY);
+                    if (sourceNode && targetNode) {
+                        const sourceCenter = { x: sourceNode.x + 60, y: sourceNode.y + 30 };
+                        const targetCenter = { x: targetNode.x + 60, y: targetNode.y + 30 };
+                        
+                        const midX = (sourceCenter.x + targetCenter.x) / 2;
+                        const midY = (sourceCenter.y + targetCenter.y) / 2;
+                        
+                        startBranchFromConnection(connection, midX, midY);
+                    }
                 }
             }
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
     // Stijlen instellen via context menu
-    document.getElementById('connection-style-solid').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            setConnectionStyle(connection, 'solid');
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionStyleSolidEl = document.getElementById('connection-style-solid');
+    if (connectionStyleSolidEl) {
+        connectionStyleSolidEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                setConnectionStyle(connection, 'solid');
+            }
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
-    document.getElementById('connection-style-dashed').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            setConnectionStyle(connection, 'dashed');
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionStyleDashedEl = document.getElementById('connection-style-dashed');
+    if (connectionStyleDashedEl) {
+        connectionStyleDashedEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                setConnectionStyle(connection, 'dashed');
+            }
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
     // Types instellen via context menu
-    document.getElementById('connection-type-default').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            setConnectionType(connection, 'default');
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionTypeDefaultEl = document.getElementById('connection-type-default');
+    if (connectionTypeDefaultEl) {
+        connectionTypeDefaultEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                setConnectionType(connection, 'default');
+            }
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
-    document.getElementById('connection-type-primary').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            setConnectionType(connection, 'primary');
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionTypePrimaryEl = document.getElementById('connection-type-primary');
+    if (connectionTypePrimaryEl) {
+        connectionTypePrimaryEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                setConnectionType(connection, 'primary');
+            }
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
-    document.getElementById('connection-type-secondary').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        const connection = connections.find(c => c.id === connectionId);
-        if (connection) {
-            setConnectionType(connection, 'secondary');
-        }
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionTypeSecondaryEl = document.getElementById('connection-type-secondary');
+    if (connectionTypeSecondaryEl) {
+        connectionTypeSecondaryEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            const connection = connections.find(c => c.id === connectionId);
+            if (connection) {
+                setConnectionType(connection, 'secondary');
+            }
+            connectionContextMenu.style.display = 'none';
+        });
+    }
     
     // Verwijderen via context menu
-    document.getElementById('connection-delete').addEventListener('click', function() {
-        const connectionId = connectionContextMenu.dataset.connectionId;
-        deleteConnection(connectionId);
-        connectionContextMenu.style.display = 'none';
-    });
+    const connectionDeleteEl = document.getElementById('connection-delete');
+    if (connectionDeleteEl) {
+        connectionDeleteEl.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const connectionId = connectionContextMenu.dataset.connectionId;
+            deleteConnection(connectionId);
+            connectionContextMenu.style.display = 'none';
+        });
+    }
 }
 
 // Stel alle event listeners in
@@ -494,8 +810,7 @@ function setupEventListeners() {
         }
         
         // Verberg context menu indien open
-        contextMenu.style.display = 'none';
-        connectionContextMenu.style.display = 'none';
+        closeAllContextMenus();
         
         // Als pannen (spatiebalk) actief is
         if (tempPanMode || e.button === 1) { // Middle mouse button
@@ -552,7 +867,7 @@ function setupEventListeners() {
             }
             
             // Selecteer het nieuwe knooppunt
-            selectNode(newNode);
+            selectNode(newNode.id);
             
             showToast('Knooppunt toegevoegd');
         }
@@ -697,22 +1012,34 @@ function setupEventListeners() {
         undoLastAction();
     });
     
-    // Voeg de contextmenu actions toe
+    // Zoom to selection knop
+    const zoomToSelectionBtn = document.getElementById('zoom-to-selection');
+    if (zoomToSelectionBtn) {
+        zoomToSelectionBtn.addEventListener('click', function() {
+            zoomToSelection();
+        });
+    }
+    
+    // Sluit contextmenu bij klik elders - dit moet VOOR de context menu actions worden ingesteld
+    document.addEventListener('click', function(e) {
+        // Gebruik een setTimeout om ervoor te zorgen dat context menu klik handlers eerst kunnen uitvoeren
+        setTimeout(() => {
+            // Controleer of de klik binnen het contextmenu is
+            if (!contextMenu.contains(e.target) && !connectionContextMenu.contains(e.target)) {
+                closeAllContextMenus();
+            }
+        }, 0);
+    });
+    
+    // Voeg de contextmenu actions toe NADAT de document listener is ingesteld
     setupContextMenuActions();
     setupConnectionContextMenuActions();
-    
-    // Sluit contextmenu bij klik elders
-    document.addEventListener('click', function() {
-        contextMenu.style.display = 'none';
-        connectionContextMenu.style.display = 'none';
-    });
     
     // Voorkom standaard contextmenu
     canvas.addEventListener('contextmenu', function(e) {
         e.preventDefault();
         // Sluit bestaande context menu's als op canvas wordt geklikt
-        contextMenu.style.display = 'none';
-        connectionContextMenu.style.display = 'none';
+        closeAllContextMenus();
         
         // Alleen als we niet op een node of verbinding hebben geklikt
         if (!e.target.classList.contains('node') && 
@@ -762,7 +1089,7 @@ function setupEventListeners() {
                 }
                 
                 // Selecteer het nieuwe knooppunt
-                selectNode(newNode);
+                selectNode(newNode.id);
                 
                 canvasContextMenu.remove();
             });
@@ -849,6 +1176,27 @@ function setupEventListeners() {
             undoLastAction();
         }
         
+        // Copy met Ctrl+C
+        else if (e.ctrlKey && e.code === 'KeyC') {
+            e.preventDefault();
+            copySelectedNodes();
+        }
+        
+        // Paste met Ctrl+V
+        else if (e.ctrlKey && e.code === 'KeyV') {
+            e.preventDefault();
+            const rect = canvasContainer.getBoundingClientRect();
+            const centerX = ((-canvasOffset.x + rect.width / 2) / zoomLevel);
+            const centerY = ((-canvasOffset.y + rect.height / 2) / zoomLevel);
+            pasteNodes(centerX, centerY);
+        }
+        
+        // Zoom to selection met Ctrl+F
+        else if (e.ctrlKey && e.code === 'KeyF') {
+            e.preventDefault();
+            zoomToSelection();
+        }
+        
         // Grid aan/uit toggle met G
         if (e.code === 'KeyG' && !e.ctrlKey) {
             showGrid = !showGrid;
@@ -861,6 +1209,34 @@ function setupEventListeners() {
             miniMap.style.display = showMinimap ? 'block' : 'none';
             if (showMinimap) {
                 updateMinimap();
+            }
+        }
+        
+        // Tab voor quick child node
+        if (e.code === 'Tab' && currentSelectedNode && !currentSelectedNode.startsWith('conn-')) {
+            e.preventDefault();
+            const node = nodes.find(n => n.id === currentSelectedNode);
+            if (node) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 150;
+                const childNode = createNode(
+                    'Nieuw idee',
+                    '',
+                    node.color,
+                    node.x + Math.cos(angle) * distance,
+                    node.y + Math.sin(angle) * distance,
+                    'rounded',
+                    node.id
+                );
+                
+                // Maak direct bewerkbaar
+                const childEl = document.getElementById(childNode.id);
+                if (childEl) {
+                    const titleEl = childEl.querySelector('.node-title');
+                    if (titleEl) {
+                        makeEditable(titleEl, childNode);
+                    }
+                }
             }
         }
     });
@@ -1091,9 +1467,18 @@ function handleCanvasClick(e) {
 }
 
 // Aangepaste event handler voor node click
-function selectNode(node) {
+function selectNode(nodeOrId) {
     // Deselecteer huidige selectie
     deselectAll();
+    
+    // Accepteer zowel node object als node ID
+    const node = typeof nodeOrId === 'string' ? 
+        nodes.find(n => n.id === nodeOrId) : nodeOrId;
+    
+    if (!node) {
+        console.error('Node not found:', nodeOrId);
+        return;
+    }
     
     // Selecteer nieuwe node
     currentSelectedNode = node.id;
@@ -1212,7 +1597,7 @@ function handleAltSelectMode(e) {
             const nodeObj = nodes.find(n => n.id === nodeId);
             
             if (nodeObj) {
-                selectNode(nodeObj);
+                selectNode(nodeId);
             }
         }
         else if (e.target.classList.contains('connection-hitzone') || 
@@ -1249,6 +1634,9 @@ function setupImprovedEventListeners() {
             updateSelectionStatus();
         }
     });
+    
+    // Setup touch/mobile support
+    setupTouchSupport();
 }
 
 // Implementatie van CTRL-selectie voor het maken van verbindingen
@@ -1439,4 +1827,398 @@ function integrateUIEnhancements() {
     
     // 2. Toon een informatieve melding voor de gebruiker
     showToast('UI-verbeteringen geactiveerd: gebruik CTRL+klik voor verbindingen, hover over verbindingen voor opties');
+}
+
+// ==========================
+// TOUCH/MOBILE SUPPORT
+// ==========================
+
+let touchStartPos = null;
+let touchStartTime = null;
+let lastTouchEnd = 0;
+let touchHandled = false;
+let initialPinchDistance = null;
+let lastPinchDistance = null;
+
+/**
+ * Setup touch/mobile support for the mindmap
+ */
+function setupTouchSupport() {
+    // Touch start handler
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    
+    // Touch move handler
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    
+    // Touch end handler
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    
+    // Prevent ghost clicks after touch
+    canvas.addEventListener('click', handleGhostClick, { passive: false });
+    
+    // Add CSS for touch interactions
+    addTouchStyles();
+}
+
+/**
+ * Handle touch start events
+ */
+function handleTouchStart(e) {
+    const now = Date.now();
+    
+    if (e.touches.length === 1) {
+        // Single touch
+        touchStartPos = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+        touchStartTime = now;
+        touchHandled = false;
+        
+        // Simulate mousedown for existing functionality
+        const mouseEvent = new MouseEvent('mousedown', {
+            clientX: e.touches[0].clientX,
+            clientY: e.touches[0].clientY,
+            button: 0,
+            bubbles: true,
+            cancelable: true
+        });
+        e.target.dispatchEvent(mouseEvent);
+        
+    } else if (e.touches.length === 2) {
+        // Two finger touch - start pinch zoom
+        handlePinchStart(e);
+    }
+    
+    e.preventDefault();
+}
+
+/**
+ * Handle touch move events
+ */
+function handleTouchMove(e) {
+    if (e.touches.length === 1) {
+        // Single touch move - simulate mousemove
+        const mouseEvent = new MouseEvent('mousemove', {
+            clientX: e.touches[0].clientX,
+            clientY: e.touches[0].clientY,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(mouseEvent);
+        
+    } else if (e.touches.length === 2) {
+        // Two finger move - handle pinch zoom
+        handlePinchMove(e);
+    }
+    
+    e.preventDefault();
+}
+
+/**
+ * Handle touch end events
+ */
+function handleTouchEnd(e) {
+    const now = Date.now();
+    const touchDuration = touchStartTime ? now - touchStartTime : 0;
+    
+    // Check for double tap
+    if (touchStartPos && now - lastTouchEnd < 300 && touchDuration < 300) {
+        handleDoubleTap(e);
+        touchHandled = true;
+    }
+    
+    lastTouchEnd = now;
+    
+    // Simulate mouseup if we have a valid touch start position
+    if (touchStartPos) {
+        const mouseEvent = new MouseEvent('mouseup', {
+            clientX: touchStartPos.x,
+            clientY: touchStartPos.y,
+            bubbles: true,
+            cancelable: true
+        });
+        document.dispatchEvent(mouseEvent);
+    }
+    
+    // Set flag to prevent ghost clicks
+    setTimeout(() => {
+        touchHandled = false;
+    }, 300);
+    
+    e.preventDefault();
+}
+
+/**
+ * Handle double tap to create new node
+ */
+function handleDoubleTap(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (touchStartPos.x - rect.left) / zoomLevel;
+    const y = (touchStartPos.y - rect.top) / zoomLevel;
+    
+    // Snap to grid
+    const snapX = Math.round(x / gridSize) * gridSize;
+    const snapY = Math.round(y / gridSize) * gridSize;
+    
+    // Create new node
+    const newNode = createNode('Nieuw idee', '', '#4CAF50', snapX, snapY, 'rounded', null, nodes.length === 0);
+    
+    // Make title editable
+    setTimeout(() => {
+        const nodeEl = document.getElementById(newNode.id);
+        if (nodeEl) {
+            const titleEl = nodeEl.querySelector('.node-title');
+            if (titleEl) {
+                makeEditable(titleEl, newNode);
+            }
+        }
+    }, 100);
+    
+    showToast('Nieuwe node toegevoegd (dubbel-tik)');
+}
+
+/**
+ * Prevent ghost clicks after touch events
+ */
+function handleGhostClick(e) {
+    if (touchHandled) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+}
+
+/**
+ * Handle pinch start for zoom
+ */
+function handlePinchStart(e) {
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    
+    initialPinchDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+    );
+    lastPinchDistance = initialPinchDistance;
+    
+    // Disable drag operations during pinch
+    if (isDragging) {
+        isDragging = false;
+        draggedNode = null;
+    }
+}
+
+/**
+ * Handle pinch move for zoom
+ */
+function handlePinchMove(e) {
+    const touch1 = e.touches[0];
+    const touch2 = e.touches[1];
+    
+    const currentDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+    );
+    
+    if (lastPinchDistance > 0) {
+        const scale = currentDistance / lastPinchDistance;
+        const newZoom = Math.max(0.1, Math.min(3, zoomLevel * scale));
+        setZoomLevel(newZoom);
+    }
+    
+    lastPinchDistance = currentDistance;
+}
+
+/**
+ * Add CSS styles for touch interactions
+ */
+function addTouchStyles() {
+    const touchStyles = document.createElement('style');
+    touchStyles.textContent = `
+        /* Touch-friendly styles */
+        @media (hover: none) and (pointer: coarse) {
+            .node {
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 16px;
+            }
+            
+            .context-menu {
+                font-size: 18px;
+            }
+            
+            .context-menu-item {
+                padding: 12px 16px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+            }
+            
+            .tool-btn {
+                min-width: 44px;
+                min-height: 44px;
+                padding: 12px;
+            }
+            
+            .zoom-controls button {
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 18px;
+            }
+            
+            /* Prevent text selection on touch devices */
+            .node-title, .node-content {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                -khtml-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+            }
+            
+            /* Make editable elements selectable when in edit mode */
+            .node-title[contenteditable="true"], 
+            .node-content[contenteditable="true"] {
+                -webkit-user-select: text;
+                -moz-user-select: text;
+                -ms-user-select: text;
+                user-select: text;
+            }
+        }
+        
+        /* Visual feedback for touch interactions */
+        .node:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease;
+        }
+        
+        .tool-btn:active {
+            background-color: rgba(0, 0, 0, 0.1);
+            transform: scale(0.95);
+        }
+        
+        /* Improve touch target sizes */
+        .connection-label {
+            min-width: 44px;
+            min-height: 44px;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Touch-friendly scrollbars */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+    `;
+    document.head.appendChild(touchStyles);
+}
+
+// ==========================
+// CONTEXT MENU CLEANUP
+// ==========================
+
+/**
+ * Close all context menus and clean up tooltips
+ */
+function closeAllContextMenus() {
+    // Close standard context menus
+    contextMenu.style.display = 'none';
+    connectionContextMenu.style.display = 'none';
+    
+    // Close dynamically created canvas context menus
+    document.querySelectorAll('.context-menu').forEach(menu => {
+        if (menu !== contextMenu && menu !== connectionContextMenu) {
+            menu.remove();
+        }
+    });
+    
+    // Clean up tooltips
+    hideDropPreview();
+    hideCtrlTooltip();
+}
+
+// ==========================
+// DROP PREVIEW FUNCTIONS
+// ==========================
+
+let dropPreviewTooltip = null;
+
+/**
+ * Show a preview tooltip during drag operations
+ * @param {number} x - X coordinate for tooltip position
+ * @param {number} y - Y coordinate for tooltip position  
+ * @param {string} message - Message to display in tooltip
+ * @param {boolean} isError - Whether this is an error message (red styling)
+ */
+function showDropPreview(x, y, message, isError = false) {
+    // Remove existing tooltip
+    hideDropPreview();
+    
+    // Create new tooltip
+    dropPreviewTooltip = document.createElement('div');
+    dropPreviewTooltip.className = 'drop-preview-tooltip';
+    dropPreviewTooltip.textContent = message;
+    
+    // Apply styling
+    dropPreviewTooltip.style.cssText = `
+        position: fixed;
+        left: ${x + 15}px;
+        top: ${y + 15}px;
+        background: ${isError ? '#f44336' : '#4CAF50'};
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        z-index: 10000;
+        pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        white-space: nowrap;
+        max-width: 200px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-5px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    `;
+    
+    document.body.appendChild(dropPreviewTooltip);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        if (dropPreviewTooltip) {
+            dropPreviewTooltip.style.opacity = '1';
+            dropPreviewTooltip.style.transform = 'translateY(0)';
+        }
+    });
+}
+
+/**
+ * Hide the drop preview tooltip
+ */
+function hideDropPreview() {
+    if (dropPreviewTooltip) {
+        dropPreviewTooltip.style.opacity = '0';
+        dropPreviewTooltip.style.transform = 'translateY(-5px)';
+        
+        setTimeout(() => {
+            if (dropPreviewTooltip) {
+                dropPreviewTooltip.remove();
+                dropPreviewTooltip = null;
+            }
+        }, 150); // Reduced timeout for faster cleanup
+    }
 }
