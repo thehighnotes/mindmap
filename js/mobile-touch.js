@@ -46,6 +46,13 @@ class TouchGestureManager {
     }
     
     init() {
+        // Check if canvas is available
+        if (typeof canvas === 'undefined' || !canvas) {
+            console.warn('⚠️ Canvas not available for touch gesture manager, retrying...');
+            setTimeout(() => this.init(), 100);
+            return;
+        }
+        
         // Bind touch events with proper options
         canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
         canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
@@ -394,10 +401,16 @@ class TouchGestureManager {
     }
     
     getCanvasCoordinates(touch) {
+        if (!canvas) {
+            console.warn('⚠️ Canvas not available for coordinate calculation');
+            return { x: 0, y: 0 };
+        }
+        
         const canvasRect = canvas.getBoundingClientRect();
+        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
         return {
-            x: (touch.clientX - canvasRect.left) / zoomLevel,
-            y: (touch.clientY - canvasRect.top) / zoomLevel
+            x: (touch.clientX - canvasRect.left) / zoom,
+            y: (touch.clientY - canvasRect.top) / zoom
         };
     }
     
@@ -447,6 +460,13 @@ class MobileTouchManager {
         this.activeElement = null;
         this.touchConnectionStart = null;
         this.touchConnectionLine = null;
+        
+        // Drag mode state
+        this.isDragModeEnabled = false;
+        this.dragModeNode = null;
+        this.dragModeElement = null;
+        this.dragModeStartPos = null;
+        this.dragModeActive = false;
         
         this.init();
     }
@@ -532,16 +552,22 @@ class MobileTouchManager {
     }
     
     handleDoubleTap(data) {
-        const element = data.target.closest('.node');
+        const element = data.target.closest('.node, .connection');
         
         if (element) {
-            // Edit node
-            const node = nodes.find(n => n.id === element.id);
-            if (node) {
-                this.showTouchFeedback(element, 'doubleTap');
-                const titleEl = element.querySelector('.node-title');
-                if (titleEl) {
-                    makeEditable(titleEl, node);
+            this.showTouchFeedback(element, 'doubleTap');
+            
+            if (element.classList.contains('node')) {
+                // Open context menu for node
+                const node = nodes.find(n => n.id === element.id);
+                if (node) {
+                    this.showTouchContextMenu(data.position.x, data.position.y, 'node', node);
+                }
+            } else if (element.classList.contains('connection')) {
+                // Open context menu for connection
+                const connection = connections.find(c => c.id === element.id);
+                if (connection) {
+                    this.showTouchContextMenu(data.position.x, data.position.y, 'connection', connection);
                 }
             }
         } else {
@@ -551,29 +577,45 @@ class MobileTouchManager {
     }
     
     handleLongPress(data) {
-        const element = data.target.closest('.node, .connection');
+        const element = data.target.closest('.node');
         
-        if (element) {
-            this.showTouchFeedback(element, 'longPress');
-            
-            if (element.classList.contains('node')) {
-                const node = nodes.find(n => n.id === element.id);
-                if (node) {
-                    this.showTouchContextMenu(data.position.x, data.position.y, 'node', node);
-                }
-            } else if (element.classList.contains('connection')) {
-                const connection = connections.find(c => c.id === element.id);
+        if (element && element.classList.contains('node')) {
+            // Long press on node - enable dragging mode
+            const node = nodes.find(n => n.id === element.id);
+            if (node) {
+                this.showTouchFeedback(element, 'longPress');
+                
+                // Select the node first
+                selectNode(node.id);
+                
+                // Enable dragging mode
+                this.enableDragMode(element, node, data);
+                
+                // Show visual feedback for drag mode
+                this.showToast('Drag-modus ingeschakeld (sleep om te verplaatsen)', false);
+            }
+        } else {
+            // Long press on canvas or connection - show context menu
+            const connectionElement = data.target.closest('.connection');
+            if (connectionElement) {
+                const connection = connections.find(c => c.id === connectionElement.id);
                 if (connection) {
                     this.showTouchContextMenu(data.position.x, data.position.y, 'connection', connection);
                 }
+            } else {
+                // Long press on canvas
+                this.showTouchContextMenu(data.position.x, data.position.y, 'canvas', null);
             }
-        } else {
-            // Long press on canvas
-            this.showTouchContextMenu(data.position.x, data.position.y, 'canvas', null);
         }
     }
     
     handleDragStart(data) {
+        // Check if we're in drag mode and should handle this differently
+        if (this.isDragModeEnabled && this.dragModeNode) {
+            // Already in drag mode, don't start new drag
+            return;
+        }
+        
         const element = data.target.closest('.node, .connection');
         
         if (element) {
@@ -581,7 +623,9 @@ class MobileTouchManager {
             this.showTouchFeedback(element, 'dragStart');
             
             if (element.classList.contains('node')) {
-                this.startNodeDrag(element, data);
+                // Don't start regular node drag, require long press for drag mode
+                // This prevents accidental dragging
+                return;
             } else if (element.classList.contains('connection')) {
                 this.startConnectionDrag(element, data);
             }
@@ -592,9 +636,16 @@ class MobileTouchManager {
     }
     
     handleDrag(data) {
+        // Check if we're in drag mode
+        if (this.isDragModeEnabled && this.dragModeNode) {
+            this.handleDragModeMove(data);
+            return;
+        }
+        
         if (this.activeElement) {
             if (this.activeElement.classList.contains('node')) {
-                this.updateNodeDrag(this.activeElement, data);
+                // Regular node drag is disabled, only drag mode allowed
+                return;
             } else if (this.activeElement.classList.contains('connection')) {
                 this.updateConnectionDrag(this.activeElement, data);
             }
@@ -623,14 +674,20 @@ class MobileTouchManager {
     
     handlePinchStart(data) {
         // Store initial zoom state
-        this.initialZoom = zoomLevel;
-        this.initialOffset = { ...canvasOffset };
+        this.initialZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        this.initialOffset = typeof canvasOffset !== 'undefined' ? { ...canvasOffset } : { x: 0, y: 0 };
         
         // Show zoom indicator
         this.showZoomIndicator(data.center.x, data.center.y);
     }
     
     handlePinch(data) {
+        // Check if required globals are available
+        if (typeof setZoomLevel === 'undefined' || typeof updateCanvasTransform === 'undefined') {
+            console.warn('⚠️ Required zoom functions not available');
+            return;
+        }
+        
         // Calculate new zoom level
         const newZoom = Math.max(0.1, Math.min(3, this.initialZoom * data.scale));
         
@@ -642,10 +699,12 @@ class MobileTouchManager {
         // Apply zoom
         setZoomLevel(newZoom);
         
-        // Adjust offset to zoom towards center
-        const containerRect = canvasContainer.getBoundingClientRect();
-        canvasOffset.x = this.initialOffset.x + (containerRect.width / 2 - data.center.x) * (newZoom - this.initialZoom);
-        canvasOffset.y = this.initialOffset.y + (containerRect.height / 2 - data.center.y) * (newZoom - this.initialZoom);
+        // Adjust offset to zoom towards center if canvasContainer is available
+        if (typeof canvasContainer !== 'undefined' && canvasContainer && typeof canvasOffset !== 'undefined') {
+            const containerRect = canvasContainer.getBoundingClientRect();
+            canvasOffset.x = this.initialOffset.x + (containerRect.width / 2 - data.center.x) * (newZoom - this.initialZoom);
+            canvasOffset.y = this.initialOffset.y + (containerRect.height / 2 - data.center.y) * (newZoom - this.initialZoom);
+        }
         
         updateCanvasTransform();
         
@@ -659,26 +718,158 @@ class MobileTouchManager {
     
     handleSwipe(data) {
         // Quick navigation based on swipe direction
+        console.log('🚀 Swipe detected:', data.direction, 'velocity:', data.velocity);
+        
+        // Check if required functions are available
+        if (typeof setZoomLevel === 'undefined' || typeof updateCanvasTransform === 'undefined') {
+            console.warn('⚠️ Required navigation functions not available');
+            return;
+        }
+        
+        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        
         switch (data.direction) {
             case 'up':
                 // Zoom in
-                setZoomLevel(zoomLevel * 1.2);
+                const newZoomUp = Math.min(3, currentZoom * 1.2);
+                setZoomLevel(newZoomUp);
+                updateCanvasTransform();
+                this.showToast(`Zoom in: ${Math.round(newZoomUp * 100)}%`, false);
                 break;
             case 'down':
                 // Zoom out
-                setZoomLevel(zoomLevel / 1.2);
+                const newZoomDown = Math.max(0.1, currentZoom / 1.2);
+                setZoomLevel(newZoomDown);
+                updateCanvasTransform();
+                this.showToast(`Zoom uit: ${Math.round(newZoomDown * 100)}%`, false);
                 break;
             case 'left':
                 // Pan right
-                canvasOffset.x += 100;
-                updateCanvasTransform();
+                if (typeof canvasOffset !== 'undefined') {
+                    canvasOffset.x += 100;
+                    updateCanvasTransform();
+                    this.showToast('Pan naar rechts', false);
+                }
                 break;
             case 'right':
                 // Pan left
-                canvasOffset.x -= 100;
-                updateCanvasTransform();
+                if (typeof canvasOffset !== 'undefined') {
+                    canvasOffset.x -= 100;
+                    updateCanvasTransform();
+                    this.showToast('Pan naar links', false);
+                }
                 break;
         }
+    }
+    
+    enableDragMode(element, node, data) {
+        // Set dragging mode state
+        this.isDragModeEnabled = true;
+        this.dragModeNode = node;
+        this.dragModeElement = element;
+        this.dragModeStartPos = data.position;
+        this.dragModeNodeStartPos = { x: node.x, y: node.y }; // Store original node position
+        this.dragModeLastPos = null; // Track last position for relative movement
+        
+        // Visual feedback for drag mode
+        element.style.transform = 'scale(1.05)';
+        element.style.opacity = '0.8';
+        element.style.zIndex = '1000';
+        element.classList.add('drag-mode-active');
+        
+        // Save state for undo
+        if (typeof saveStateForUndo !== 'undefined') {
+            saveStateForUndo();
+        }
+        
+        // Set up drag listener
+        this.setupDragModeListeners();
+    }
+    
+    setupDragModeListeners() {
+        // Override normal gesture handlers while in drag mode
+        this.dragModeActive = true;
+        
+        // Listen for drag gestures
+        this.gestureManager.on('drag', (data) => {
+            if (this.isDragModeEnabled && this.dragModeNode) {
+                this.handleDragModeMove(data);
+            }
+        });
+        
+        // Listen for drag end
+        this.gestureManager.on('dragend', (data) => {
+            if (this.isDragModeEnabled) {
+                this.disableDragMode();
+            }
+        });
+        
+        // Listen for tap to disable drag mode
+        this.gestureManager.on('tap', (data) => {
+            if (this.isDragModeEnabled) {
+                this.disableDragMode();
+            }
+        });
+    }
+    
+    handleDragModeMove(data) {
+        if (!this.dragModeNode || !this.dragModeElement) return;
+        
+        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        
+        // Calculate delta from the drag start position, not from current position
+        const totalDeltaX = (data.currentPosition.x - this.dragModeStartPos.x) / currentZoom;
+        const totalDeltaY = (data.currentPosition.y - this.dragModeStartPos.y) / currentZoom;
+        
+        // Calculate new position based on original node position + total delta
+        const newX = this.dragModeNodeStartPos.x + totalDeltaX;
+        const newY = this.dragModeNodeStartPos.y + totalDeltaY;
+        
+        // Snap to grid
+        const currentGridSize = typeof gridSize !== 'undefined' ? gridSize : 20;
+        const snapX = Math.round(newX / currentGridSize) * currentGridSize;
+        const snapY = Math.round(newY / currentGridSize) * currentGridSize;
+        
+        // Update node position
+        this.dragModeNode.x = snapX;
+        this.dragModeNode.y = snapY;
+        
+        // Update DOM element position
+        this.dragModeElement.style.left = snapX + 'px';
+        this.dragModeElement.style.top = snapY + 'px';
+        
+        // Update connections
+        if (typeof updateRelatedConnections !== 'undefined') {
+            updateRelatedConnections(this.dragModeNode.id, true);
+        }
+    }
+    
+    disableDragMode() {
+        if (!this.isDragModeEnabled) return;
+        
+        // Reset visual feedback
+        if (this.dragModeElement) {
+            this.dragModeElement.style.transform = '';
+            this.dragModeElement.style.opacity = '';
+            this.dragModeElement.style.zIndex = '';
+            this.dragModeElement.classList.remove('drag-mode-active');
+        }
+        
+        // Final connection update
+        if (this.dragModeNode && typeof refreshConnections !== 'undefined') {
+            refreshConnections();
+        }
+        
+        // Reset state
+        this.isDragModeEnabled = false;
+        this.dragModeNode = null;
+        this.dragModeElement = null;
+        this.dragModeStartPos = null;
+        this.dragModeNodeStartPos = null;
+        this.dragModeLastPos = null;
+        this.dragModeActive = false;
+        
+        this.showToast('Drag-modus uitgeschakeld', false);
     }
     
     // Node-specific touch handlers
@@ -833,8 +1024,9 @@ class MobileTouchManager {
     
     // Touch-specific UI methods
     createNodeAtPosition(x, y) {
-        const snapX = Math.round(x / gridSize) * gridSize;
-        const snapY = Math.round(y / gridSize) * gridSize;
+        const currentGridSize = typeof gridSize !== 'undefined' ? gridSize : 20;
+        const snapX = Math.round(x / currentGridSize) * currentGridSize;
+        const snapY = Math.round(y / currentGridSize) * currentGridSize;
         
         const newNode = createNode('Nieuw idee', '', '#4CAF50', snapX, snapY, 'rounded', null, nodes.length === 0);
         
@@ -874,9 +1066,15 @@ class MobileTouchManager {
         if (type === 'node' && target) {
             menuItems = [
                 { label: 'Bewerken', action: () => openNodeEditor(target) },
-                { label: 'Hernoemen', action: () => {
+                { label: 'Tekst bewerken', action: () => {
                     const titleEl = document.querySelector(`#${target.id} .node-title`);
                     if (titleEl) makeEditable(titleEl, target);
+                }},
+                { label: 'Drag-modus', action: () => {
+                    const element = document.getElementById(target.id);
+                    if (element) {
+                        this.enableDragMode(element, target, { position: { x: x, y: y } });
+                    }
                 }},
                 { label: 'Nieuw subknooppunt', action: () => {
                     const angle = Math.random() * Math.PI * 2;
@@ -1035,7 +1233,8 @@ class MobileTouchManager {
             z-index: 10000;
             pointer-events: none;
         `;
-        this.zoomIndicator.textContent = Math.round(zoomLevel * 100) + '%';
+        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        this.zoomIndicator.textContent = Math.round(currentZoom * 100) + '%';
         
         document.body.appendChild(this.zoomIndicator);
     }
@@ -1205,6 +1404,54 @@ class MobileTouchManager {
                 background: rgba(255, 255, 255, 0.6);
                 animation: touchRipple 0.6s ease-out;
                 pointer-events: none;
+            }
+            
+            /* Drag mode styles */
+            .drag-mode-active {
+                border: 2px solid #FF9800 !important;
+                box-shadow: 0 0 20px rgba(255, 152, 0, 0.6) !important;
+                animation: dragModePulse 1.5s ease-in-out infinite alternate;
+            }
+            
+            @keyframes dragModePulse {
+                0% { 
+                    box-shadow: 0 0 20px rgba(255, 152, 0, 0.6);
+                }
+                100% { 
+                    box-shadow: 0 0 30px rgba(255, 152, 0, 0.8);
+                }
+            }
+            
+            /* Enhanced swipe feedback */
+            .swipe-feedback {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-size: 14px;
+                font-weight: bold;
+                z-index: 10000;
+                pointer-events: none;
+                animation: swipeFeedback 0.8s ease-out;
+            }
+            
+            @keyframes swipeFeedback {
+                0% { 
+                    opacity: 0;
+                    transform: translate(-50%, -50%) scale(0.8);
+                }
+                30% { 
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scale(1);
+                }
+                100% { 
+                    opacity: 0;
+                    transform: translate(-50%, -50%) scale(1.1);
+                }
             }
         `;
         document.head.appendChild(style);
@@ -1390,6 +1637,13 @@ class MobileTouchManager {
 let mobileTouchManager = null;
 
 function initializeMobileTouch() {
+    // Check if required globals are available
+    if (typeof canvas === 'undefined' || !canvas) {
+        console.warn('⚠️ Canvas not available for mobile touch initialization, retrying...');
+        setTimeout(initializeMobileTouch, 100);
+        return;
+    }
+    
     if (mobileTouchManager) {
         mobileTouchManager.cleanup();
     }
@@ -1402,11 +1656,12 @@ function initializeMobileTouch() {
     console.log('📱 Enhanced mobile touch support initialized');
 }
 
-// Auto-initialize when DOM is ready
+// Auto-initialize when DOM is ready and canvas is available
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeMobileTouch);
 } else {
-    initializeMobileTouch();
+    // Wait a bit for the canvas to be initialized
+    setTimeout(initializeMobileTouch, 100);
 }
 
 // Export for manual initialization
