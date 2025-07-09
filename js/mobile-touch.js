@@ -468,6 +468,12 @@ class MobileTouchManager {
         this.dragModeStartPos = null;
         this.dragModeActive = false;
         
+        // Connection mode state
+        this.isConnectionModeEnabled = false;
+        this.connectionStartNode = null;
+        this.connectionStartElement = null;
+        this.connectionPreviewLine = null;
+        
         this.init();
     }
     
@@ -691,19 +697,31 @@ class MobileTouchManager {
         // Calculate new zoom level
         const newZoom = Math.max(0.1, Math.min(3, this.initialZoom * data.scale));
         
-        // Calculate zoom center in canvas coordinates
+        // Get pinch center relative to canvas container
         const canvasRect = canvas.getBoundingClientRect();
-        const centerX = (data.center.x - canvasRect.left) / this.initialZoom;
-        const centerY = (data.center.y - canvasRect.top) / this.initialZoom;
+        const containerRect = (typeof canvasContainer !== 'undefined' && canvasContainer) ? 
+            canvasContainer.getBoundingClientRect() : canvasRect;
+        
+        // Calculate zoom center in container coordinates
+        const centerX = data.center.x - containerRect.left;
+        const centerY = data.center.y - containerRect.top;
+        
+        // Calculate how much the canvas should move to keep the pinch center fixed
+        const zoomDelta = newZoom - this.initialZoom;
+        const scaleRatio = newZoom / this.initialZoom;
         
         // Apply zoom
         setZoomLevel(newZoom);
         
-        // Adjust offset to zoom towards center if canvasContainer is available
-        if (typeof canvasContainer !== 'undefined' && canvasContainer && typeof canvasOffset !== 'undefined') {
-            const containerRect = canvasContainer.getBoundingClientRect();
-            canvasOffset.x = this.initialOffset.x + (containerRect.width / 2 - data.center.x) * (newZoom - this.initialZoom);
-            canvasOffset.y = this.initialOffset.y + (containerRect.height / 2 - data.center.y) * (newZoom - this.initialZoom);
+        // Adjust offset to zoom towards pinch center
+        if (typeof canvasOffset !== 'undefined') {
+            // Calculate the point in canvas coordinates that should remain fixed
+            const fixedPointX = (centerX - this.initialOffset.x) / this.initialZoom;
+            const fixedPointY = (centerY - this.initialOffset.y) / this.initialZoom;
+            
+            // Calculate new offset to keep the fixed point at the same screen position
+            canvasOffset.x = centerX - (fixedPointX * newZoom);
+            canvasOffset.y = centerY - (fixedPointY * newZoom);
         }
         
         updateCanvasTransform();
@@ -717,48 +735,47 @@ class MobileTouchManager {
     }
     
     handleSwipe(data) {
-        // Quick navigation based on swipe direction
+        // Quick navigation based on swipe direction - PAN ONLY (no zoom)
         console.log('🚀 Swipe detected:', data.direction, 'velocity:', data.velocity);
         
         // Check if required functions are available
-        if (typeof setZoomLevel === 'undefined' || typeof updateCanvasTransform === 'undefined') {
+        if (typeof updateCanvasTransform === 'undefined') {
             console.warn('⚠️ Required navigation functions not available');
             return;
         }
         
-        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        // Calculate pan distance based on velocity (higher velocity = more movement)
+        const basePanDistance = 100;
+        const velocityMultiplier = Math.min(data.velocity * 200, 300); // Cap at 300px
+        const panDistance = Math.max(basePanDistance, velocityMultiplier);
         
-        switch (data.direction) {
-            case 'up':
-                // Zoom in
-                const newZoomUp = Math.min(3, currentZoom * 1.2);
-                setZoomLevel(newZoomUp);
-                updateCanvasTransform();
-                this.showToast(`Zoom in: ${Math.round(newZoomUp * 100)}%`, false);
-                break;
-            case 'down':
-                // Zoom out
-                const newZoomDown = Math.max(0.1, currentZoom / 1.2);
-                setZoomLevel(newZoomDown);
-                updateCanvasTransform();
-                this.showToast(`Zoom uit: ${Math.round(newZoomDown * 100)}%`, false);
-                break;
-            case 'left':
-                // Pan right
-                if (typeof canvasOffset !== 'undefined') {
-                    canvasOffset.x += 100;
+        if (typeof canvasOffset !== 'undefined') {
+            switch (data.direction) {
+                case 'up':
+                    // Pan up (move canvas down)
+                    canvasOffset.y += panDistance;
                     updateCanvasTransform();
-                    this.showToast('Pan naar rechts', false);
-                }
-                break;
-            case 'right':
-                // Pan left
-                if (typeof canvasOffset !== 'undefined') {
-                    canvasOffset.x -= 100;
+                    this.showToast(`Pan omhoog (${Math.round(panDistance)}px)`, false);
+                    break;
+                case 'down':
+                    // Pan down (move canvas up)
+                    canvasOffset.y -= panDistance;
                     updateCanvasTransform();
-                    this.showToast('Pan naar links', false);
-                }
-                break;
+                    this.showToast(`Pan omlaag (${Math.round(panDistance)}px)`, false);
+                    break;
+                case 'left':
+                    // Pan right (move canvas right)
+                    canvasOffset.x += panDistance;
+                    updateCanvasTransform();
+                    this.showToast(`Pan rechts (${Math.round(panDistance)}px)`, false);
+                    break;
+                case 'right':
+                    // Pan left (move canvas left)
+                    canvasOffset.x -= panDistance;
+                    updateCanvasTransform();
+                    this.showToast(`Pan links (${Math.round(panDistance)}px)`, false);
+                    break;
+            }
         }
     }
     
@@ -847,13 +864,16 @@ class MobileTouchManager {
     disableDragMode() {
         if (!this.isDragModeEnabled) return;
         
-        // Reset visual feedback
+        // Reset visual feedback for current drag element
         if (this.dragModeElement) {
             this.dragModeElement.style.transform = '';
             this.dragModeElement.style.opacity = '';
             this.dragModeElement.style.zIndex = '';
             this.dragModeElement.classList.remove('drag-mode-active');
         }
+        
+        // Force cleanup of any lingering drag mode indicators
+        this.forceCleanupDragModeIndicators();
         
         // Final connection update
         if (this.dragModeNode && typeof refreshConnections !== 'undefined') {
@@ -872,8 +892,173 @@ class MobileTouchManager {
         this.showToast('Drag-modus uitgeschakeld', false);
     }
     
+    forceCleanupDragModeIndicators() {
+        // Remove drag-mode-active class from all nodes
+        const allNodes = document.querySelectorAll('.node');
+        allNodes.forEach(node => {
+            node.classList.remove('drag-mode-active');
+            node.style.transform = '';
+            node.style.opacity = '';
+            node.style.zIndex = '';
+        });
+    }
+    
+    enableConnectionMode(element, node) {
+        // Disable drag mode if active
+        if (this.isDragModeEnabled) {
+            this.disableDragMode();
+        }
+        
+        // Set connection mode state
+        this.isConnectionModeEnabled = true;
+        this.connectionStartNode = node;
+        this.connectionStartElement = element;
+        
+        // Visual feedback for connection mode
+        element.style.border = '3px solid #2196F3';
+        element.style.boxShadow = '0 0 15px rgba(33, 150, 243, 0.6)';
+        element.classList.add('connection-mode-active');
+        
+        // Show instruction toast
+        this.showToast('Tik op een andere node om te verbinden', false);
+        
+        // Set up connection mode listeners
+        this.setupConnectionModeListeners();
+    }
+    
+    setupConnectionModeListeners() {
+        // Listen for taps on other nodes
+        this.connectionModeActive = true;
+        
+        // Override normal tap handler for connection mode
+        this.originalTapHandler = this.handleTap;
+        this.handleTap = (data) => {
+            if (this.isConnectionModeEnabled) {
+                this.handleConnectionModeTap(data);
+            } else {
+                this.originalTapHandler(data);
+            }
+        };
+    }
+    
+    handleConnectionModeTap(data) {
+        const element = data.target.closest('.node');
+        
+        if (element && element.classList.contains('node')) {
+            const targetNode = nodes.find(n => n.id === element.id);
+            
+            if (targetNode && targetNode.id !== this.connectionStartNode.id) {
+                // Create connection
+                if (typeof createConnection !== 'undefined') {
+                    createConnection(this.connectionStartNode.id, targetNode.id);
+                    this.showToast('Verbinding gemaakt!', false);
+                } else {
+                    this.showToast('Fout bij maken verbinding', true);
+                }
+                
+                // Disable connection mode
+                this.disableConnectionMode();
+            } else if (targetNode && targetNode.id === this.connectionStartNode.id) {
+                // Clicked on same node, cancel connection mode
+                this.disableConnectionMode();
+            }
+        } else {
+            // Clicked on canvas, cancel connection mode
+            this.disableConnectionMode();
+        }
+    }
+    
+    disableConnectionMode() {
+        if (!this.isConnectionModeEnabled) return;
+        
+        // Reset visual feedback
+        if (this.connectionStartElement) {
+            this.connectionStartElement.style.border = '';
+            this.connectionStartElement.style.boxShadow = '';
+            this.connectionStartElement.classList.remove('connection-mode-active');
+        }
+        
+        // Remove connection preview line if exists
+        if (this.connectionPreviewLine) {
+            this.connectionPreviewLine.remove();
+            this.connectionPreviewLine = null;
+        }
+        
+        // Reset state
+        this.isConnectionModeEnabled = false;
+        this.connectionStartNode = null;
+        this.connectionStartElement = null;
+        this.connectionModeActive = false;
+        
+        // Restore original tap handler
+        if (this.originalTapHandler) {
+            this.handleTap = this.originalTapHandler;
+            this.originalTapHandler = null;
+        }
+        
+        this.showToast('Verbindingsmodus uitgeschakeld', false);
+    }
+    
+    createIntermediateNode(connection, screenX, screenY) {
+        // Get the canvas coordinates for the new node
+        const canvasCoords = this.gestureManager.getCanvasCoordinates({ clientX: screenX, clientY: screenY });
+        
+        // Get source and target nodes
+        const sourceNode = nodes.find(n => n.id === connection.source);
+        const targetNode = nodes.find(n => n.id === connection.target);
+        
+        if (!sourceNode || !targetNode) {
+            this.showToast('Fout: Kan bron- of doelnode niet vinden', true);
+            return;
+        }
+        
+        // Create new intermediate node
+        const intermediateNode = createNode(
+            'Tussennode',
+            '',
+            sourceNode.color,
+            canvasCoords.x,
+            canvasCoords.y,
+            'rounded'
+        );
+        
+        // Save state for undo
+        if (typeof saveStateForUndo !== 'undefined') {
+            saveStateForUndo();
+        }
+        
+        // Delete original connection
+        if (typeof deleteConnection !== 'undefined') {
+            deleteConnection(connection.id);
+        }
+        
+        // Create two new connections
+        if (typeof createConnection !== 'undefined') {
+            createConnection(sourceNode.id, intermediateNode.id);
+            createConnection(intermediateNode.id, targetNode.id);
+        }
+        
+        // Auto-edit the new node
+        setTimeout(() => {
+            const nodeEl = document.getElementById(intermediateNode.id);
+            if (nodeEl) {
+                const titleEl = nodeEl.querySelector('.node-title');
+                if (titleEl && typeof makeEditable !== 'undefined') {
+                    makeEditable(titleEl, intermediateNode);
+                }
+            }
+        }, 100);
+        
+        this.showToast('Tussennode toegevoegd', false);
+    }
+    
     // Node-specific touch handlers
     handleNodeTap(element, data) {
+        // First, disable any active drag mode
+        if (this.isDragModeEnabled) {
+            this.disableDragMode();
+        }
+        
         const node = nodes.find(n => n.id === element.id);
         if (node) {
             selectNode(node.id);
@@ -994,27 +1179,113 @@ class MobileTouchManager {
     }
     
     startCanvasPan(data) {
-        canvasDragging = true;
-        canvasDragStart = data.position;
+        // Check if required globals are available
+        if (typeof canvasOffset === 'undefined' || typeof updateCanvasTransform === 'undefined') {
+            console.warn('⚠️ Canvas pan functions not available');
+            return;
+        }
+        
+        this.canvasDragging = true;
+        this.canvasDragStart = data.position;
+        this.canvasLastOffset = { ...canvasOffset };
+        this.canvasPanVelocity = { x: 0, y: 0 };
+        this.canvasPanHistory = [];
+        
         canvas.style.cursor = 'grabbing';
     }
     
     updateCanvasPan(data) {
-        if (canvasDragging) {
-            const deltaX = data.currentPosition.x - canvasDragStart.x;
-            const deltaY = data.currentPosition.y - canvasDragStart.y;
+        if (!this.canvasDragging || typeof canvasOffset === 'undefined') return;
+        
+        const now = Date.now();
+        const deltaX = data.currentPosition.x - this.canvasDragStart.x;
+        const deltaY = data.currentPosition.y - this.canvasDragStart.y;
+        
+        // Apply movement directly to canvas offset
+        canvasOffset.x = this.canvasLastOffset.x + deltaX;
+        canvasOffset.y = this.canvasLastOffset.y + deltaY;
+        
+        // Show real-time panning feedback
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+        if (absX > 5 || absY > 5) { // Only show if significant movement
+            const directionX = deltaX > 0 ? 'rechts' : 'links';
+            const directionY = deltaY > 0 ? 'omhoog' : 'omlaag';
+            const primaryDirection = absX > absY ? directionX : directionY;
+            const primaryDistance = Math.round(absX > absY ? absX : absY);
             
-            canvasOffset.x += deltaX;
-            canvasOffset.y += deltaY;
-            
-            canvasDragStart = data.currentPosition;
-            updateCanvasTransform();
+            // Update real-time position indicator
+            this.showRealTimePanFeedback(primaryDirection, primaryDistance);
         }
+        
+        // Track velocity for momentum
+        this.canvasPanHistory.push({
+            time: now,
+            x: deltaX,
+            y: deltaY
+        });
+        
+        // Keep only recent history for velocity calculation
+        this.canvasPanHistory = this.canvasPanHistory.filter(entry => now - entry.time < 100);
+        
+        // Calculate velocity
+        if (this.canvasPanHistory.length > 1) {
+            const recent = this.canvasPanHistory[this.canvasPanHistory.length - 1];
+            const older = this.canvasPanHistory[0];
+            const timeDiff = recent.time - older.time;
+            if (timeDiff > 0) {
+                this.canvasPanVelocity.x = (recent.x - older.x) / timeDiff;
+                this.canvasPanVelocity.y = (recent.y - older.y) / timeDiff;
+            }
+        }
+        
+        updateCanvasTransform();
     }
     
     endCanvasPan(data) {
-        canvasDragging = false;
+        if (!this.canvasDragging) return;
+        
+        this.canvasDragging = false;
         canvas.style.cursor = 'default';
+        
+        // Hide real-time pan feedback
+        this.hideRealTimePanFeedback();
+        
+        // Apply momentum if velocity is significant
+        if (this.canvasPanVelocity && (Math.abs(this.canvasPanVelocity.x) > 0.1 || Math.abs(this.canvasPanVelocity.y) > 0.1)) {
+            this.applyCanvasMomentum();
+        }
+        
+        // Clean up
+        this.canvasDragStart = null;
+        this.canvasLastOffset = null;
+        this.canvasPanHistory = [];
+    }
+    
+    applyCanvasMomentum() {
+        if (!this.canvasPanVelocity || typeof canvasOffset === 'undefined') return;
+        
+        const friction = 0.95;
+        const minVelocity = 0.01;
+        
+        const animate = () => {
+            // Apply velocity to offset
+            canvasOffset.x += this.canvasPanVelocity.x * 20;
+            canvasOffset.y += this.canvasPanVelocity.y * 20;
+            
+            // Apply friction
+            this.canvasPanVelocity.x *= friction;
+            this.canvasPanVelocity.y *= friction;
+            
+            updateCanvasTransform();
+            
+            // Continue animation if velocity is still significant
+            if (Math.abs(this.canvasPanVelocity.x) > minVelocity || Math.abs(this.canvasPanVelocity.y) > minVelocity) {
+                requestAnimationFrame(animate);
+            }
+        };
+        
+        requestAnimationFrame(animate);
     }
     
     handleToolTap(element, data) {
@@ -1076,6 +1347,12 @@ class MobileTouchManager {
                         this.enableDragMode(element, target, { position: { x: x, y: y } });
                     }
                 }},
+                { label: 'Verbind met...', action: () => {
+                    const element = document.getElementById(target.id);
+                    if (element) {
+                        this.enableConnectionMode(element, target);
+                    }
+                }},
                 { label: 'Nieuw subknooppunt', action: () => {
                     const angle = Math.random() * Math.PI * 2;
                     const distance = 150;
@@ -1089,6 +1366,9 @@ class MobileTouchManager {
         } else if (type === 'connection' && target) {
             menuItems = [
                 { label: 'Bewerken', action: () => openConnectionEditor(target) },
+                { label: 'Tussennode toevoegen', action: () => {
+                    this.createIntermediateNode(target, x, y);
+                }},
                 { label: 'Verwijderen', action: () => deleteConnection(target.id), style: 'color: #f44336;' }
             ];
         } else if (type === 'canvas') {
@@ -1249,6 +1529,43 @@ class MobileTouchManager {
         if (this.zoomIndicator) {
             this.zoomIndicator.remove();
             this.zoomIndicator = null;
+        }
+    }
+    
+    showRealTimePanFeedback(direction, distance) {
+        if (!this.panIndicator) {
+            this.panIndicator = document.createElement('div');
+            this.panIndicator.className = 'pan-indicator';
+            this.panIndicator.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 8px 12px;
+                border-radius: 20px;
+                font-size: 14px;
+                font-weight: bold;
+                z-index: 10000;
+                pointer-events: none;
+                transition: opacity 0.1s ease;
+            `;
+            document.body.appendChild(this.panIndicator);
+        }
+        
+        this.panIndicator.textContent = `Pan ${direction}: ${distance}px`;
+        this.panIndicator.style.opacity = '1';
+    }
+    
+    hideRealTimePanFeedback() {
+        if (this.panIndicator) {
+            this.panIndicator.style.opacity = '0';
+            setTimeout(() => {
+                if (this.panIndicator && this.panIndicator.parentNode) {
+                    this.panIndicator.remove();
+                    this.panIndicator = null;
+                }
+            }, 200);
         }
     }
     
@@ -1419,6 +1736,22 @@ class MobileTouchManager {
                 }
                 100% { 
                     box-shadow: 0 0 30px rgba(255, 152, 0, 0.8);
+                }
+            }
+            
+            /* Connection mode styles */
+            .connection-mode-active {
+                border: 3px solid #2196F3 !important;
+                box-shadow: 0 0 20px rgba(33, 150, 243, 0.6) !important;
+                animation: connectionModePulse 1.5s ease-in-out infinite alternate;
+            }
+            
+            @keyframes connectionModePulse {
+                0% { 
+                    box-shadow: 0 0 15px rgba(33, 150, 243, 0.6);
+                }
+                100% { 
+                    box-shadow: 0 0 25px rgba(33, 150, 243, 0.8);
                 }
             }
             
@@ -1627,6 +1960,16 @@ class MobileTouchManager {
         this.activeElement = null;
         this.touchConnectionStart = null;
         this.touchConnectionLine = null;
+        
+        // Clean up drag mode
+        if (this.isDragModeEnabled) {
+            this.disableDragMode();
+        }
+        
+        // Clean up connection mode
+        if (this.isConnectionModeEnabled) {
+            this.disableConnectionMode();
+        }
     }
 }
 
