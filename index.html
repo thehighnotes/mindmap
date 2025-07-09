@@ -9,8 +9,42 @@
 </head>
 <body>
     <div class="header">
-        <h1>Mindmap Brainstorm Tool <span class="version">v0.918</span></h1>
-        <div class="button-group">
+        <div class="header-left">
+            <button class="hamburger-btn" id="hamburger-btn" title="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1>Mindmap <span class="version">v0.918</span></h1>
+        </div>
+        
+        <!-- Mobile hamburger menu -->
+        <div class="hamburger-menu" id="hamburger-menu">
+            <div class="hamburger-menu-content">
+                <div class="menu-section">
+                    <h3>Bestand</h3>
+                    <button class="menu-item" id="menu-save-btn" title="Sla de mindmap op als bestand">💾 Opslaan</button>
+                    <button class="menu-item" id="menu-load-btn" title="Laad een opgeslagen mindmap">📂 Laden</button>
+                </div>
+                <div class="menu-section">
+                    <h3>Export</h3>
+                    <button class="menu-item" id="menu-export-mermaid-btn" title="Exporteer naar Mermaid syntax">📊 Mermaid</button>
+                    <button class="menu-item" id="menu-export-image-btn" title="Sla op als afbeelding">🖼️ Afbeelding</button>
+                </div>
+                <div class="menu-section">
+                    <h3>Navigatie</h3>
+                    <button class="menu-item" id="menu-center-btn" title="Centreer de mindmap">🎯 Centreren</button>
+                    <button class="menu-item" id="menu-clear-btn" title="Wis de mindmap">🗑️ Wissen</button>
+                </div>
+                <div class="menu-section">
+                    <h3>Help</h3>
+                    <button class="menu-item" id="menu-help-btn" title="Toon help">❓ Help</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Desktop button group (hidden on mobile) -->
+        <div class="button-group desktop-only">
             <button class="btn btn-save" id="save-btn" title="Sla de mindmap op als bestand">Opslaan</button>
             <button class="btn btn-save" id="load-btn" title="Laad een opgeslagen mindmap">Laden</button>
             <button class="btn btn-export" id="export-mermaid-btn" title="Exporteer naar Mermaid syntax">Exporteer naar Mermaid</button>

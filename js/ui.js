@@ -778,6 +778,9 @@ function setupConnectionContextMenuActions() {
 
 // Stel alle event listeners in
 function setupEventListeners() {
+    // Hamburger menu setup
+    setupHamburgerMenu();
+    
     // Canvas navigatie
     canvas.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
@@ -2529,4 +2532,153 @@ function hideDropPreview() {
             }
         }, 150); // Reduced timeout for faster cleanup
     }
+}
+
+// ==========================
+// HAMBURGER MENU FUNCTIONS
+// ==========================
+
+/**
+ * Setup hamburger menu functionality
+ */
+function setupHamburgerMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    
+    if (!hamburgerBtn || !hamburgerMenu) return;
+    
+    // Toggle menu on hamburger button click
+    hamburgerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleHamburgerMenu();
+    });
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!hamburgerMenu.contains(e.target) && !hamburgerBtn.contains(e.target)) {
+            closeHamburgerMenu();
+        }
+    });
+    
+    // Close menu on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeHamburgerMenu();
+        }
+    });
+    
+    // Prevent menu content clicks from closing menu
+    hamburgerMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    // Mobile menu event listeners
+    const menuSaveBtn = document.getElementById('menu-save-btn');
+    const menuLoadBtn = document.getElementById('menu-load-btn');
+    const menuExportMermaidBtn = document.getElementById('menu-export-mermaid-btn');
+    const menuExportImageBtn = document.getElementById('menu-export-image-btn');
+    const menuCenterBtn = document.getElementById('menu-center-btn');
+    const menuClearBtn = document.getElementById('menu-clear-btn');
+    const menuHelpBtn = document.getElementById('menu-help-btn');
+    
+    if (menuSaveBtn) {
+        menuSaveBtn.addEventListener('click', () => {
+            exportToJson();
+            closeHamburgerMenu();
+        });
+    }
+    
+    if (menuLoadBtn) {
+        menuLoadBtn.addEventListener('click', () => {
+            document.getElementById('file-input').click();
+            closeHamburgerMenu();
+        });
+    }
+    
+    if (menuExportMermaidBtn) {
+        menuExportMermaidBtn.addEventListener('click', () => {
+            exportToMermaid();
+            closeHamburgerMenu();
+        });
+    }
+    
+    if (menuExportImageBtn) {
+        menuExportImageBtn.addEventListener('click', () => {
+            exportAsImage();
+            closeHamburgerMenu();
+        });
+    }
+    
+    if (menuCenterBtn) {
+        menuCenterBtn.addEventListener('click', () => {
+            centerView();
+            closeHamburgerMenu();
+        });
+    }
+    
+    if (menuClearBtn) {
+        menuClearBtn.addEventListener('click', () => {
+            if (confirm('Weet je zeker dat je de mindmap wilt wissen?')) {
+                clearMindmap();
+            }
+            closeHamburgerMenu();
+        });
+    }
+    
+    if (menuHelpBtn) {
+        menuHelpBtn.addEventListener('click', () => {
+            helpModal.style.display = 'flex';
+            closeHamburgerMenu();
+        });
+    }
+}
+
+/**
+ * Toggle hamburger menu open/close
+ */
+function toggleHamburgerMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    
+    if (!hamburgerBtn || !hamburgerMenu) return;
+    
+    const isOpen = hamburgerMenu.classList.contains('active');
+    
+    if (isOpen) {
+        closeHamburgerMenu();
+    } else {
+        openHamburgerMenu();
+    }
+}
+
+/**
+ * Open hamburger menu
+ */
+function openHamburgerMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    
+    if (!hamburgerBtn || !hamburgerMenu) return;
+    
+    hamburgerBtn.classList.add('active');
+    hamburgerMenu.classList.add('active');
+    
+    // Prevent body scroll when menu is open
+    document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close hamburger menu
+ */
+function closeHamburgerMenu() {
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    const hamburgerMenu = document.getElementById('hamburger-menu');
+    
+    if (!hamburgerBtn || !hamburgerMenu) return;
+    
+    hamburgerBtn.classList.remove('active');
+    hamburgerMenu.classList.remove('active');
+    
+    // Restore body scroll
+    document.body.style.overflow = '';
 }

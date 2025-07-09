@@ -17,7 +17,7 @@ class TouchGestureManager {
         this.longPressTimer = null;
         this.longPressThreshold = 500; // 500ms for long press
         this.doubleTapThreshold = 300; // 300ms for double tap
-        this.dragThreshold = 10; // 10px minimum movement to start drag
+        this.dragThreshold = 5; // 5px minimum movement to start drag (reduced for better responsiveness)
         this.pinchThreshold = 10; // 10px minimum distance change for pinch
         this.velocityTracker = [];
         this.velocityThreshold = 0.3; // Minimum velocity for swipe
@@ -176,7 +176,7 @@ class TouchGestureManager {
         });
         
         // Keep only recent velocity data
-        this.velocityTracker = this.velocityTracker.filter(v => now - v.time < 100);
+        this.velocityTracker = this.velocityTracker.filter(v => now - v.time < 50); // Reduced time window for more responsive tracking
         
         if (this.touchCount === 1) {
             this.handleSingleTouchMove(e, touch);
@@ -196,8 +196,8 @@ class TouchGestureManager {
         const deltaY = touch.clientY - this.touchStartPos.y;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         
-        // Start drag if threshold exceeded
-        if (!this.isDragging && distance > this.dragThreshold) {
+        // Start drag if threshold exceeded (reduced threshold for more responsive dragging)
+        if (!this.isDragging && distance > 5) { // Reduced from 10px to 5px
             this.isDragging = true;
             this.emit('dragstart', {
                 touch: touch,
@@ -209,7 +209,7 @@ class TouchGestureManager {
             });
         }
         
-        // Continue drag
+        // Continue drag with immediate response
         if (this.isDragging) {
             this.emit('drag', {
                 touch: touch,
@@ -636,7 +636,7 @@ class MobileTouchManager {
                 this.startConnectionDrag(element, data);
             }
         } else {
-            // Start canvas pan
+            // Start canvas pan immediately for real-time dragging
             this.startCanvasPan(data);
         }
     }
@@ -656,7 +656,7 @@ class MobileTouchManager {
                 this.updateConnectionDrag(this.activeElement, data);
             }
         } else {
-            // Update canvas pan
+            // Update canvas pan with real-time response
             this.updateCanvasPan(data);
         }
     }
@@ -683,8 +683,11 @@ class MobileTouchManager {
         this.initialZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
         this.initialOffset = typeof canvasOffset !== 'undefined' ? { ...canvasOffset } : { x: 0, y: 0 };
         
-        // Show zoom indicator
-        this.showZoomIndicator(data.center.x, data.center.y);
+        // Store the initial pinch center
+        this.initialPinchCenter = { x: data.center.x, y: data.center.y };
+        
+        // Show zoom indicator at screen center for better visibility
+        this.showZoomIndicator(window.innerWidth / 2, window.innerHeight / 2);
     }
     
     handlePinch(data) {
@@ -694,21 +697,13 @@ class MobileTouchManager {
             return;
         }
         
-        // Calculate new zoom level
-        const newZoom = Math.max(0.1, Math.min(3, this.initialZoom * data.scale));
+        // Calculate new zoom level with better scaling
+        const scaleChange = data.scale;
+        const newZoom = Math.max(0.1, Math.min(3, this.initialZoom * scaleChange));
         
-        // Get pinch center relative to canvas container
-        const canvasRect = canvas.getBoundingClientRect();
-        const containerRect = (typeof canvasContainer !== 'undefined' && canvasContainer) ? 
-            canvasContainer.getBoundingClientRect() : canvasRect;
-        
-        // Calculate zoom center in container coordinates
-        const centerX = data.center.x - containerRect.left;
-        const centerY = data.center.y - containerRect.top;
-        
-        // Calculate how much the canvas should move to keep the pinch center fixed
-        const zoomDelta = newZoom - this.initialZoom;
-        const scaleRatio = newZoom / this.initialZoom;
+        // Get pinch center relative to viewport
+        const centerX = data.center.x;
+        const centerY = data.center.y;
         
         // Apply zoom
         setZoomLevel(newZoom);
@@ -735,48 +730,12 @@ class MobileTouchManager {
     }
     
     handleSwipe(data) {
-        // Quick navigation based on swipe direction - PAN ONLY (no zoom)
-        console.log('🚀 Swipe detected:', data.direction, 'velocity:', data.velocity);
+        // Swipe gesture handling disabled for pure real-time dragging experience
+        // All navigation is now handled through real-time drag operations
+        console.log('🚀 Swipe detected but ignored (real-time dragging active):', data.direction, 'velocity:', data.velocity);
         
-        // Check if required functions are available
-        if (typeof updateCanvasTransform === 'undefined') {
-            console.warn('⚠️ Required navigation functions not available');
-            return;
-        }
-        
-        // Calculate pan distance based on velocity (higher velocity = more movement)
-        const basePanDistance = 100;
-        const velocityMultiplier = Math.min(data.velocity * 200, 300); // Cap at 300px
-        const panDistance = Math.max(basePanDistance, velocityMultiplier);
-        
-        if (typeof canvasOffset !== 'undefined') {
-            switch (data.direction) {
-                case 'up':
-                    // Pan up (move canvas down)
-                    canvasOffset.y += panDistance;
-                    updateCanvasTransform();
-                    this.showToast(`Pan omhoog (${Math.round(panDistance)}px)`, false);
-                    break;
-                case 'down':
-                    // Pan down (move canvas up)
-                    canvasOffset.y -= panDistance;
-                    updateCanvasTransform();
-                    this.showToast(`Pan omlaag (${Math.round(panDistance)}px)`, false);
-                    break;
-                case 'left':
-                    // Pan right (move canvas right)
-                    canvasOffset.x += panDistance;
-                    updateCanvasTransform();
-                    this.showToast(`Pan rechts (${Math.round(panDistance)}px)`, false);
-                    break;
-                case 'right':
-                    // Pan left (move canvas left)
-                    canvasOffset.x -= panDistance;
-                    updateCanvasTransform();
-                    this.showToast(`Pan links (${Math.round(panDistance)}px)`, false);
-                    break;
-            }
-        }
+        // Optional: Show swipe feedback but don't navigate
+        // this.showToast(`Swipe ${data.direction} gedetecteerd (gebruik drag voor navigatie)`, false);
     }
     
     enableDragMode(element, node, data) {
@@ -1186,49 +1145,61 @@ class MobileTouchManager {
         }
         
         this.canvasDragging = true;
-        this.canvasDragStart = data.position;
-        this.canvasLastOffset = { ...canvasOffset };
-        this.canvasPanVelocity = { x: 0, y: 0 };
-        this.canvasPanHistory = [];
+        this.canvasDragStart = {
+            x: data.currentPosition.x,
+            y: data.currentPosition.y
+        };
+        this.canvasStartOffset = { ...canvasOffset };
+        this.lastTouchPosition = {
+            x: data.currentPosition.x,
+            y: data.currentPosition.y
+        };
         
-        canvas.style.cursor = 'grabbing';
+        // Disable transitions for real-time movement
+        if (canvas) {
+            canvas.style.cursor = 'grabbing';
+            canvas.style.transition = 'none';
+        }
+        
+        // Initialize velocity tracking
+        this.canvasPanVelocity = { x: 0, y: 0 };
+        this.canvasPanHistory = [{
+            time: Date.now(),
+            x: data.currentPosition.x,
+            y: data.currentPosition.y
+        }];
     }
     
     updateCanvasPan(data) {
         if (!this.canvasDragging || typeof canvasOffset === 'undefined') return;
         
         const now = Date.now();
-        const deltaX = data.currentPosition.x - this.canvasDragStart.x;
-        const deltaY = data.currentPosition.y - this.canvasDragStart.y;
+        const currentX = data.currentPosition.x;
+        const currentY = data.currentPosition.y;
         
-        // Apply movement directly to canvas offset
-        canvasOffset.x = this.canvasLastOffset.x + deltaX;
-        canvasOffset.y = this.canvasLastOffset.y + deltaY;
+        // Calculate real-time delta from last position for instant response
+        const deltaX = currentX - this.lastTouchPosition.x;
+        const deltaY = currentY - this.lastTouchPosition.y;
         
-        // Show real-time panning feedback
-        const absX = Math.abs(deltaX);
-        const absY = Math.abs(deltaY);
-        if (absX > 5 || absY > 5) { // Only show if significant movement
-            const directionX = deltaX > 0 ? 'rechts' : 'links';
-            const directionY = deltaY > 0 ? 'omhoog' : 'omlaag';
-            const primaryDirection = absX > absY ? directionX : directionY;
-            const primaryDistance = Math.round(absX > absY ? absX : absY);
-            
-            // Update real-time position indicator
-            this.showRealTimePanFeedback(primaryDirection, primaryDistance);
-        }
+        // Apply movement instantly - no buffering or delays
+        canvasOffset.x += deltaX;
+        canvasOffset.y += deltaY;
         
-        // Track velocity for momentum
+        // Update last position for next frame
+        this.lastTouchPosition.x = currentX;
+        this.lastTouchPosition.y = currentY;
+        
+        // Track velocity for momentum (using position history)
         this.canvasPanHistory.push({
             time: now,
-            x: deltaX,
-            y: deltaY
+            x: currentX,
+            y: currentY
         });
         
         // Keep only recent history for velocity calculation
         this.canvasPanHistory = this.canvasPanHistory.filter(entry => now - entry.time < 100);
         
-        // Calculate velocity
+        // Calculate velocity for momentum
         if (this.canvasPanHistory.length > 1) {
             const recent = this.canvasPanHistory[this.canvasPanHistory.length - 1];
             const older = this.canvasPanHistory[0];
@@ -1239,39 +1210,66 @@ class MobileTouchManager {
             }
         }
         
+        // Update canvas transform immediately
         updateCanvasTransform();
+        
+        // Show real-time feedback (optional - can be disabled for performance)
+        const totalDeltaX = currentX - this.canvasDragStart.x;
+        const totalDeltaY = currentY - this.canvasDragStart.y;
+        const totalDistance = Math.sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
+        
+        if (totalDistance > 10) { // Only show if significant total movement
+            const directionX = totalDeltaX > 0 ? 'rechts' : 'links';
+            const directionY = totalDeltaY > 0 ? 'omhoog' : 'omlaag';
+            const primaryDirection = Math.abs(totalDeltaX) > Math.abs(totalDeltaY) ? directionX : directionY;
+            const primaryDistance = Math.round(Math.abs(totalDeltaX) > Math.abs(totalDeltaY) ? Math.abs(totalDeltaX) : Math.abs(totalDeltaY));
+            
+            this.showRealTimePanFeedback(primaryDirection, primaryDistance);
+        }
     }
     
     endCanvasPan(data) {
         if (!this.canvasDragging) return;
         
         this.canvasDragging = false;
-        canvas.style.cursor = 'default';
+        
+        // Reset canvas cursor and transitions
+        if (canvas) {
+            canvas.style.cursor = 'default';
+            canvas.style.transition = '';
+        }
         
         // Hide real-time pan feedback
         this.hideRealTimePanFeedback();
         
+        // Calculate final movement distance for feedback
+        const finalDeltaX = data.endPosition.x - this.canvasDragStart.x;
+        const finalDeltaY = data.endPosition.y - this.canvasDragStart.y;
+        const totalDistance = Math.sqrt(finalDeltaX * finalDeltaX + finalDeltaY * finalDeltaY);
+        
         // Apply momentum if velocity is significant
-        if (this.canvasPanVelocity && (Math.abs(this.canvasPanVelocity.x) > 0.1 || Math.abs(this.canvasPanVelocity.y) > 0.1)) {
+        if (this.canvasPanVelocity && (Math.abs(this.canvasPanVelocity.x) > 0.2 || Math.abs(this.canvasPanVelocity.y) > 0.2)) {
             this.applyCanvasMomentum();
         }
         
         // Clean up
         this.canvasDragStart = null;
-        this.canvasLastOffset = null;
+        this.canvasStartOffset = null;
+        this.lastTouchPosition = null;
         this.canvasPanHistory = [];
     }
     
     applyCanvasMomentum() {
         if (!this.canvasPanVelocity || typeof canvasOffset === 'undefined') return;
         
-        const friction = 0.95;
-        const minVelocity = 0.01;
+        const friction = 0.88; // Balanced friction for natural feel
+        const minVelocity = 0.05;
+        const velocityMultiplier = 12; // Optimized for smooth momentum
         
         const animate = () => {
-            // Apply velocity to offset
-            canvasOffset.x += this.canvasPanVelocity.x * 20;
-            canvasOffset.y += this.canvasPanVelocity.y * 20;
+            // Apply velocity to offset with smooth control
+            canvasOffset.x += this.canvasPanVelocity.x * velocityMultiplier;
+            canvasOffset.y += this.canvasPanVelocity.y * velocityMultiplier;
             
             // Apply friction
             this.canvasPanVelocity.x *= friction;
@@ -1533,6 +1531,11 @@ class MobileTouchManager {
     }
     
     showRealTimePanFeedback(direction, distance) {
+        // Disable real-time feedback during dragging to reduce visual noise
+        // and improve performance for smoother dragging experience
+        return;
+        
+        /* Original implementation kept for reference
         if (!this.panIndicator) {
             this.panIndicator = document.createElement('div');
             this.panIndicator.className = 'pan-indicator';
@@ -1555,6 +1558,7 @@ class MobileTouchManager {
         
         this.panIndicator.textContent = `Pan ${direction}: ${distance}px`;
         this.panIndicator.style.opacity = '1';
+        */
     }
     
     hideRealTimePanFeedback() {
@@ -1689,6 +1693,30 @@ class MobileTouchManager {
                     -ms-user-select: text;
                     user-select: text;
                 }
+                
+                /* Prevent keyboard popup by removing focus from non-editable elements */
+                .node:not(.editing) .node-title,
+                .node:not(.editing) .node-content,
+                .canvas-container,
+                #mindmap-canvas,
+                .connection,
+                .tool-btn:not(input):not(textarea) {
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    user-select: none;
+                    outline: none;
+                }
+                
+                /* Prevent focus on canvas elements */
+                .node:not(.editing),
+                .connection,
+                .canvas-container,
+                #mindmap-canvas {
+                    -webkit-tap-highlight-color: transparent;
+                    -webkit-focus-ring-color: transparent;
+                    outline: none;
+                }
             }
             
             /* Touch-specific connection styles */
@@ -1809,6 +1837,9 @@ class MobileTouchManager {
         
         // Enhance existing elements
         this.enhanceTouchTargets(document.body);
+        
+        // Prevent keyboard popup on canvas interactions
+        this.setupKeyboardPrevention();
     }
     
     enhanceTouchTargets(container) {
@@ -1909,19 +1940,8 @@ class MobileTouchManager {
     }
     
     setupPerformanceOptimizations() {
-        // Throttle touch events for better performance
-        let touchMoveThrottled = false;
-        const originalTouchMove = this.gestureManager.handleTouchMove.bind(this.gestureManager);
-        
-        this.gestureManager.handleTouchMove = (e) => {
-            if (!touchMoveThrottled) {
-                touchMoveThrottled = true;
-                requestAnimationFrame(() => {
-                    originalTouchMove(e);
-                    touchMoveThrottled = false;
-                });
-            }
-        };
+        // Remove throttling for real-time dragging experience
+        // Touch events are now processed immediately for instant response
         
         // Add passive event listeners where possible
         const passiveEvents = ['touchstart', 'touchmove', 'touchend'];
@@ -1933,6 +1953,12 @@ class MobileTouchManager {
                 }
             }, { passive: false });
         });
+        
+        // Optimize canvas transforms for better performance
+        if (canvas) {
+            canvas.style.willChange = 'transform';
+            canvas.style.transformStyle = 'preserve-3d';
+        }
     }
     
     showToast(message, isError = false) {
@@ -1952,6 +1978,43 @@ class MobileTouchManager {
     
     isActive() {
         return this.gestureManager.isTouchActive();
+    }
+    
+    setupKeyboardPrevention() {
+        // Prevent keyboard popup by ensuring canvas and non-editable elements don't get focus
+        const preventFocus = (e) => {
+            const target = e.target;
+            const isEditableNode = target.contentEditable === 'true' || target.closest('[contenteditable="true"]');
+            const isFormElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+            
+            if (!isEditableNode && !isFormElement) {
+                e.preventDefault();
+                target.blur();
+            }
+        };
+        
+        // Add to canvas and nodes
+        document.addEventListener('focusin', preventFocus);
+        document.addEventListener('touchstart', (e) => {
+            const target = e.target;
+            if (target.classList.contains('node') || target.closest('.node')) {
+                const node = target.closest('.node');
+                if (node && !node.classList.contains('editing')) {
+                    e.preventDefault();
+                }
+            }
+        });
+        
+        // Prevent long press context menu on non-editable elements
+        document.addEventListener('contextmenu', (e) => {
+            const target = e.target;
+            const isEditableNode = target.contentEditable === 'true' || target.closest('[contenteditable="true"]');
+            const isFormElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+            
+            if (!isEditableNode && !isFormElement) {
+                e.preventDefault();
+            }
+        });
     }
     
     cleanup() {
