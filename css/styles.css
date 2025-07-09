@@ -705,6 +705,150 @@ body {
     animation: potentialTargetPulse 1.5s infinite ease-in-out;
 }
 
+/* IMPROVED: Drop target styling voor connections */
+.connection.drop-target {
+    z-index: 10;
+}
+
+.connection.drop-target .connection-line {
+    stroke: #4CAF50 !important;
+    stroke-width: 5px !important;
+    filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.7));
+    animation: dropTargetPulse 1s infinite ease-in-out;
+}
+
+.connection.drop-target .connection-hitzone {
+    stroke: #4CAF50 !important;
+    stroke-width: 10px !important;
+    opacity: 0.2;
+}
+
+/* Invalid drop target styling */
+.connection.drop-invalid {
+    z-index: 10;
+}
+
+.connection.drop-invalid .connection-line {
+    stroke: #f44336 !important;
+    stroke-width: 5px !important;
+    filter: drop-shadow(0 0 10px rgba(244, 67, 54, 0.7));
+    animation: dropInvalidPulse 1s infinite ease-in-out;
+}
+
+.connection.drop-invalid .connection-hitzone {
+    stroke: #f44336 !important;
+    stroke-width: 10px !important;
+    opacity: 0.2;
+}
+
+/* Pulse animation voor drop targets */
+@keyframes dropTargetPulse {
+    0% { 
+        stroke-width: 5px;
+        filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.7));
+    }
+    50% { 
+        stroke-width: 6px;
+        filter: drop-shadow(0 0 15px rgba(76, 175, 80, 0.9));
+    }
+    100% { 
+        stroke-width: 5px;
+        filter: drop-shadow(0 0 10px rgba(76, 175, 80, 0.7));
+    }
+}
+
+/* Pulse animation voor invalid drop targets */
+@keyframes dropInvalidPulse {
+    0% { 
+        stroke-width: 5px;
+        filter: drop-shadow(0 0 10px rgba(244, 67, 54, 0.7));
+    }
+    50% { 
+        stroke-width: 6px;
+        filter: drop-shadow(0 0 15px rgba(244, 67, 54, 0.9));
+    }
+    100% { 
+        stroke-width: 5px;
+        filter: drop-shadow(0 0 10px rgba(244, 67, 54, 0.7));
+    }
+}
+
+/* Newly created connection highlight */
+.connection.newly-created .connection-line {
+    stroke: #2196F3 !important;
+    stroke-width: 4px !important;
+    filter: drop-shadow(0 0 8px rgba(33, 150, 243, 0.6));
+    animation: newlyCreatedPulse 2s ease-out;
+}
+
+@keyframes newlyCreatedPulse {
+    0% { 
+        stroke-width: 6px;
+        filter: drop-shadow(0 0 15px rgba(33, 150, 243, 0.9));
+    }
+    100% { 
+        stroke-width: 4px;
+        filter: drop-shadow(0 0 8px rgba(33, 150, 243, 0.6));
+    }
+}
+
+/* Disconnect mode styling */
+.node.disconnect-mode {
+    box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.8), 0 0 20px rgba(255, 152, 0, 0.6) !important;
+    animation: disconnectModePulse 1.5s infinite ease-in-out;
+    z-index: 15;
+}
+
+@keyframes disconnectModePulse {
+    0% { 
+        box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.8), 0 0 20px rgba(255, 152, 0, 0.6);
+        transform: scale(1);
+    }
+    50% { 
+        box-shadow: 0 0 0 5px rgba(255, 152, 0, 0.8), 0 0 25px rgba(255, 152, 0, 0.8);
+        transform: scale(1.02);
+    }
+    100% { 
+        box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.8), 0 0 20px rgba(255, 152, 0, 0.6);
+        transform: scale(1);
+    }
+}
+
+/* Disconnect highlight for connections */
+.connection.disconnect-highlight {
+    z-index: 12;
+}
+
+.connection.disconnect-highlight .connection-line {
+    stroke: #FF9800 !important;
+    stroke-width: 4px !important;
+    filter: drop-shadow(0 0 8px rgba(255, 152, 0, 0.6));
+    animation: disconnectHighlightPulse 1.5s infinite ease-in-out;
+    cursor: pointer;
+}
+
+.connection.disconnect-highlight .connection-hitzone {
+    stroke: #FF9800 !important;
+    stroke-width: 12px !important;
+    opacity: 0.3;
+    cursor: pointer;
+}
+
+@keyframes disconnectHighlightPulse {
+    0% { 
+        stroke-width: 4px;
+        filter: drop-shadow(0 0 8px rgba(255, 152, 0, 0.6));
+    }
+    50% { 
+        stroke-width: 5px;
+        filter: drop-shadow(0 0 12px rgba(255, 152, 0, 0.8));
+    }
+    100% { 
+        stroke-width: 4px;
+        filter: drop-shadow(0 0 8px rgba(255, 152, 0, 0.6));
+    }
+}
+
 /* Styling voor aftakkingen die vanaf een verbindingspunt komen */
 .connection-line.true-branch {
     stroke-width: 2.5;
@@ -1305,4 +1449,39 @@ body {
 
 .attribution p {
     margin: 0;
+}
+
+/* Node Reconnection Styles */
+.node.reconnecting {
+    opacity: 0.7;
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.8) !important;
+    cursor: grab !important;
+    animation: reconnectPulse 1s infinite alternate;
+}
+
+@keyframes reconnectPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.02); }
+}
+
+.node.potential-new-parent {
+    box-shadow: 0 0 0 4px #4CAF50, 0 0 20px rgba(76, 175, 80, 0.6) !important;
+    transform: scale(1.05);
+    cursor: copy !important;
+    z-index: 1000;
+}
+
+.node.potential-new-parent::before {
+    content: "Drop hier";
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4CAF50;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1001;
 }

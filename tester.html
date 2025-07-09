@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mindmap Debugger & Reparatie Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .section h2 {
+            margin-top: 0;
+            color: #2196F3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-ok { background-color: #4CAF50; }
+        .status-warning { background-color: #FF9800; }
+        .status-error { background-color: #F44336; }
+        
+        .btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #1976D2;
+        }
+        
+        .btn-success { background-color: #4CAF50; }
+        .btn-success:hover { background-color: #45a049; }
+        
+        .btn-warning { background-color: #FF9800; }
+        .btn-warning:hover { background-color: #F57C00; }
+        
+        .btn-danger { background-color: #F44336; }
+        .btn-danger:hover { background-color: #D32F2F; }
+        
+        .log-area {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .log-info { background: rgba(33, 150, 243, 0.1); }
+        .log-success { background: rgba(76, 175, 80, 0.1); }
+        .log-warning { background: rgba(255, 152, 0, 0.1); }
+        .log-error { background: rgba(244, 67, 54, 0.1); }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .metric {
+            background: #333;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .metric-label {
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .iframe-container {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 20px;
+            background: #1a1a1a;
+            position: relative;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .overlay-debug {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        
+        .click-indicator {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #FF5722;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: clickPulse 1s ease-out;
+        }
+        
+        @keyframes clickPulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        .code-fix {
+            background: #1a1a1a;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #444;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #2196F3;
+            border-bottom-color: #2196F3;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Mindmap Debugger & Reparatie Tool</h1>
+        <p class="subtitle">Analyseer en repareer problemen met je mindmap</p>
+        
+        <div class="tab-container">
+            <button class="tab active" onclick="switchTab('diagnostics')">🔍 Diagnostiek</button>
+            <button class="tab" onclick="switchTab('repair')">🔨 Reparatie</button>
+            <button class="tab" onclick="switchTab('live')">🖥️ Live Test</button>
+            <button class="tab" onclick="switchTab('code')">📝 Code Fixes</button>
+        </div>
+        
+        <!-- Diagnostiek Tab -->
+        <div id="diagnostics-tab" class="tab-content active">
+            <div class="section">
+                <h2><span class="status-indicator status-warning"></span> Quick Diagnostiek</h2>
+                <div class="grid">
+                    <div class="metric">
+                        <div class="metric-value" id="event-count">0</div>
+                        <div class="metric-label">Event Listeners</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="blocking-count">0</div>
+                        <div class="metric-label">Blokkerende Elementen</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="z-index-max">0</div>
+                        <div class="metric-label">Hoogste Z-Index</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn" onclick="runDiagnostics()">🔍 Start Volledige Analyse</button>
+                    <button class="btn btn-warning" onclick="findBlockingElements()">🚫 Vind Blokkerende Elementen</button>
+                    <button class="btn btn-success" onclick="testEventPropagation()">🎯 Test Event Propagatie</button>
+                </div>
+                
+                <div class="log-area" id="diagnostic-log">
+                    <div class="log-entry log-info">Klik op 'Start Volledige Analyse' om te beginnen...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reparatie Tab -->
+        <div id="repair-tab" class="tab-content">
+            <div class="section">
+                <h2><span class="status-indicator status-success"></span> Automatische Reparaties</h2>
+                <p>Deze fixes proberen veelvoorkomende problemen op te lossen:</p>
+                
+                <button class="btn btn-success" onclick="fixEventHandlers()">🔧 Repareer Event Handlers</button>
+                <button class="btn btn-success" onclick="fixPointerEvents()">👆 Fix Pointer Events</button>
+                <button class="btn btn-success" onclick="fixZIndexIssues()">📚 Fix Z-Index Problemen</button>
+                <button class="btn btn-warning" onclick="removeBlockingOverlays()">🗑️ Verwijder Blokkerende Overlays</button>
+                <button class="btn btn-danger" onclick="resetAllStyles()">🔄 Reset Alle Stijlen</button>
+                
+                <div class="log-area" id="repair-log" style="margin-top: 20px;">
+                    <div class="log-entry log-info">Kies een reparatie optie...</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>💉 Event Handler Injectie</h2>
+                <p>Voeg specifieke event handlers toe aan elementen:</p>
+                
+                <button class="btn" onclick="injectMouseHandlers()">🖱️ Injecteer Mouse Handlers</button>
+                <button class="btn" onclick="injectClickHandlers()">👆 Injecteer Click Handlers</button>
+                <button class="btn" onclick="injectDragHandlers()">✋ Injecteer Drag Handlers</button>
+                
+                <div class="code-fix" id="injection-code" style="display: none;">
+                    // Code wordt hier getoond na injectie
+                </div>
+            </div>
+        </div>
+        
+        <!-- Live Test Tab -->
+        <div id="live-tab" class="tab-content">
+            <div class="section">
+                <h2>🖥️ Live Mindmap Test</h2>
+                <p>Test je mindmap direct in een sandbox omgeving:</p>
+                
+                <button class="btn" onclick="loadMindmap()">📂 Laad Mindmap</button>
+                <button class="btn btn-success" onclick="enableDebugMode()">🐛 Debug Mode Aan</button>
+                <button class="btn btn-warning" onclick="showClickOverlay()">🎯 Toon Click Overlay</button>
+                
+                <div class="iframe-container">
+                    <div class="overlay-debug" id="debug-overlay"></div>
+                    <iframe id="mindmap-frame" src="about:blank"></iframe>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Code Fixes Tab -->
+        <div id="code-tab" class="tab-content">
+            <div class="section">
+                <h2>📝 Voorgestelde Code Fixes</h2>
+                <p>Kopieer deze code snippets naar je mindmap bestanden:</p>
+                
+                <h3>Fix 1: Event Delegation Reset</h3>
+                <div class="code-fix">
+// Voeg dit toe aan het begin van setupEventListeners() in ui.js
+
+// Reset alle event listeners eerst
+document.querySelectorAll('.node').forEach(node => {
+    const newNode = node.cloneNode(true);
+    node.parentNode.replaceChild(newNode, node);
+});
+
+// Gebruik event delegation voor betere performance
+canvas.addEventListener('mousedown', function(e) {
+    const node = e.target.closest('.node');
+    if (node && e.button === 0) {
+        const nodeData = nodes.find(n => n.id === node.id);
+        if (nodeData) {
+            handleNodeMouseDown(e, nodeData);
+        }
+    }
+}, true); // Gebruik capture phase</div>
+
+                <h3>Fix 2: Z-Index Management</h3>
+                <div class="code-fix">
+// Voeg dit toe aan core.js
+
+function fixZIndexStacking() {
+    // Canvas container moet lager zijn
+    canvasContainer.style.zIndex = '1';
+    
+    // Connections container
+    const connectionsContainer = document.getElementById('connections-container');
+    if (connectionsContainer) {
+        connectionsContainer.style.zIndex = '2';
+    }
+    
+    // Alle nodes
+    document.querySelectorAll('.node').forEach((node, index) => {
+        node.style.zIndex = 10 + index;
+    });
+    
+    // Context menus en modals
+    document.querySelectorAll('.context-menu, .modal').forEach(el => {
+        el.style.zIndex = '1000';
+    });
+}</div>
+
+                <h3>Fix 3: Pointer Events Fix</h3>
+                <div class="code-fix">
+// Voeg dit toe aan je CSS file
+
+/* Fix voor pointer events */
+.canvas-container {
+    position: relative;
+    overflow: hidden;
+    /* Zorg dat container events doorgeeft */
+    pointer-events: auto;
+}
+
+#mindmap-canvas {
+    position: absolute;
+    /* Canvas moet events ontvangen */
+    pointer-events: auto;
+}
+
+.node {
+    /* Nodes moeten ALTIJD clickable zijn */
+    pointer-events: auto !important;
+    cursor: move;
+}
+
+/* Connections mogen mouse events niet blokkeren */
+#connections-container {
+    pointer-events: none;
+}
+
+.connection-hitzone {
+    pointer-events: stroke !important;
+}</div>
+
+                <h3>Fix 4: Touch Support</h3>
+                <div class="code-fix">
+// Voor betere mouse/touch support
+function enhanceMouseHandling() {
+    // Voorkom dat browser default drag behavior interfereert
+    canvas.addEventListener('dragstart', (e) => e.preventDefault());
+    
+    // Verbeter node selectie
+    canvas.addEventListener('mousedown', function(e) {
+        // Directe node detectie zonder jQuery
+        let target = e.target;
+        let node = null;
+        
+        // Loop omhoog door DOM tree
+        while (target && target !== canvas) {
+            if (target.classList && target.classList.contains('node')) {
+                node = target;
+                break;
+            }
+            target = target.parentElement;
+        }
+        
+        if (node) {
+            console.log('Node clicked:', node.id);
+            // Forceer focus
+            node.focus();
+        }
+    }, true);
+}</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+        
+        // Diagnostics functions
+        function runDiagnostics() {
+            const log = document.getElementById('diagnostic-log');
+            log.innerHTML = '';
+            
+            addLog('info', '🔍 Start diagnostiek...', 'diagnostic-log');
+            
+            // Check event listeners
+            checkEventListeners();
+            
+            // Check z-index issues
+            checkZIndexIssues();
+            
+            // Check pointer events
+            checkPointerEvents();
+            
+            // Check overlapping elements
+            checkOverlappingElements();
+            
+            addLog('success', '✅ Diagnostiek voltooid!', 'diagnostic-log');
+        }
+        
+        function checkEventListeners() {
+            let count = 0;
+            const elements = document.querySelectorAll('*');
+            
+            elements.forEach(el => {
+                // Check for common event properties
+                if (el.onclick || el.onmousedown || el.onmousemove || el.onmouseup) {
+                    count++;
+                }
+            });
+            
+            document.getElementById('event-count').textContent = count;
+            addLog(count > 0 ? 'success' : 'warning', 
+                   `Found ${count} elements with inline event handlers`, 
+                   'diagnostic-log');
+        }
+        
+        function checkZIndexIssues() {
+            let maxZ = 0;
+            const elements = document.querySelectorAll('*');
+            
+            elements.forEach(el => {
+                const z = parseInt(window.getComputedStyle(el).zIndex) || 0;
+                if (z > maxZ) maxZ = z;
+            });
+            
+            document.getElementById('z-index-max').textContent = maxZ;
+            addLog(maxZ > 9999 ? 'warning' : 'info', 
+                   `Hoogste z-index: ${maxZ}`, 
+                   'diagnostic-log');
+        }
+        
+        function checkPointerEvents() {
+            let blocked = 0;
+            const interactiveElements = document.querySelectorAll('.node, .btn, .tool-btn, button, a');
+            
+            interactiveElements.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (style.pointerEvents === 'none') {
+                    blocked++;
+                    addLog('warning', `Element geblokkeerd: ${el.className || el.tagName}`, 'diagnostic-log');
+                }
+            });
+            
+            document.getElementById('blocking-count').textContent = blocked;
+        }
+        
+        function checkOverlappingElements() {
+            const nodes = document.querySelectorAll('.node');
+            nodes.forEach(node => {
+                const rect = node.getBoundingClientRect();
+                const elementAtPoint = document.elementFromPoint(
+                    rect.left + rect.width/2, 
+                    rect.top + rect.height/2
+                );
+                
+                if (elementAtPoint && !node.contains(elementAtPoint)) {
+                    addLog('warning', 
+                           `Node ${node.id} wordt mogelijk geblokkeerd door ${elementAtPoint.className}`, 
+                           'diagnostic-log');
+                }
+            });
+        }
+        
+        // Repair functions
+        function fixEventHandlers() {
+            addLog('info', '🔧 Repareren van event handlers...', 'repair-log');
+            
+            const code = `
+// Re-attach event handlers
+document.querySelectorAll('.node').forEach(node => {
+    // Remove existing handlers
+    const newNode = node.cloneNode(true);
+    node.parentNode.replaceChild(newNode, node);
+    
+    // Add fresh handlers
+    newNode.addEventListener('mousedown', handleNodeMouseDown);
+    newNode.addEventListener('dblclick', handleNodeDoubleClick);
+    newNode.addEventListener('contextmenu', handleNodeContextMenu);
+});`;
+            
+            try {
+                eval(code);
+                addLog('success', '✅ Event handlers gerepareerd!', 'repair-log');
+            } catch (e) {
+                addLog('error', `❌ Fout: ${e.message}`, 'repair-log');
+            }
+        }
+        
+        function fixPointerEvents() {
+            addLog('info', '👆 Fixing pointer events...', 'repair-log');
+            
+            // Fix common pointer-events issues
+            const fixes = [
+                { selector: '.node', style: 'auto' },
+                { selector: '.tool-btn', style: 'auto' },
+                { selector: '.btn', style: 'auto' },
+                { selector: '#connections-container', style: 'none' },
+                { selector: '.connection-hitzone', style: 'stroke' }
+            ];
+            
+            fixes.forEach(fix => {
+                document.querySelectorAll(fix.selector).forEach(el => {
+                    el.style.pointerEvents = fix.style;
+                });
+            });
+            
+            addLog('success', '✅ Pointer events gefixed!', 'repair-log');
+        }
+        
+        function fixZIndexIssues() {
+            addLog('info', '📚 Fixing z-index problemen...', 'repair-log');
+            
+            // Reset z-index hiërarchie
+            const hierarchy = [
+                { selector: '.canvas-container', zIndex: 1 },
+                { selector: '#connections-container', zIndex: 2 },
+                { selector: '.node', zIndex: 10 },
+                { selector: '.context-menu', zIndex: 1000 },
+                { selector: '.modal', zIndex: 1000 },
+                { selector: '.toast', zIndex: 2000 }
+            ];
+            
+            hierarchy.forEach(item => {
+                document.querySelectorAll(item.selector).forEach(el => {
+                    el.style.zIndex = item.zIndex;
+                });
+            });
+            
+            addLog('success', '✅ Z-index hiërarchie hersteld!', 'repair-log');
+        }
+        
+        function removeBlockingOverlays() {
+            addLog('info', '🗑️ Zoeken naar blokkerende overlays...', 'repair-log');
+            
+            const suspects = document.querySelectorAll('[class*="overlay"], [class*="modal"], [class*="backdrop"]');
+            let removed = 0;
+            
+            suspects.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (style.display !== 'none' && style.position === 'fixed') {
+                    el.style.display = 'none';
+                    removed++;
+                    addLog('warning', `Verwijderd: ${el.className}`, 'repair-log');
+                }
+            });
+            
+            addLog('success', `✅ ${removed} overlays verwijderd!`, 'repair-log');
+        }
+        
+        function resetAllStyles() {
+            if (!confirm('Dit zal ALLE inline styles resetten. Weet je het zeker?')) return;
+            
+            addLog('warning', '🔄 Resetting all inline styles...', 'repair-log');
+            
+            document.querySelectorAll('*').forEach(el => {
+                el.removeAttribute('style');
+            });
+            
+            addLog('success', '✅ Alle inline styles gereset!', 'repair-log');
+        }
+        
+        // Helper functions
+        function addLog(type, message, logId) {
+            const log = document.getElementById(logId);
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Event injection functions
+        function injectMouseHandlers() {
+            const code = `
+document.querySelectorAll('.node').forEach(node => {
+    node.onmouseenter = function() { console.log('Mouse enter:', this.id); };
+    node.onmouseleave = function() { console.log('Mouse leave:', this.id); };
+    node.onmousemove = function() { console.log('Mouse move:', this.id); };
+});`;
+            
+            document.getElementById('injection-code').style.display = 'block';
+            document.getElementById('injection-code').textContent = code;
+            
+            try {
+                eval(code);
+                addLog('success', '✅ Mouse handlers geïnjecteerd!', 'repair-log');
+            } catch (e) {
+                addLog('error', `❌ Fout: ${e.message}`, 'repair-log');
+            }
+        }
+        
+        function injectClickHandlers() {
+            const code = `
+document.querySelectorAll('.node').forEach(node => {
+    node.onclick = function(e) { 
+        e.stopPropagation();
+        console.log('Node clicked:', this.id);
+        this.style.border = '3px solid red';
+    };
+});`;
+            
+            document.getElementById('injection-code').style.display = 'block';
+            document.getElementById('injection-code').textContent = code;
+            
+            try {
+                eval(code);
+                addLog('success', '✅ Click handlers geïnjecteerd!', 'repair-log');
+            } catch (e) {
+                addLog('error', `❌ Fout: ${e.message}`, 'repair-log');
+            }
+        }
+        
+        function injectDragHandlers() {
+            const code = `
+let draggedElement = null;
+
+document.querySelectorAll('.node').forEach(node => {
+    node.draggable = true;
+    
+    node.ondragstart = function(e) {
+        draggedElement = this;
+        this.style.opacity = '0.5';
+        console.log('Drag start:', this.id);
+    };
+    
+    node.ondragend = function(e) {
+        this.style.opacity = '';
+        console.log('Drag end:', this.id);
+    };
+});`;
+            
+            document.getElementById('injection-code').style.display = 'block';
+            document.getElementById('injection-code').textContent = code;
+            
+            try {
+                eval(code);
+                addLog('success', '✅ Drag handlers geïnjecteerd!', 'repair-log');
+            } catch (e) {
+                addLog('error', `❌ Fout: ${e.message}`, 'repair-log');
+            }
+        }
+        
+        // Live test functions
+        function loadMindmap() {
+            const iframe = document.getElementById('mindmap-frame');
+            iframe.src = 'index.html'; // Pas dit aan naar je mindmap locatie
+            
+            iframe.onload = function() {
+                addLog('success', '✅ Mindmap geladen in iframe', 'diagnostic-log');
+            };
+        }
+        
+        function enableDebugMode() {
+            const iframe = document.getElementById('mindmap-frame');
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            
+            // Inject debug helpers
+            const script = iframeDoc.createElement('script');
+            script.textContent = `
+                console.log('🐛 Debug mode enabled!');
+                
+                // Log all clicks
+                document.addEventListener('click', function(e) {
+                    console.log('Click on:', e.target, 'at', e.clientX, e.clientY);
+                }, true);
+                
+                // Log all mouse events on nodes
+                document.querySelectorAll('.node').forEach(node => {
+                    ['mousedown', 'mouseup', 'click', 'dblclick'].forEach(eventType => {
+                        node.addEventListener(eventType, function(e) {
+                            console.log(\`Node \${this.id} - \${eventType}\`);
+                        });
+                    });
+                });
+            `;
+            iframeDoc.body.appendChild(script);
+            
+            addLog('success', '✅ Debug mode geactiveerd!', 'diagnostic-log');
+        }
+        
+        function showClickOverlay() {
+            const overlay = document.getElementById('debug-overlay');
+            overlay.style.pointerEvents = 'auto';
+            
+            overlay.onclick = function(e) {
+                const indicator = document.createElement('div');
+                indicator.className = 'click-indicator';
+                indicator.style.left = e.offsetX - 15 + 'px';
+                indicator.style.top = e.offsetY - 15 + 'px';
+                overlay.appendChild(indicator);
+                
+                setTimeout(() => indicator.remove(), 1000);
+                
+                console.log('Click at:', e.offsetX, e.offsetY);
+            };
+            
+            addLog('info', '🎯 Click overlay actief - klik om te testen', 'diagnostic-log');
+        }
+        
+        // Auto-run basic diagnostics on load
+        window.onload = function() {
+            checkEventListeners();
+            checkZIndexIssues();
+            checkPointerEvents();
+        };
+    </script>
+</body>
+</html>

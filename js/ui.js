@@ -1830,7 +1830,7 @@ function integrateUIEnhancements() {
 }
 
 // ==========================
-// TOUCH/MOBILE SUPPORT
+// ENHANCED TOUCH/MOBILE SUPPORT
 // ==========================
 
 let touchStartPos = null;
@@ -1839,11 +1839,71 @@ let lastTouchEnd = 0;
 let touchHandled = false;
 let initialPinchDistance = null;
 let lastPinchDistance = null;
+let mobileOptimized = false;
 
 /**
- * Setup touch/mobile support for the mindmap
+ * Setup enhanced touch/mobile support for the mindmap
  */
 function setupTouchSupport() {
+    // Check if mobile touch system is available
+    if (typeof window.initializeMobileTouch === 'function') {
+        // Use comprehensive mobile touch system
+        console.log('📱 Using comprehensive mobile touch system');
+        
+        // Initialize mobile touch manager if not already done
+        if (!window.mobileTouchManager) {
+            window.initializeMobileTouch();
+        }
+        
+        // Add mobile-specific optimizations
+        setupMobileOptimizations();
+        
+        mobileOptimized = true;
+    } else {
+        // Fallback to basic touch support
+        console.log('📱 Using basic touch fallback');
+        setupBasicTouchSupport();
+    }
+    
+    // Add CSS for touch interactions
+    addTouchStyles();
+}
+
+/**
+ * Setup mobile-specific optimizations
+ */
+function setupMobileOptimizations() {
+    // Add mobile-specific viewport meta tag if not present
+    if (!document.querySelector('meta[name="viewport"]')) {
+        const viewport = document.createElement('meta');
+        viewport.name = 'viewport';
+        viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes';
+        document.head.appendChild(viewport);
+    }
+    
+    // Optimize canvas for touch
+    canvas.style.touchAction = 'none';
+    
+    // Add mobile-specific keyboard handling
+    setupMobileKeyboard();
+    
+    // Add connection creation for touch
+    setupTouchConnectionCreation();
+    
+    // Add touch-friendly branch creation
+    setupTouchBranchCreation();
+    
+    // Optimize modal dialogs for touch
+    setupTouchModalOptimizations();
+    
+    // Add touch performance optimizations
+    setupTouchPerformanceOptimizations();
+}
+
+/**
+ * Setup basic touch support as fallback
+ */
+function setupBasicTouchSupport() {
     // Touch start handler
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
@@ -1855,15 +1915,14 @@ function setupTouchSupport() {
     
     // Prevent ghost clicks after touch
     canvas.addEventListener('click', handleGhostClick, { passive: false });
-    
-    // Add CSS for touch interactions
-    addTouchStyles();
 }
 
 /**
- * Handle touch start events
+ * Handle touch start events (fallback)
  */
 function handleTouchStart(e) {
+    if (mobileOptimized) return; // Skip if using enhanced system
+    
     const now = Date.now();
     
     if (e.touches.length === 1) {
@@ -1894,9 +1953,11 @@ function handleTouchStart(e) {
 }
 
 /**
- * Handle touch move events
+ * Handle touch move events (fallback)
  */
 function handleTouchMove(e) {
+    if (mobileOptimized) return; // Skip if using enhanced system
+    
     if (e.touches.length === 1) {
         // Single touch move - simulate mousemove
         const mouseEvent = new MouseEvent('mousemove', {
@@ -1916,9 +1977,11 @@ function handleTouchMove(e) {
 }
 
 /**
- * Handle touch end events
+ * Handle touch end events (fallback)
  */
 function handleTouchEnd(e) {
+    if (mobileOptimized) return; // Skip if using enhanced system
+    
     const now = Date.now();
     const touchDuration = touchStartTime ? now - touchStartTime : 0;
     
@@ -2031,44 +2094,245 @@ function handlePinchMove(e) {
 }
 
 /**
+ * Setup mobile keyboard handling
+ */
+function setupMobileKeyboard() {
+    // Handle virtual keyboard appearance
+    const originalHeight = window.innerHeight;
+    
+    window.addEventListener('resize', () => {
+        const currentHeight = window.innerHeight;
+        const heightDifference = originalHeight - currentHeight;
+        
+        // If keyboard is likely open (height reduced significantly)
+        if (heightDifference > 150) {
+            document.body.classList.add('keyboard-open');
+            
+            // Adjust canvas container
+            if (canvasContainer) {
+                canvasContainer.style.height = `${currentHeight - 100}px`;
+            }
+        } else {
+            document.body.classList.remove('keyboard-open');
+            
+            // Restore canvas container
+            if (canvasContainer) {
+                canvasContainer.style.height = '';
+            }
+        }
+    });
+    
+    // Handle input focus/blur
+    document.addEventListener('focusin', (e) => {
+        if (e.target.matches('input, textarea, [contenteditable="true"]')) {
+            // Scroll into view for touch devices
+            setTimeout(() => {
+                if (e.target.scrollIntoView) {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 300);
+        }
+    });
+}
+
+/**
+ * Setup touch connection creation
+ */
+function setupTouchConnectionCreation() {
+    // Add touch-based connection creation
+    // This integrates with the mobile touch manager's drag system
+    
+    // Enhanced connection creation for touch
+    function startTouchConnection(startNode, touchPos) {
+        if (window.mobileTouchManager) {
+            window.mobileTouchManager.setMode('connect');
+            
+            // Show connection preview
+            const connectionPreview = document.createElement('div');
+            connectionPreview.id = 'touch-connection-preview';
+            connectionPreview.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 1000;
+            `;
+            
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.style.cssText = 'width: 100%; height: 100%;';
+            
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('stroke', '#2196F3');
+            line.setAttribute('stroke-width', '3');
+            line.setAttribute('stroke-dasharray', '5,5');
+            
+            svg.appendChild(line);
+            connectionPreview.appendChild(svg);
+            canvas.appendChild(connectionPreview);
+            
+            return connectionPreview;
+        }
+    }
+    
+    // Export for use by mobile touch manager
+    window.startTouchConnection = startTouchConnection;
+}
+
+/**
+ * Setup touch-friendly branch creation
+ */
+function setupTouchBranchCreation() {
+    // Add touch gesture for branch creation
+    if (window.mobileTouchManager) {
+        // Add two-finger tap on connection to create branch
+        window.mobileTouchManager.gestureManager.on('tap', (data) => {
+            if (data.originalEvent.touches && data.originalEvent.touches.length === 2) {
+                const connection = data.target.closest('.connection');
+                if (connection) {
+                    const conn = connections.find(c => c.id === connection.id);
+                    if (conn) {
+                        // Create branch at touch position
+                        const canvasCoords = window.mobileTouchManager.gestureManager.getCanvasCoordinates(data.touch);
+                        startBranchFromConnection(conn, canvasCoords.x, canvasCoords.y);
+                    }
+                }
+            }
+        });
+    }
+}
+
+/**
+ * Setup touch modal optimizations
+ */
+function setupTouchModalOptimizations() {
+    // Make all modal inputs touch-friendly
+    const modals = document.querySelectorAll('.modal');
+    
+    modals.forEach(modal => {
+        // Improve input field sizes
+        const inputs = modal.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.style.minHeight = '44px';
+            input.style.fontSize = '16px';
+            input.style.padding = '12px';
+        });
+        
+        // Improve button sizes
+        const buttons = modal.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.style.minHeight = '44px';
+            button.style.minWidth = '44px';
+            button.style.fontSize = '16px';
+            button.style.padding = '12px 20px';
+        });
+        
+        // Add touch-friendly close behavior
+        modal.addEventListener('touchstart', (e) => {
+            if (e.target === modal) {
+                // Close modal on background touch
+                modal.style.display = 'none';
+            }
+        });
+    });
+}
+
+/**
+ * Setup touch performance optimizations
+ */
+function setupTouchPerformanceOptimizations() {
+    // Debounce touch events for better performance
+    let touchMoveTimeout;
+    
+    // Optimize touch move events
+    const originalTouchMove = canvas.addEventListener;
+    
+    // Use passive listeners where possible
+    canvas.addEventListener('touchstart', (e) => {
+        // Only prevent default when necessary
+        if (e.touches.length > 1 || e.target.closest('.node, .connection')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Add will-change for better performance
+    const style = document.createElement('style');
+    style.textContent = `
+        .node, .connection {
+            will-change: transform;
+        }
+        
+        .node.dragging, .connection.dragging {
+            will-change: transform, left, top;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Optimize repaints
+    canvas.style.backfaceVisibility = 'hidden';
+    canvas.style.perspective = '1000px';
+}
+
+/**
  * Add CSS styles for touch interactions
  */
 function addTouchStyles() {
     const touchStyles = document.createElement('style');
     touchStyles.textContent = `
-        /* Touch-friendly styles */
+        /* Enhanced touch-friendly styles */
         @media (hover: none) and (pointer: coarse) {
             .node {
-                min-width: 44px;
-                min-height: 44px;
-                font-size: 16px;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                font-size: 16px !important;
+                padding: 12px !important;
+            }
+            
+            .node-title {
+                font-size: 16px !important;
+                font-weight: 600 !important;
             }
             
             .context-menu {
-                font-size: 18px;
+                font-size: 18px !important;
             }
             
             .context-menu-item {
-                padding: 12px 16px;
-                min-height: 44px;
-                display: flex;
-                align-items: center;
+                padding: 16px 20px !important;
+                min-height: 48px !important;
+                display: flex !important;
+                align-items: center !important;
             }
             
             .tool-btn {
-                min-width: 44px;
-                min-height: 44px;
-                padding: 12px;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                padding: 12px !important;
+                font-size: 16px !important;
             }
             
             .zoom-controls button {
-                min-width: 44px;
-                min-height: 44px;
-                font-size: 18px;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                font-size: 18px !important;
+            }
+            
+            .add-node-btn {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 18px !important;
+            }
+            
+            .connection-hitzone {
+                stroke-width: 20px !important;
             }
             
             /* Prevent text selection on touch devices */
-            .node-title, .node-content {
+            .node-title:not([contenteditable="true"]),
+            .node-content:not([contenteditable="true"]),
+            .tool-btn,
+            .context-menu-item {
                 -webkit-touch-callout: none;
                 -webkit-user-select: none;
                 -khtml-user-select: none;
@@ -2079,11 +2343,13 @@ function addTouchStyles() {
             
             /* Make editable elements selectable when in edit mode */
             .node-title[contenteditable="true"], 
-            .node-content[contenteditable="true"] {
-                -webkit-user-select: text;
-                -moz-user-select: text;
-                -ms-user-select: text;
-                user-select: text;
+            .node-content[contenteditable="true"],
+            input,
+            textarea {
+                -webkit-user-select: text !important;
+                -moz-user-select: text !important;
+                -ms-user-select: text !important;
+                user-select: text !important;
             }
         }
         
@@ -2100,8 +2366,8 @@ function addTouchStyles() {
         
         /* Improve touch target sizes */
         .connection-label {
-            min-width: 44px;
-            min-height: 44px;
+            min-width: 48px;
+            min-height: 48px;
             padding: 8px;
             display: flex;
             align-items: center;
@@ -2121,6 +2387,48 @@ function addTouchStyles() {
         
         ::-webkit-scrollbar-track {
             background: rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Mobile keyboard adjustments */
+        .keyboard-open {
+            height: 100vh !important;
+            overflow: hidden !important;
+        }
+        
+        .keyboard-open .canvas-container {
+            height: calc(100vh - 100px) !important;
+        }
+        
+        /* Touch ripple effect */
+        @keyframes touchRipple {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        .touch-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.6);
+            animation: touchRipple 0.6s ease-out;
+            pointer-events: none;
+        }
+        
+        /* Enhanced connection touch targets */
+        .connection-dragging {
+            stroke-width: 4px !important;
+            stroke-dasharray: 5,5 !important;
+            animation: connectionDragPulse 1s ease-in-out infinite alternate;
+        }
+        
+        @keyframes connectionDragPulse {
+            0% { stroke-opacity: 0.7; }
+            100% { stroke-opacity: 1; }
         }
     `;
     document.head.appendChild(touchStyles);

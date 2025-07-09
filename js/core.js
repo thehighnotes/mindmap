@@ -520,6 +520,150 @@ function clearMindmap() {
     showToast('Mindmap gewist');
 }
 
+// ----- COPY/PASTE FUNCTIONALITEIT -----
+
+// Clipboard voor copy/paste functionaliteit
+let clipboard = {
+    nodes: [],
+    connections: []
+};
+
+// Kopieer geselecteerde node(s)
+function copySelectedNodes() {
+    if (!currentSelectedNode || currentSelectedNode.startsWith('conn-')) {
+        showToast('Selecteer eerst een node om te kopiëren', true);
+        return;
+    }
+    
+    const node = nodes.find(n => n.id === currentSelectedNode);
+    if (!node) {
+        showToast('Geselecteerde node niet gevonden', true);
+        return;
+    }
+    
+    // Reset clipboard
+    clipboard = {
+        nodes: [JSON.parse(JSON.stringify(node))], // Deep copy
+        connections: []
+    };
+    
+    // Kopieer ook verbindingen tussen gekopieerde nodes
+    const nodeIds = clipboard.nodes.map(n => n.id);
+    clipboard.connections = connections.filter(conn => 
+        nodeIds.includes(conn.source) && nodeIds.includes(conn.target)
+    ).map(conn => JSON.parse(JSON.stringify(conn)));
+    
+    showToast(`Node "${node.title}" gekopieerd`);
+}
+
+// Plak nodes op huidige muispositie
+function pasteNodes(mouseX = null, mouseY = null) {
+    if (clipboard.nodes.length === 0) {
+        showToast('Niets om te plakken', true);
+        return;
+    }
+    
+    // Sla staat op voor undo
+    saveStateForUndo();
+    
+    // Bereken offset voor nieuwe positie
+    const rect = canvasContainer.getBoundingClientRect();
+    const offsetX = mouseX || ((-canvasOffset.x + rect.width / 2) / zoomLevel);
+    const offsetY = mouseY || ((-canvasOffset.y + rect.height / 2) / zoomLevel);
+    
+    // Map oude IDs naar nieuwe IDs
+    const idMap = {};
+    const pastedNodes = [];
+    
+    // Maak nieuwe nodes
+    clipboard.nodes.forEach((nodeData, index) => {
+        const oldId = nodeData.id;
+        const newNode = createNode(
+            nodeData.title + ' (kopie)',
+            nodeData.content,
+            nodeData.color,
+            offsetX + (index * 30), // Kleine offset voor meerdere nodes
+            offsetY + (index * 30),
+            nodeData.shape,
+            null,
+            false
+        );
+        
+        idMap[oldId] = newNode.id;
+        pastedNodes.push(newNode);
+    });
+    
+    // Maak nieuwe verbindingen
+    clipboard.connections.forEach(connData => {
+        const newSourceId = idMap[connData.source];
+        const newTargetId = idMap[connData.target];
+        
+        if (newSourceId && newTargetId) {
+            const newConn = createConnection(newSourceId, newTargetId, connData.isYBranch);
+            if (newConn) {
+                if (connData.label) newConn.label = connData.label;
+                if (connData.styleClass) newConn.styleClass = connData.styleClass;
+                if (connData.type) newConn.type = connData.type;
+            }
+        }
+    });
+    
+    // Selecteer eerste geplakte node
+    if (pastedNodes.length > 0) {
+        deselectAll();
+        currentSelectedNode = pastedNodes[0].id;
+        updateSelectionStatus();
+    }
+    
+    refreshConnections();
+    updateMinimap();
+    
+    showToast(`${pastedNodes.length} node(s) geplakt`);
+}
+
+// Zoom naar selectie functionaliteit
+function zoomToSelection() {
+    if (!currentSelectedNode) {
+        showToast('Selecteer eerst een node om in te zoomen');
+        return;
+    }
+    
+    // Voor nodes
+    if (!currentSelectedNode.startsWith('conn-')) {
+        const node = nodes.find(n => n.id === currentSelectedNode);
+        if (!node) return;
+        
+        // Zoom naar 150% voor goede focus
+        setZoomLevel(1.5);
+        
+        // Centreer op de node
+        centerOnNode(node.id);
+        
+        showToast('Ingezoomd op selectie');
+    } else {
+        // Voor verbindingen, zoom naar het midden
+        const connection = connections.find(c => c.id === currentSelectedNode);
+        if (!connection) return;
+        
+        const sourceNode = nodes.find(n => n.id === connection.source);
+        const targetNode = nodes.find(n => n.id === connection.target);
+        
+        if (sourceNode && targetNode) {
+            const centerX = (sourceNode.x + targetNode.x) / 2;
+            const centerY = (sourceNode.y + targetNode.y) / 2;
+            
+            setZoomLevel(1.2);
+            
+            const containerRect = canvasContainer.getBoundingClientRect();
+            canvasOffset.x = (containerRect.width / 2) - (centerX * zoomLevel);
+            canvasOffset.y = (containerRect.height / 2) - (centerY * zoomLevel);
+            
+            updateCanvasTransform();
+            showToast('Ingezoomd op verbinding');
+        }
+    }
+}
+
 // ----- ONGEDAAN MAKEN FUNCTIONALITEIT -----
 
 // Functie om een snapshot van de huidige staat te maken voor undo
@@ -787,3 +931,392 @@ function createNodeElement(node) {
     
     return nodeEl;
 }
+
+// ==========================
+// ADVANCED PERFORMANCE MONITORING
+// ==========================
+
+const performanceMonitor = {
+    metrics: {},
+    slowOperations: [],
+    isEnabled: true,
+    
+    /**
+     * Start timing an operation
+     * @param {string} operation - Name of the operation
+     */
+    start(operation) {
+        if (!this.isEnabled) return;
+        this.metrics[operation] = performance.now();
+    },
+    
+    /**
+     * End timing an operation and check for slow performance
+     * @param {string} operation - Name of the operation
+     * @param {number} threshold - Threshold in milliseconds (default: 100ms)
+     */
+    end(operation, threshold = 100) {
+        if (!this.isEnabled) return;
+        
+        if (this.metrics[operation]) {
+            const duration = performance.now() - this.metrics[operation];
+            
+            if (duration > threshold) {
+                this.slowOperations.push({
+                    operation,
+                    duration: duration.toFixed(2),
+                    timestamp: Date.now()
+                });
+                
+                console.warn(`Slow operation detected: ${operation} took ${duration.toFixed(2)}ms`);
+                
+                // Keep only last 10 slow operations
+                if (this.slowOperations.length > 10) {
+                    this.slowOperations.shift();
+                }
+                
+                // Show toast for very slow operations (> 500ms)
+                if (duration > 500) {
+                    showToast(`Performance waarschuwing: ${operation} duurde ${duration.toFixed(0)}ms`, true);
+                }
+            }
+            
+            delete this.metrics[operation];
+            return duration;
+        }
+        
+        return 0;
+    },
+    
+    /**
+     * Get recent slow operations
+     * @returns {Array} Array of slow operations
+     */
+    getSlowOperations() {
+        return this.slowOperations;
+    },
+    
+    /**
+     * Clear slow operations history
+     */
+    clearHistory() {
+        this.slowOperations = [];
+    },
+    
+    /**
+     * Enable/disable performance monitoring
+     * @param {boolean} enabled - Whether to enable monitoring
+     */
+    setEnabled(enabled) {
+        this.isEnabled = enabled;
+        if (enabled) {
+            console.log('Performance monitoring enabled');
+        } else {
+            console.log('Performance monitoring disabled');
+        }
+    }
+};
+
+// Wrap critical functions with performance monitoring
+const originalRefreshConnections = window.refreshConnections;
+window.refreshConnections = function(...args) {
+    performanceMonitor.start('refreshConnections');
+    const result = originalRefreshConnections.apply(this, args);
+    performanceMonitor.end('refreshConnections', 50);
+    return result;
+};
+
+const originalUpdateMinimap = window.updateMinimap;
+window.updateMinimap = function(...args) {
+    performanceMonitor.start('updateMinimap');
+    const result = originalUpdateMinimap ? originalUpdateMinimap.apply(this, args) : undefined;
+    performanceMonitor.end('updateMinimap', 100);
+    return result;
+};
+
+const originalDrawConnection = window.drawConnection;
+if (originalDrawConnection) {
+    window.drawConnection = function(...args) {
+        performanceMonitor.start('drawConnection');
+        const result = originalDrawConnection.apply(this, args);
+        performanceMonitor.end('drawConnection', 30);
+        return result;
+    };
+}
+
+const originalCreateNode = window.createNode;
+if (originalCreateNode) {
+    window.createNode = function(...args) {
+        performanceMonitor.start('createNode');
+        const result = originalCreateNode.apply(this, args);
+        performanceMonitor.end('createNode', 50);
+        return result;
+    };
+}
+
+// Export for global access
+window.performanceMonitor = performanceMonitor;
+
+console.log('📊 Performance monitoring activated');
+
+// ==========================
+// ADVANCED ERROR HANDLING
+// ==========================
+
+const errorHandler = {
+    errors: [],
+    isEnabled: true,
+    
+    /**
+     * Log and handle errors
+     * @param {Error} error - The error object
+     * @param {string} context - Context where error occurred
+     * @param {boolean} showUser - Whether to show error to user
+     */
+    handle(error, context = 'unknown', showUser = false) {
+        if (!this.isEnabled) return;
+        
+        const errorInfo = {
+            message: error.message,
+            stack: error.stack,
+            context,
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            userAgent: navigator.userAgent
+        };
+        
+        this.errors.push(errorInfo);
+        
+        // Keep only last 20 errors
+        if (this.errors.length > 20) {
+            this.errors.shift();
+        }
+        
+        // Log to console
+        console.error(`[${context}] Error:`, error);
+        
+        // Show to user if requested
+        if (showUser) {
+            showToast(`Fout: ${error.message}`, true);
+        }
+        
+        // Attempt recovery for specific error types
+        this.attemptRecovery(error, context);
+    },
+    
+    /**
+     * Attempt to recover from specific error types
+     * @param {Error} error - The error object
+     * @param {string} context - Context where error occurred
+     */
+    attemptRecovery(error, context) {
+        if (error.message.includes('Cannot read properties of null')) {
+            console.log('Attempting recovery from null reference...');
+            
+            // Validate and clean up connections
+            if (typeof window.validateConnections === 'function') {
+                window.validateConnections();
+            }
+            
+            // Refresh connections
+            if (typeof window.refreshConnections === 'function') {
+                try {
+                    window.refreshConnections();
+                } catch (e) {
+                    console.error('Recovery failed:', e);
+                }
+            }
+        }
+        
+        if (error.message.includes('is not a function')) {
+            console.log('Attempting recovery from missing function...');
+            
+            // Reset to safe state
+            isDragging = false;
+            draggedNode = null;
+            canvasDragging = false;
+            
+            // Clear any active UI states
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('reconnecting', 'potential-new-parent');
+            });
+            
+            if (window.reconnectingNode) {
+                window.reconnectingNode = null;
+            }
+        }
+    },
+    
+    /**
+     * Get recent errors
+     * @returns {Array} Array of error objects
+     */
+    getErrors() {
+        return this.errors;
+    },
+    
+    /**
+     * Clear error history
+     */
+    clearErrors() {
+        this.errors = [];
+    },
+    
+    /**
+     * Enable/disable error handling
+     * @param {boolean} enabled - Whether to enable error handling
+     */
+    setEnabled(enabled) {
+        this.isEnabled = enabled;
+        if (enabled) {
+            console.log('Error handling enabled');
+        } else {
+            console.log('Error handling disabled');
+        }
+    }
+};
+
+// Global error handler
+window.addEventListener('error', function(e) {
+    errorHandler.handle(e.error, 'global', false);
+});
+
+// Unhandled promise rejection handler
+window.addEventListener('unhandledrejection', function(e) {
+    errorHandler.handle(new Error(e.reason), 'promise', false);
+});
+
+// Wrap critical functions with error handling
+const safeWrap = (fn, name) => {
+    return function(...args) {
+        try {
+            return fn.apply(this, args);
+        } catch (error) {
+            errorHandler.handle(error, name, true);
+            return null;
+        }
+    };
+};
+
+// Wrap key functions
+if (window.createNode) {
+    window.createNode = safeWrap(window.createNode, 'createNode');
+}
+
+if (window.deleteNode) {
+    window.deleteNode = safeWrap(window.deleteNode, 'deleteNode');
+}
+
+if (window.createConnection) {
+    window.createConnection = safeWrap(window.createConnection, 'createConnection');
+}
+
+if (window.deleteConnection) {
+    window.deleteConnection = safeWrap(window.deleteConnection, 'deleteConnection');
+}
+
+if (window.makeEditable) {
+    window.makeEditable = safeWrap(window.makeEditable, 'makeEditable');
+}
+
+// Export for global access
+window.errorHandler = errorHandler;
+
+console.log('🛡️ Advanced error handling activated');
+
+// ==========================
+// INFINITE LOOP DETECTION
+// ==========================
+
+const loopDetector = {
+    calls: {},
+    isEnabled: true,
+    
+    /**
+     * Check if function is being called too frequently
+     * @param {string} functionName - Name of the function
+     * @param {number} threshold - Max calls per time window (default: 50)
+     * @param {number} timeWindow - Time window in milliseconds (default: 100)
+     * @returns {boolean} - True if execution should continue
+     */
+    check(functionName, threshold = 50, timeWindow = 100) {
+        if (!this.isEnabled) return true;
+        
+        const now = Date.now();
+        if (!this.calls[functionName]) {
+            this.calls[functionName] = [];
+        }
+        
+        this.calls[functionName].push(now);
+        
+        // Keep only calls within time window
+        this.calls[functionName] = this.calls[functionName].filter(t => now - t < timeWindow);
+        
+        // Check if threshold exceeded
+        if (this.calls[functionName].length > threshold) {
+            console.error(`Possible infinite loop detected in ${functionName}`);
+            showToast(`Oneindige lus gedetecteerd in ${functionName}`, true);
+            this.calls[functionName] = [];
+            return false;
+        }
+        
+        return true;
+    },
+    
+    /**
+     * Clear loop detection for a function
+     * @param {string} functionName - Name of the function
+     */
+    clear(functionName) {
+        if (this.calls[functionName]) {
+            this.calls[functionName] = [];
+        }
+    },
+    
+    /**
+     * Enable/disable loop detection
+     * @param {boolean} enabled - Whether to enable detection
+     */
+    setEnabled(enabled) {
+        this.isEnabled = enabled;
+        if (enabled) {
+            console.log('Loop detection enabled');
+        } else {
+            console.log('Loop detection disabled');
+        }
+    }
+};
+
+// Add loop detection to critical functions
+const originalRefreshConnectionsWithLoop = window.refreshConnections;
+window.refreshConnections = function(...args) {
+    if (!loopDetector.check('refreshConnections')) {
+        return;
+    }
+    return originalRefreshConnectionsWithLoop.apply(this, args);
+};
+
+const originalUpdateRelatedConnections = window.updateRelatedConnections;
+if (originalUpdateRelatedConnections) {
+    window.updateRelatedConnections = function(...args) {
+        if (!loopDetector.check('updateRelatedConnections')) {
+            return;
+        }
+        return originalUpdateRelatedConnections.apply(this, args);
+    };
+}
+
+const originalDrawConnectionWithLoop = window.drawConnection;
+if (originalDrawConnectionWithLoop) {
+    window.drawConnection = function(...args) {
+        if (!loopDetector.check('drawConnection')) {
+            return;
+        }
+        return originalDrawConnectionWithLoop.apply(this, args);
+    };
+}
+
+// Export for global access
+window.loopDetector = loopDetector;
+
+console.log('🔄 Infinite loop detection activated');

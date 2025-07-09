@@ -105,8 +105,19 @@ if (typeof ConnectionModules !== 'undefined') {
         };
 
         // Functie om randpunten te berekenen voor verbindingen met nodes
-        window.getNodeEdgePoint = function(node, angle, isSource) {
+        window.getNodeEdgePoint = function(node, angle, isSource, controlPoint = null) {
             const center = getNodeCenter(node);
+            
+            // Als we een controlPoint hebben, gebruik dat voor betere hoekberekening
+            if (controlPoint) {
+                const dx = isSource ? 
+                    (controlPoint.x - center.x) : 
+                    (center.x - controlPoint.x);
+                const dy = isSource ? 
+                    (controlPoint.y - center.y) : 
+                    (center.y - controlPoint.y);
+                angle = Math.atan2(dy, dx);
+            }
             
             // Bepaal basisafmetingen van de node
             let width = 120;

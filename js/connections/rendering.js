@@ -9,9 +9,21 @@ if (typeof ConnectionModules !== 'undefined') {
         
         // Teken een verbinding tussen knooppunten
         window.drawConnection = function(connection) {
-            // Extra check: als de verbinding niet meer in de connections array staat, teken hem niet
+            // ENHANCED NULL CHECKS
+            if (!connection || !connection.id) {
+                console.warn('[drawConnection] Invalid connection object');
+                return;
+            }
+            
+            // Check if connection still exists in array
             if (!connections.find(c => c.id === connection.id)) {
-                console.warn(`[drawConnection] Verbinding ${connection.id} bestaat niet meer in connections array, skip tekenen`);
+                console.warn(`[drawConnection] Connection ${connection.id} not found in connections array`);
+                return;
+            }
+            
+            // Validate connection has required properties
+            if (!connection.source || !connection.target) {
+                console.warn(`[drawConnection] Connection ${connection.id} missing source or target`);
                 return;
             }
             
@@ -21,12 +33,17 @@ if (typeof ConnectionModules !== 'undefined') {
             
             if (!sourceNode || !targetNode) {
                 console.warn(`[drawConnection] Kon nodes niet vinden voor verbinding ${connection.id}. Source: ${connection.source}, Target: ${connection.target}`);
-                console.warn('Beschikbare nodes:', nodes.map(n => n.id));
                 
-                // Als de nodes niet bestaan, verwijder ook het DOM element als dat er nog is
+                // Remove invalid connection from array
+                const index = connections.findIndex(c => c.id === connection.id);
+                if (index !== -1) {
+                    connections.splice(index, 1);
+                }
+                
+                // Remove DOM element if it exists
                 const existingEl = document.getElementById(connection.id);
-                if (existingEl) {
-                    existingEl.remove();
+                if (existingEl && existingEl.parentNode) {
+                    existingEl.parentNode.removeChild(existingEl);
                 }
                 return;
             }
@@ -104,6 +121,7 @@ if (typeof ConnectionModules !== 'undefined') {
                 angle = Math.atan2(dy, dx);
                 
                 // Bereken randpunten op beide knooppunten
+                // First get basic points for control point calculation
                 startPoint = getNodeEdgePoint(sourceNode, angle, true);
                 endPoint = getNodeEdgePoint(targetNode, angle, false);
             }
@@ -166,6 +184,17 @@ if (typeof ConnectionModules !== 'undefined') {
                 
                 // Sla het controlepunt op voor toekomstig gebruik
                 connection.controlPoint = controlPoint;
+            }
+            
+            // INTELLIGENT ARROW POSITIONING
+            // Recalculate edge points using control point for better arrow positioning
+            if (connection.controlPoint && !connection.isTrueBranch) {
+                const smartStartPoint = getNodeEdgePoint(sourceNode, null, true, connection.controlPoint);
+                const smartEndPoint = getNodeEdgePoint(targetNode, null, false, connection.controlPoint);
+                
+                // Use the smarter points if they're different from the original ones
+                if (smartStartPoint) startPoint = smartStartPoint;
+                if (smartEndPoint) endPoint = smartEndPoint;
             }
             
             // Bepaal of deze verbinding momenteel geselecteerd is
@@ -384,7 +413,22 @@ if (typeof ConnectionModules !== 'undefined') {
                 // Plaats het label bij het controlepunt
                 labelEl.style.left = controlPoint.x + 'px';
                 labelEl.style.top = (controlPoint.y - 15) + 'px';
-                labelEl.style.transform = 'translate(-50%, -100%)';
+                
+                // LABEL ROTATION: Bereken de hoek van de verbinding
+                const sourceCenter = getNodeCenter(sourceNode);
+                const targetCenter = getNodeCenter(targetNode);
+                const dx = targetCenter.x - sourceCenter.x;
+                const dy = targetCenter.y - sourceCenter.y;
+                let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                
+                // Zorg dat tekst niet ondersteboven staat
+                if (angle > 90 || angle < -90) {
+                    angle += 180;
+                }
+                
+                // Pas rotatie toe op label
+                labelEl.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
+                labelEl.style.transformOrigin = 'center center';
                 
                 // Event listener voor label bewerken
                 labelEl.addEventListener('dblclick', function(e) {
@@ -523,7 +567,13 @@ if (typeof ConnectionModules !== 'undefined') {
                         const dx = targetCenter.x - sourceCenter.x;
                         const dy = targetCenter.y - sourceCenter.y;
                         const angle = Math.atan2(dy, dx);
-                        startPoint = getNodeEdgePoint(sourceNode, angle, true);
+                        
+                        // Use intelligent arrow positioning if we have a control point
+                        if (controlPoint && connection.controlPoint) {
+                            startPoint = getNodeEdgePoint(sourceNode, angle, true, connection.controlPoint);
+                        } else {
+                            startPoint = getNodeEdgePoint(sourceNode, angle, true);
+                        }
                     }
                     
                     // Als eindpunt ontbreekt, bereken deze uit de doel-node
@@ -533,7 +583,13 @@ if (typeof ConnectionModules !== 'undefined') {
                         const dx = targetCenter.x - sourceCenter.x;
                         const dy = targetCenter.y - sourceCenter.y;
                         const angle = Math.atan2(dy, dx);
-                        endPoint = getNodeEdgePoint(targetNode, angle, false);
+                        
+                        // Use intelligent arrow positioning if we have a control point
+                        if (controlPoint && connection.controlPoint) {
+                            endPoint = getNodeEdgePoint(targetNode, angle, false, connection.controlPoint);
+                        } else {
+                            endPoint = getNodeEdgePoint(targetNode, angle, false);
+                        }
                     }
                     
                     // Als controlepunt ontbreekt, bereken een standaard controlepunt
