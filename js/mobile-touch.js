@@ -332,11 +332,16 @@ class ModernTouchManager {
                 pointers[1].currentX, pointers[1].currentY
             );
             
+            // Calculate center of visible nodes for better zoom focus
+            const visibleCenter = this.getVisibleNodesCenter();
+            
             this.state.pinchStart = {
                 distance: distance,
                 scale: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
                 centerX: (pointers[0].currentX + pointers[1].currentX) / 2,
-                centerY: (pointers[0].currentY + pointers[1].currentY) / 2
+                centerY: (pointers[0].currentY + pointers[1].currentY) / 2,
+                visibleCenterX: visibleCenter.x,
+                visibleCenterY: visibleCenter.y
             };
             
             this.showZoomIndicator();
@@ -354,24 +359,39 @@ class ModernTouchManager {
             pointers[1].currentX, pointers[1].currentY
         );
         
-        const scale = currentDistance / this.state.pinchStart.distance;
-        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scale));
+        // Apply sensitivity reduction (0.7 = 30% less sensitive)
+        const sensitivityFactor = 0.7;
+        const rawScale = currentDistance / this.state.pinchStart.distance;
+        const scale = 1 + (rawScale - 1) * sensitivityFactor;
+        
+        // Apply exponential smoothing for more natural feel
+        const smoothedScale = Math.pow(scale, 0.8);
+        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * smoothedScale));
         
         // Apply zoom
         if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
             setZoomLevel(newZoom);
             
-            // Zoom towards pinch center
-            const centerX = (pointers[0].currentX + pointers[1].currentX) / 2;
-            const centerY = (pointers[0].currentY + pointers[1].currentY) / 2;
-            
-            if (typeof canvasOffset !== 'undefined') {
+            // Use visible nodes center for better zoom focus
+            if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.visibleCenterX !== null) {
                 const rect = canvas.getBoundingClientRect();
-                const canvasX = (centerX - rect.left - canvasOffset.x) / this.state.pinchStart.scale;
-                const canvasY = (centerY - rect.top - canvasOffset.y) / this.state.pinchStart.scale;
                 
-                canvasOffset.x = centerX - rect.left - canvasX * newZoom;
-                canvasOffset.y = centerY - rect.top - canvasY * newZoom;
+                // Calculate the zoom focal point (blend between pinch center and visible nodes center)
+                const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
+                const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
+                
+                // Weight towards visible nodes center (0.7 = 70% visible nodes, 30% pinch center)
+                const blendFactor = 0.7;
+                const focalX = this.state.pinchStart.visibleCenterX * blendFactor + pinchCenterX * (1 - blendFactor);
+                const focalY = this.state.pinchStart.visibleCenterY * blendFactor + pinchCenterY * (1 - blendFactor);
+                
+                // Calculate canvas coordinates at the focal point
+                const canvasX = (focalX - rect.left - canvasOffset.x) / this.state.pinchStart.scale;
+                const canvasY = (focalY - rect.top - canvasOffset.y) / this.state.pinchStart.scale;
+                
+                // Keep the focal point fixed while zooming
+                canvasOffset.x = focalX - rect.left - canvasX * newZoom;
+                canvasOffset.y = focalY - rect.top - canvasY * newZoom;
             }
             
             updateCanvasTransform();
@@ -758,12 +778,62 @@ class ModernTouchManager {
         return Math.sqrt(dx * dx + dy * dy);
     }
     
+    getVisibleNodesCenter() {
+        // Calculate the center of visible nodes for better zoom focus
+        if (typeof nodes === 'undefined' || !nodes || nodes.length === 0) {
+            // Fallback to viewport center
+            return {
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2
+            };
+        }
+        
+        const rect = canvas.getBoundingClientRect();
+        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        const offset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
+        
+        // Find nodes that are currently visible in viewport
+        const visibleNodes = nodes.filter(node => {
+            const screenX = node.x * zoom + offset.x;
+            const screenY = node.y * zoom + offset.y;
+            
+            return screenX >= -100 && screenX <= window.innerWidth + 100 &&
+                   screenY >= -100 && screenY <= window.innerHeight + 100;
+        });
+        
+        if (visibleNodes.length === 0) {
+            // No visible nodes, use viewport center
+            return {
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2
+            };
+        }
+        
+        // Calculate center of visible nodes
+        let sumX = 0, sumY = 0;
+        visibleNodes.forEach(node => {
+            const screenX = node.x * zoom + offset.x + rect.left;
+            const screenY = node.y * zoom + offset.y + rect.top;
+            sumX += screenX;
+            sumY += screenY;
+        });
+        
+        return {
+            x: sumX / visibleNodes.length,
+            y: sumY / visibleNodes.length
+        };
+    }
+    
     createNodeAtPosition(x, y) {
         if (typeof createNode !== 'function') return;
         
         const gridSize = typeof window.gridSize !== 'undefined' ? window.gridSize : 20;
         const snapX = Math.round(x / gridSize) * gridSize;
         const snapY = Math.round(y / gridSize) * gridSize;
+        
+        // Store current canvas offset to restore after node creation
+        const currentOffset = typeof canvasOffset !== 'undefined' ? { ...canvasOffset } : null;
+        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
         
         const node = createNode(
             'Nieuw idee',
@@ -774,16 +844,49 @@ class ModernTouchManager {
             'rounded'
         );
         
-        // Auto-edit new node
+        // Restore canvas position if it changed
+        if (currentOffset && typeof canvasOffset !== 'undefined') {
+            canvasOffset.x = currentOffset.x;
+            canvasOffset.y = currentOffset.y;
+            if (typeof updateCanvasTransform === 'function') {
+                updateCanvasTransform();
+            }
+        }
+        
+        // Auto-edit new node with a longer delay to prevent jumping
         setTimeout(() => {
             const element = document.getElementById(node.id);
             if (element) {
-                const title = element.querySelector('.node-title');
-                if (title && typeof makeEditable === 'function') {
-                    makeEditable(title, node);
+                // Ensure the node is visible before editing
+                const rect = element.getBoundingClientRect();
+                const isVisible = rect.top >= 0 && rect.left >= 0 && 
+                                rect.bottom <= window.innerHeight && 
+                                rect.right <= window.innerWidth;
+                
+                if (isVisible) {
+                    const title = element.querySelector('.node-title');
+                    if (title && typeof makeEditable === 'function') {
+                        // Prevent scrolling when focusing
+                        const preventScroll = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        };
+                        
+                        // Temporarily block scroll events
+                        window.addEventListener('scroll', preventScroll, { capture: true });
+                        canvas.addEventListener('scroll', preventScroll, { capture: true });
+                        
+                        makeEditable(title, node);
+                        
+                        // Remove scroll block after a short delay
+                        setTimeout(() => {
+                            window.removeEventListener('scroll', preventScroll, { capture: true });
+                            canvas.removeEventListener('scroll', preventScroll, { capture: true });
+                        }, 300);
+                    }
                 }
             }
-        }, 100);
+        }, 150);
     }
     
     // Visual feedback

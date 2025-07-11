@@ -199,7 +199,9 @@ function makeEditable(element, node) {
     
     // Maak het element bewerkbaar
     element.contentEditable = true;
-    element.focus();
+    
+    // Focus without scrolling to prevent jumps
+    element.focus({ preventScroll: true });
     
     // Selecteer alle tekst
     const selection = window.getSelection();
