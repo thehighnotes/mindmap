@@ -2062,6 +2062,9 @@ function handleGhostClick(e) {
  * Handle pinch start for zoom
  */
 function handlePinchStart(e) {
+    // Skip if mobile touch manager is active
+    if (window.mobileTouchManager) return;
+    
     const touch1 = e.touches[0];
     const touch2 = e.touches[1];
     
@@ -2082,6 +2085,9 @@ function handlePinchStart(e) {
  * Handle pinch move for zoom
  */
 function handlePinchMove(e) {
+    // Skip if mobile touch manager is active
+    if (window.mobileTouchManager) return;
+    
     const touch1 = e.touches[0];
     const touch2 = e.touches[1];
     
