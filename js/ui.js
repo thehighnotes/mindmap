@@ -1840,8 +1840,7 @@ let touchStartPos = null;
 let touchStartTime = null;
 let lastTouchEnd = 0;
 let touchHandled = false;
-let initialPinchDistance = null;
-let lastPinchDistance = null;
+// Pinch distance variables moved to mobile-nav.js
 let mobileOptimized = false;
 
 /**
@@ -1951,8 +1950,8 @@ function handleTouchStart(e) {
         e.target.dispatchEvent(mouseEvent);
         
     } else if (e.touches.length === 2) {
-        // Two finger touch - start pinch zoom
-        handlePinchStart(e);
+        // Two finger touch - handled by mobile-nav.js
+        // No action needed here
     }
     
     e.preventDefault();
@@ -1975,8 +1974,8 @@ function handleTouchMove(e) {
         document.dispatchEvent(mouseEvent);
         
     } else if (e.touches.length === 2) {
-        // Two finger move - handle pinch zoom
-        handlePinchMove(e);
+        // Two finger move - handled by mobile-nav.js
+        // No action needed here
     }
     
     e.preventDefault();
@@ -2058,52 +2057,8 @@ function handleGhostClick(e) {
     }
 }
 
-/**
- * Handle pinch start for zoom
- */
-function handlePinchStart(e) {
-    // Skip if mobile touch manager is active
-    if (window.mobileTouchManager) return;
-    
-    const touch1 = e.touches[0];
-    const touch2 = e.touches[1];
-    
-    initialPinchDistance = Math.hypot(
-        touch2.clientX - touch1.clientX,
-        touch2.clientY - touch1.clientY
-    );
-    lastPinchDistance = initialPinchDistance;
-    
-    // Disable drag operations during pinch
-    if (isDragging) {
-        isDragging = false;
-        draggedNode = null;
-    }
-}
-
-/**
- * Handle pinch move for zoom
- */
-function handlePinchMove(e) {
-    // Skip if mobile touch manager is active
-    if (window.mobileTouchManager) return;
-    
-    const touch1 = e.touches[0];
-    const touch2 = e.touches[1];
-    
-    const currentDistance = Math.hypot(
-        touch2.clientX - touch1.clientX,
-        touch2.clientY - touch1.clientY
-    );
-    
-    if (lastPinchDistance > 0) {
-        const scale = currentDistance / lastPinchDistance;
-        const newZoom = Math.max(0.1, Math.min(3, zoomLevel * scale));
-        setZoomLevel(newZoom);
-    }
-    
-    lastPinchDistance = currentDistance;
-}
+// Pinch zoom functions moved to mobile-nav.js
+// The mobile navigation manager now handles all pinch and pan gestures
 
 /**
  * Setup mobile keyboard handling
@@ -2172,7 +2127,7 @@ function setupTouchConnectionCreation() {
  */
 function setupTouchBranchCreation() {
     // Branch creation is now handled via context menus in the modern touch implementation
-    // Two-finger gestures are reserved for pinch-to-zoom
+    // Two-finger gestures are now handled by mobile-nav.js for pinch-to-zoom
     // This function is kept for compatibility but no longer needed
 }
 

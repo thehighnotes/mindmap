@@ -11,12 +11,10 @@ class ModernTouchManager {
     constructor() {
         // Touch state using simple state machine
         this.state = {
-            mode: 'idle', // idle, panning, pinching, dragging, connecting
+            mode: 'idle', // idle, dragging, connecting
             activePointers: new Map(),
             dragTarget: null,
-            panStart: null,
-            pinchStart: null,
-            lastPinchDistance: 0
+            dragStart: null
         };
         
         // Configuration
@@ -24,7 +22,6 @@ class ModernTouchManager {
             dragThreshold: 10, // Standard threshold for drag detection
             doubleTapDelay: 300,
             longPressDelay: 500,
-            pinchThreshold: 0.02, // 2% scale change threshold
             momentumFriction: 0.92
         };
         
@@ -119,7 +116,8 @@ class ModernTouchManager {
         if (pointerCount === 1) {
             this.handleSinglePointerDown(e);
         } else if (pointerCount === 2) {
-            this.handlePinchStart(Array.from(this.state.activePointers.values()));
+            // Defer to mobile-nav.js for pinch handling
+            // Don't handle pinch in this manager
         }
         
         // Capture pointer for consistent events
@@ -180,7 +178,8 @@ class ModernTouchManager {
         if (pointerCount === 1) {
             this.handleSinglePointerMove(e, pointer);
         } else if (pointerCount === 2) {
-            this.handlePinchMove(Array.from(this.state.activePointers.values()));
+            // Defer to mobile-nav.js for pinch handling
+            // Don't handle pinch in this manager
         }
     }
     
@@ -196,9 +195,8 @@ class ModernTouchManager {
             
             if (this.state.dragTarget) {
                 this.startNodeDrag(this.state.dragTarget, pointer);
-            } else {
-                this.startCanvasPan(pointer);
             }
+            // Canvas panning is now handled by mobile-nav.js
         }
         
         // Continue current action only if not in multi-touch mode
@@ -207,9 +205,7 @@ class ModernTouchManager {
                 case 'dragging':
                     this.updateNodeDrag(pointer);
                     break;
-                case 'panning':
-                    this.updateCanvasPan(pointer);
-                    break;
+                // panning is now handled by mobile-nav.js
             }
         }
     }
@@ -233,14 +229,11 @@ class ModernTouchManager {
                 this.clearTimer('longPress');
                 const element = this.getInteractiveElement(e);
                 this.handleTap(e, element);
-            } else if (this.state.mode === 'panning') {
-                this.endCanvasPan();
             } else if (this.state.mode === 'dragging') {
                 this.endNodeDrag();
             }
-        } else if (pointerCount === 2 && this.state.mode === 'pinching') {
-            // End pinch when one finger lifts
-            this.endPinch();
+        } else if (pointerCount === 2) {
+            // Pinch handling is deferred to mobile-nav.js
         }
         
         // Clean up pointer
@@ -322,138 +315,7 @@ class ModernTouchManager {
         this.showVisualFeedback(element || canvas, 'long-press');
     }
     
-    // ===== MobileTouchManager Pinch Functies =====
-
-    // Aanpassing voor handlePinchStart om het initiële vaste punt correct op te slaan
-    handlePinchStart(pointers) {
-        // Cancel any ongoing pan or drag operations
-        if (this.state.mode === 'panning') {
-            this.endCanvasPan();
-        } else if (this.state.mode === 'dragging') {
-            this.endNodeDrag();
-        }
-        
-        // Reset momentum om ongewenste beweging te voorkomen
-        this.momentum = {
-            velocityX: 0,
-            velocityY: 0,
-            lastX: 0,
-            lastY: 0,
-            lastTime: 0
-        };
-        
-        this.state.mode = 'pinching';
-        
-        if (pointers.length >= 2) {
-            // Bereken de initiële afstand
-            const distance = this.getDistance(
-                pointers[0].currentX, pointers[0].currentY,
-                pointers[1].currentX, pointers[1].currentY
-            );
-            
-            // Bereken het centrum tussen de twee vingers
-            const centerX = (pointers[0].currentX + pointers[1].currentX) / 2;
-            const centerY = (pointers[0].currentY + pointers[1].currentY) / 2;
-            
-            // Sla de start staat op
-            this.state.pinchStart = {
-                distance: distance,
-                scale: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
-                center: { x: centerX, y: centerY }
-            };
-            
-            // Bereken en sla het vaste punt op in canvas coördinaten
-            if (typeof canvas !== 'undefined' && typeof canvasOffset !== 'undefined') {
-                const rect = canvas.getBoundingClientRect();
-                
-                // Converteer client coordinates naar canvas viewport coordinates
-                // Dit compenseert voor de positie van het canvas element op de pagina
-                const viewportX = centerX - rect.left;
-                const viewportY = centerY - rect.top;
-                
-                // Converteer viewport positie naar absolute canvas coördinaten
-                // Dit zijn de werkelijke coördinaten op het oneindige canvas vlak
-                // Canvas positie = (viewport positie - offset) / zoom
-                const canvasX = (viewportX - canvasOffset.x) / this.state.pinchStart.scale;
-                const canvasY = (viewportY - canvasOffset.y) / this.state.pinchStart.scale;
-                
-                // Sla zowel de canvas als viewport posities op
-                this.state.pinchStart.fixedPoint = {
-                    canvasX: canvasX,  // Absolute positie op het canvas
-                    canvasY: canvasY,  // Absolute positie op het canvas
-                    viewportX: viewportX,  // Relatief aan canvas element
-                    viewportY: viewportY   // Relatief aan canvas element
-                };
-                
-                // Sla ook de originele client coordinates op voor debugging
-                this.state.pinchStart.clientCenter = {
-                    x: centerX,
-                    y: centerY
-                };
-            }
-            
-            this.showZoomIndicator();
-            
-            console.log('Pinch gestart:', {
-                afstand: distance,
-                centrum: { x: centerX, y: centerY },
-                vastPunt: this.state.pinchStart.fixedPoint
-            });
-        }
-    }
-    
-    
-    handlePinchMove(pointers) {
-        if (this.state.mode !== 'pinching' || !this.state.pinchStart || pointers.length < 2) return;
-        
-        // Verkrijg de huidige afstand tussen de twee touch punten
-        const currentDistance = this.getDistance(
-            pointers[0].currentX, pointers[0].currentY,
-            pointers[1].currentX, pointers[1].currentY
-        );
-        
-        // Bereken de nieuwe zoom factor
-        const scaleDelta = currentDistance / this.state.pinchStart.distance;
-        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scaleDelta));
-        
-        // Update de zoom level
-        if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
-            setZoomLevel(newZoom);
-            
-            // BELANGRIJK: Houd het vaste punt op zijn originele viewport positie
-            if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint && typeof canvas !== 'undefined') {
-                // Het vaste punt in canvas coördinaten moet op dezelfde viewport positie blijven
-                // We gebruiken de originele viewport positie waar de pinch begon
-                const targetViewportX = this.state.pinchStart.fixedPoint.viewportX;
-                const targetViewportY = this.state.pinchStart.fixedPoint.viewportY;
-                
-                // Bereken de nieuwe offset
-                // De formule is: offset = viewport_positie - (canvas_positie * zoom)
-                // Dit zorgt ervoor dat het punt op het canvas dat zich op de pinch locatie bevond
-                // daar blijft tijdens het zoomen
-                canvasOffset.x = targetViewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
-                canvasOffset.y = targetViewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
-                
-                // Update de canvas transform direct
-                updateCanvasTransform();
-            }
-            
-            this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
-        }
-    }
-    
-    // Extra helper functie voor soepelere zoom interpolatie
-    smoothZoom(currentZoom, targetZoom, factor = 0.1) {
-        // Interpoleer tussen huidige en doel zoom voor soepelere beweging
-        return currentZoom + (targetZoom - currentZoom) * factor;
-    }
-    
-    endPinch() {
-        console.log('📌 Pinch end');
-        this.state.mode = 'idle';
-        this.state.pinchStart = null;
-        this.hideZoomIndicator();
-    }
+    // Pinch zoom and canvas panning functionality moved to mobile-nav.js
     
     // Node dragging
     startNodeDrag(element, pointer) {
@@ -537,90 +399,7 @@ class ModernTouchManager {
         this.state.dragTarget = element;
     }
     
-    // Canvas panning
-    startCanvasPan(pointer) {
-        if (typeof canvasOffset === 'undefined') return;
-        
-        this.state.mode = 'panning';
-        this.state.panStart = {
-            x: canvasOffset.x,
-            y: canvasOffset.y,
-            pointerX: pointer.startX,
-            pointerY: pointer.startY
-        };
-        
-        // Track momentum
-        this.momentum = {
-            velocityX: 0,
-            velocityY: 0,
-            lastX: pointer.startX,
-            lastY: pointer.startY,
-            lastTime: Date.now()
-        };
-        
-        canvas.style.cursor = 'grabbing';
-    }
-    
-    updateCanvasPan(pointer) {
-        if (!this.state.panStart || typeof canvasOffset === 'undefined') return;
-        
-        const now = Date.now();
-        const dt = now - this.momentum.lastTime;
-        
-        if (dt > 0) {
-            // Calculate velocity for momentum
-            this.momentum.velocityX = (pointer.currentX - this.momentum.lastX) / dt;
-            this.momentum.velocityY = (pointer.currentY - this.momentum.lastY) / dt;
-        }
-        
-        // Update canvas offset
-        canvasOffset.x = this.state.panStart.x + (pointer.currentX - this.state.panStart.pointerX);
-        canvasOffset.y = this.state.panStart.y + (pointer.currentY - this.state.panStart.pointerY);
-        
-        // Update momentum tracking
-        this.momentum.lastX = pointer.currentX;
-        this.momentum.lastY = pointer.currentY;
-        this.momentum.lastTime = now;
-        
-        // Update transform
-        if (typeof updateCanvasTransform === 'function') {
-            updateCanvasTransform();
-        }
-    }
-    
-    endCanvasPan() {
-        canvas.style.cursor = '';
-        
-        // Apply momentum if significant velocity
-        if (Math.abs(this.momentum.velocityX) > 0.1 || Math.abs(this.momentum.velocityY) > 0.1) {
-            this.applyMomentum();
-        }
-        
-        this.state.panStart = null;
-    }
-    
-    applyMomentum() {
-        if (typeof canvasOffset === 'undefined' || typeof updateCanvasTransform === 'undefined') return;
-        
-        const animate = () => {
-            // Apply velocity
-            canvasOffset.x += this.momentum.velocityX * 10;
-            canvasOffset.y += this.momentum.velocityY * 10;
-            
-            // Apply friction
-            this.momentum.velocityX *= this.config.momentumFriction;
-            this.momentum.velocityY *= this.config.momentumFriction;
-            
-            updateCanvasTransform();
-            
-            // Continue if velocity is significant
-            if (Math.abs(this.momentum.velocityX) > 0.01 || Math.abs(this.momentum.velocityY) > 0.01) {
-                this.timers.momentum = requestAnimationFrame(animate);
-            }
-        };
-        
-        animate();
-    }
+    // Canvas panning functionality moved to mobile-nav.js
     
     // Context menu
     showContextMenu(x, y, type, target) {
@@ -1155,29 +934,7 @@ class ModernTouchManager {
         feedback.addEventListener('animationend', () => feedback.remove());
     }
     
-    showZoomIndicator() {
-        if (!this.zoomIndicator) {
-            this.zoomIndicator = document.createElement('div');
-            this.zoomIndicator.className = 'zoom-indicator';
-            document.body.appendChild(this.zoomIndicator);
-        }
-        
-        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        this.zoomIndicator.textContent = Math.round(zoom * 100) + '%';
-    }
-    
-    updateZoomIndicator(text) {
-        if (this.zoomIndicator) {
-            this.zoomIndicator.textContent = text;
-        }
-    }
-    
-    hideZoomIndicator() {
-        if (this.zoomIndicator) {
-            this.zoomIndicator.remove();
-            this.zoomIndicator = null;
-        }
-    }
+    // Zoom indicator functionality moved to mobile-nav.js
     
     showToast(message) {
         const toast = document.createElement('div');
@@ -1201,8 +958,7 @@ class ModernTouchManager {
     resetState() {
         this.state.mode = 'idle';
         this.state.dragTarget = null;
-        this.state.panStart = null;
-        this.state.pinchStart = null;
+        this.state.dragStart = null;
         this.state.dragInfo = null;
         
         // Clear all timers
