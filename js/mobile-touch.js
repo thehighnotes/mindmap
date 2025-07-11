@@ -325,62 +325,68 @@ class ModernTouchManager {
     // ===== MobileTouchManager Pinch Functies =====
 
     handlePinchStart() {
-    // Cancel any ongoing pan or drag operations
-    if (this.state.mode === 'panning') {
-        this.endCanvasPan();
-    } else if (this.state.mode === 'dragging') {
-        this.endNodeDrag();
-    }
-    
-    // Reset momentum om ongewenste beweging te voorkomen
-    this.momentum = {
-        velocityX: 0,
-        velocityY: 0,
-        lastX: 0,
-        lastY: 0,
-        lastTime: 0
-    };
-    
-    this.state.mode = 'pinching';
-    const pointers = Array.from(this.state.activePointers.values());
-    
-    if (pointers.length >= 2) {
-        const distance = this.getDistance(
-            pointers[0].currentX, pointers[0].currentY,
-            pointers[1].currentX, pointers[1].currentY
-        );
+        // Cancel any ongoing pan or drag operations
+        if (this.state.mode === 'panning') {
+            this.endCanvasPan();
+        } else if (this.state.mode === 'dragging') {
+            this.endNodeDrag();
+        }
         
-        // Bereken het pinch center
-        const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
-        const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
-        
-        // Haal canvas rectangle op
-        const rect = canvas.getBoundingClientRect();
-        
-        // Sla huidige zoom en offset op
-        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        const currentOffsetX = typeof canvasOffset !== 'undefined' ? canvasOffset.x : 0;
-        const currentOffsetY = typeof canvasOffset !== 'undefined' ? canvasOffset.y : 0;
-        
-        // NIEUW: Bereken en sla het vaste punt op in canvas coördinaten
-        const fixedPointCanvasX = (pinchCenterX - rect.left - currentOffsetX) / currentZoom;
-        const fixedPointCanvasY = (pinchCenterY - rect.top - currentOffsetY) / currentZoom;
-        
-        this.state.pinchStart = {
-            distance: distance,
-            scale: currentZoom,
-            // NIEUW: Sla het vaste punt op dat constant blijft tijdens de pinch
-            fixedPoint: {
-                canvasX: fixedPointCanvasX,
-                canvasY: fixedPointCanvasY,
-                viewportX: pinchCenterX - rect.left,
-                viewportY: pinchCenterY - rect.top
-            }
+        // Reset momentum om ongewenste beweging te voorkomen
+        this.momentum = {
+            velocityX: 0,
+            velocityY: 0,
+            lastX: 0,
+            lastY: 0,
+            lastTime: 0
         };
         
-        this.showZoomIndicator();
+        this.state.mode = 'pinching';
+        const pointers = Array.from(this.state.activePointers.values());
+        
+        if (pointers.length >= 2) {
+            const distance = this.getDistance(
+                pointers[0].currentX, pointers[0].currentY,
+                pointers[1].currentX, pointers[1].currentY
+            );
+            
+            // Bereken het pinch center
+            const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
+            const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
+            
+            // Haal canvas rectangle op
+            const rect = canvas.getBoundingClientRect();
+            
+            // Sla huidige zoom en offset op
+            const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+            const currentOffsetX = typeof canvasOffset !== 'undefined' ? canvasOffset.x : 0;
+            const currentOffsetY = typeof canvasOffset !== 'undefined' ? canvasOffset.y : 0;
+            
+            // Bereken en sla het vaste punt op in canvas coördinaten
+            const fixedPointCanvasX = (pinchCenterX - rect.left - currentOffsetX) / currentZoom;
+            const fixedPointCanvasY = (pinchCenterY - rect.top - currentOffsetY) / currentZoom;
+            
+            this.state.pinchStart = {
+                distance: distance,
+                scale: currentZoom,
+                // Sla het vaste punt op dat constant blijft tijdens de pinch
+                fixedPoint: {
+                    canvasX: fixedPointCanvasX,
+                    canvasY: fixedPointCanvasY,
+                    viewportX: pinchCenterX - rect.left,
+                    viewportY: pinchCenterY - rect.top
+                }
+            };
+            
+            console.log('📌 Pinch start:', {
+                fixedPoint: this.state.pinchStart.fixedPoint,
+                currentZoom: currentZoom,
+                currentOffset: { x: currentOffsetX, y: currentOffsetY }
+            });
+            
+            this.showZoomIndicator();
+        }
     }
-}
     
     
     handlePinchMove() {
@@ -394,64 +400,33 @@ class ModernTouchManager {
             pointers[1].currentX, pointers[1].currentY
         );
         
-        // Bereken de scale factor
-        const sensitivityFactor = 0.5;
+        // Bereken de scale factor met aangepaste sensitiviteit
         const rawScale = currentDistance / this.state.pinchStart.distance;
-        const scale = 1 + (rawScale - 1) * sensitivityFactor;
-        const smoothedScale = Math.pow(scale, 0.9);
-        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * smoothedScale));
+        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * rawScale));
         
         if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
             // Update zoom level
             setZoomLevel(newZoom);
             
-            // NIEUW: Gebruik het opgeslagen vaste punt voor correcte offset berekening
+            // Gebruik het opgeslagen vaste punt voor correcte offset berekening
             if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint) {
                 // Het vaste punt moet op dezelfde viewport positie blijven
                 // Formule: offset = viewport positie - (canvas positie × zoom)
                 canvasOffset.x = this.state.pinchStart.fixedPoint.viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
                 canvasOffset.y = this.state.pinchStart.fixedPoint.viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
+                
+                // Direct update canvas transform to prevent any delay
+                updateCanvasTransform();
             }
             
-            updateCanvasTransform();
             this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
         }
     }
     
     endPinch() {
-    this.state.mode = 'idle';
-    this.state.pinchStart = null;
-    this.hideZoomIndicator();
-}
-    handlePinch(data) {
-    // Check if required globals are available
-    if (typeof setZoomLevel === 'undefined' || typeof updateCanvasTransform === 'undefined') {
-        console.warn('⚠️ Required zoom functions not available');
-        return;
-    }
-    
-    // Calculate new zoom level with better scaling
-    const scaleChange = data.scale;
-    const newZoom = Math.max(0.1, Math.min(3, this.initialZoom * scaleChange));
-    
-    // Apply zoom
-    setZoomLevel(newZoom);
-    
-    // BELANGRIJK: Gebruik het opgeslagen vaste punt voor offset berekening
-    if (typeof canvasOffset !== 'undefined' && this.pinchFixedPoint) {
-        canvasOffset.x = this.pinchFixedPoint.viewportX - (this.pinchFixedPoint.canvasX * newZoom);
-        canvasOffset.y = this.pinchFixedPoint.viewportY - (this.pinchFixedPoint.canvasY * newZoom);
-    }
-    
-    updateCanvasTransform();
-    
-    // Update zoom indicator
-    this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
-}
-
-    handlePinchEnd(data) {
-        // Reset het vaste punt
-        this.pinchFixedPoint = null;
+        console.log('📌 Pinch end');
+        this.state.mode = 'idle';
+        this.state.pinchStart = null;
         this.hideZoomIndicator();
     }
     
@@ -1257,4 +1232,4 @@ if (document.readyState === 'loading') {
 }
 
 // Export initialization function
-window.initializeMobileTouch = initializeModernTouch;
+window.initializeModernTouch = initializeModernTouch;
