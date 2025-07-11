@@ -68,6 +68,9 @@ class ModernTouchManager {
         // Setup visual feedback
         this.setupVisualFeedback();
         
+        // Setup viewport handling
+        this.setupViewportHandling();
+        
         console.log('📱 Modern touch support initialized');
     }
     
@@ -931,6 +934,54 @@ class ModernTouchManager {
             }
         `;
         document.head.appendChild(style);
+    }
+    
+    setupViewportHandling() {
+        // Handle viewport changes (orientation, virtual keyboard, etc.)
+        let viewportTimeout;
+        
+        const handleViewportChange = () => {
+            clearTimeout(viewportTimeout);
+            viewportTimeout = setTimeout(() => {
+                // Force layout recalculation
+                if (typeof updateCanvasTransform === 'function') {
+                    updateCanvasTransform();
+                }
+                
+                // Reset any stuck states
+                this.resetState();
+                
+                // Update visual viewport if available
+                if (window.visualViewport) {
+                    const { height, width } = window.visualViewport;
+                    document.documentElement.style.setProperty('--viewport-height', `${height}px`);
+                    document.documentElement.style.setProperty('--viewport-width', `${width}px`);
+                }
+            }, 150);
+        };
+        
+        // Listen for various viewport changes
+        window.addEventListener('resize', handleViewportChange);
+        window.addEventListener('orientationchange', handleViewportChange);
+        
+        // Visual viewport API support (for virtual keyboard handling)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleViewportChange);
+            window.visualViewport.addEventListener('scroll', handleViewportChange);
+        }
+        
+        // Handle iOS viewport issues
+        const fixIOSViewport = () => {
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                // Fix iOS viewport height issues
+                const vh = window.innerHeight * 0.01;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+            }
+        };
+        
+        fixIOSViewport();
+        window.addEventListener('resize', fixIOSViewport);
+        window.addEventListener('orientationchange', fixIOSViewport);
     }
     
     showVisualFeedback(element, type) {
