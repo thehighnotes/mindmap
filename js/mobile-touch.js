@@ -119,7 +119,7 @@ class ModernTouchManager {
         if (pointerCount === 1) {
             this.handleSinglePointerDown(e);
         } else if (pointerCount === 2) {
-            this.handlePinchStart();
+            this.handlePinchStart(Array.from(this.state.activePointers.values()));
         }
         
         // Capture pointer for consistent events
@@ -180,7 +180,7 @@ class ModernTouchManager {
         if (pointerCount === 1) {
             this.handleSinglePointerMove(e, pointer);
         } else if (pointerCount === 2) {
-            this.handlePinchMove();
+            this.handlePinchMove(Array.from(this.state.activePointers.values()));
         }
     }
     
@@ -326,6 +326,24 @@ class ModernTouchManager {
 
     // Aanpassing voor handlePinchStart om het initiële vaste punt correct op te slaan
     handlePinchStart(pointers) {
+        // Cancel any ongoing pan or drag operations
+        if (this.state.mode === 'panning') {
+            this.endCanvasPan();
+        } else if (this.state.mode === 'dragging') {
+            this.endNodeDrag();
+        }
+        
+        // Reset momentum om ongewenste beweging te voorkomen
+        this.momentum = {
+            velocityX: 0,
+            velocityY: 0,
+            lastX: 0,
+            lastY: 0,
+            lastTime: 0
+        };
+        
+        this.state.mode = 'pinching';
+        
         if (pointers.length >= 2) {
             // Bereken de initiële afstand
             const distance = this.getDistance(
@@ -363,6 +381,8 @@ class ModernTouchManager {
                 };
             }
             
+            this.showZoomIndicator();
+            
             console.log('Pinch gestart:', {
                 afstand: distance,
                 centrum: { x: centerX, y: centerY },
@@ -373,42 +393,46 @@ class ModernTouchManager {
     
     
     handlePinchMove(pointers) {
-    // Verkrijg de huidige afstand tussen de twee touch punten
-    const currentDistance = this.getDistance(
-        pointers[0].currentX, pointers[0].currentY,
-        pointers[1].currentX, pointers[1].currentY
-    );
-    
-    // Bereken het HUIDIGE centrum tussen de twee vingers (in scherm coördinaten)
-    const currentCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
-    const currentCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
-    
-    // Bereken de nieuwe zoom factor
-    const scaleDelta = currentDistance / this.state.pinchStart.distance;
-    const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scaleDelta));
-    
-    // Update de zoom level
-    if (typeof setZoomLevel === 'function') {
-        setZoomLevel(newZoom);
+        if (this.state.mode !== 'pinching' || !this.state.pinchStart || pointers.length < 2) return;
         
-        // BELANGRIJK: Bereken de nieuwe offset zodat het pinch centrum op dezelfde plek blijft
-        if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint) {
-            const rect = canvas.getBoundingClientRect();
+        // Verkrijg de huidige afstand tussen de twee touch punten
+        const currentDistance = this.getDistance(
+            pointers[0].currentX, pointers[0].currentY,
+            pointers[1].currentX, pointers[1].currentY
+        );
+        
+        // Bereken het HUIDIGE centrum tussen de twee vingers (in scherm coördinaten)
+        const currentCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
+        const currentCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
+        
+        // Bereken de nieuwe zoom factor
+        const scaleDelta = currentDistance / this.state.pinchStart.distance;
+        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scaleDelta));
+        
+        // Update de zoom level
+        if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
+            setZoomLevel(newZoom);
             
-            // Converteer het huidige scherm centrum naar viewport coördinaten
-            const viewportX = currentCenterX - rect.left;
-            const viewportY = currentCenterY - rect.top;
+            // BELANGRIJK: Bereken de nieuwe offset zodat het pinch centrum op dezelfde plek blijft
+            if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint && typeof canvas !== 'undefined') {
+                const rect = canvas.getBoundingClientRect();
+                
+                // Converteer het huidige scherm centrum naar viewport coördinaten
+                const viewportX = currentCenterX - rect.left;
+                const viewportY = currentCenterY - rect.top;
+                
+                // Het vaste punt in canvas coördinaten moet op de nieuwe viewport positie blijven
+                // Nieuwe formule: offset = huidige_viewport_positie - (originele_canvas_positie * nieuwe_zoom)
+                canvasOffset.x = viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
+                canvasOffset.y = viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
+                
+                // Update de canvas transform direct
+                updateCanvasTransform();
+            }
             
-            // Het vaste punt in canvas coördinaten moet op de nieuwe viewport positie blijven
-            // Nieuwe formule: offset = huidige_viewport_positie - (originele_canvas_positie * nieuwe_zoom)
-            canvasOffset.x = viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
-            canvasOffset.y = viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
-            
-            // Update de canvas transform direct
-            updateCanvasTransform();
+            this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
         }
     }
-}
     
     // Extra helper functie voor soepelere zoom interpolatie
     smoothZoom(currentZoom, targetZoom, factor = 0.1) {
@@ -454,7 +478,6 @@ class ModernTouchManager {
         if (!this.state.dragInfo) return;
         
         const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        const offset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
         
         // Calculate new position
         const dx = (pointer.currentX - this.state.dragInfo.pointerStartX) / zoom;
