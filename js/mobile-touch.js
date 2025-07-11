@@ -368,6 +368,7 @@ class ModernTouchManager {
         }
     }
     
+    
     handlePinchMove() {
         if (this.state.mode !== 'pinching' || !this.state.pinchStart) return;
         
@@ -379,33 +380,29 @@ class ModernTouchManager {
             pointers[1].currentX, pointers[1].currentY
         );
         
-        // Apply sensitivity reduction (0.5 = 50% less sensitive voor betere controle)
+        // Bereken de scale factor
         const sensitivityFactor = 0.5;
         const rawScale = currentDistance / this.state.pinchStart.distance;
         const scale = 1 + (rawScale - 1) * sensitivityFactor;
-        
-        // Apply exponential smoothing for more natural feel
         const smoothedScale = Math.pow(scale, 0.9);
         const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * smoothedScale));
         
-        // Apply zoom
         if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
+            const rect = canvas.getBoundingClientRect();
+            
+            // Bereken het huidige pinch center
+            const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
+            const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
+            
+            // Bereken het punt in canvas coördinaten dat vast moet blijven
+            const canvasX = (pinchCenterX - rect.left - this.state.pinchStart.offsetX) / this.state.pinchStart.scale;
+            const canvasY = (pinchCenterY - rect.top - this.state.pinchStart.offsetY) / this.state.pinchStart.scale;
+            
+            // Update zoom
             setZoomLevel(newZoom);
             
-            // BELANGRIJK: Gebruik het EXACTE pinch center zonder blending
+            // Bereken nieuwe offset om het focal point op dezelfde plek te houden
             if (typeof canvasOffset !== 'undefined') {
-                const rect = canvas.getBoundingClientRect();
-                
-                // Gebruik het HUIDIGE pinch center (niet het initiële)
-                const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
-                const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
-                
-                // Bereken het punt in canvas coördinaten dat gefixeerd moet blijven
-                // Dit gebruikt de OPGESLAGEN initiële center positie
-                const canvasX = (this.state.pinchStart.centerX - rect.left - this.state.pinchStart.offsetX) / this.state.pinchStart.scale;
-                const canvasY = (this.state.pinchStart.centerY - rect.top - this.state.pinchStart.offsetY) / this.state.pinchStart.scale;
-                
-                // Bereken nieuwe offset om het focal point op dezelfde plek te houden
                 canvasOffset.x = pinchCenterX - rect.left - (canvasX * newZoom);
                 canvasOffset.y = pinchCenterY - rect.top - (canvasY * newZoom);
             }
