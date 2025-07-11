@@ -17,8 +17,8 @@ class TouchGestureManager {
         this.longPressTimer = null;
         this.longPressThreshold = 500; // 500ms for long press
         this.doubleTapThreshold = 300; // 300ms for double tap
-        this.dragThreshold = 5; // 5px minimum movement to start drag (reduced for better responsiveness)
-        this.pinchThreshold = 10; // 10px minimum distance change for pinch
+        this.dragThreshold = 8; // 8px minimum movement to start drag (optimized for touch accuracy)
+        this.pinchThreshold = 15; // 15px minimum distance change for pinch (prevents accidental activation)
         this.velocityTracker = [];
         this.velocityThreshold = 0.3; // Minimum velocity for swipe
         
@@ -93,7 +93,12 @@ class TouchGestureManager {
     }
     
     handleTouchStart(e) {
-        e.preventDefault();
+        // Better event handling - only prevent default when necessary
+        const isInteractiveElement = e.target.closest('button, input, textarea, select, [contenteditable="true"], .btn, .menu-item, .hamburger-btn');
+        
+        if (!isInteractiveElement) {
+            e.preventDefault();
+        }
         
         const now = Date.now();
         const touch = e.touches[0];
@@ -161,7 +166,10 @@ class TouchGestureManager {
     }
     
     handleTouchMove(e) {
-        e.preventDefault();
+        // Only prevent default if we're actively handling the gesture
+        if (this.isTouching && this.touchCount > 0) {
+            e.preventDefault();
+        }
         
         if (!this.isTouching) return;
         
@@ -196,9 +204,16 @@ class TouchGestureManager {
         const deltaY = touch.clientY - this.touchStartPos.y;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         
-        // Start drag if threshold exceeded (reduced threshold for more responsive dragging)
-        if (!this.isDragging && distance > 5) { // Reduced from 10px to 5px
+        // Start drag if threshold exceeded with improved detection
+        if (!this.isDragging && distance > this.dragThreshold) {
             this.isDragging = true;
+            
+            // Clear long press timer since we're now dragging
+            if (this.longPressTimer) {
+                clearTimeout(this.longPressTimer);
+                this.longPressTimer = null;
+            }
+            
             this.emit('dragstart', {
                 touch: touch,
                 startPosition: this.touchStartPos,
@@ -332,15 +347,22 @@ class TouchGestureManager {
         const currentDistance = this.getDistance(touch1, touch2);
         const currentCenter = this.getCenter(touch1, touch2);
         
+        // Only emit pinch events if distance change is significant enough
+        const distanceChange = Math.abs(currentDistance - this.lastPinchDistance);
+        if (distanceChange < this.pinchThreshold) return;
+        
         const scale = currentDistance / this.lastPinchDistance;
         const deltaX = currentCenter.x - this.lastPinchCenter.x;
         const deltaY = currentCenter.y - this.lastPinchCenter.y;
+        
+        // Prevent extreme scale values
+        const clampedScale = Math.max(0.5, Math.min(2.0, scale));
         
         this.emit('pinch', {
             touches: [touch1, touch2],
             distance: currentDistance,
             center: currentCenter,
-            scale: scale,
+            scale: clampedScale,
             delta: { x: deltaX, y: deltaY },
             originalEvent: e
         });
@@ -456,6 +478,18 @@ class MobileTouchManager {
             CONNECT: 'connect'
         };
         
+        // Gesture conflict resolution
+        this.gesturesPriority = {
+            'pinch': 1,      // Highest priority
+            'longPress': 2,
+            'drag': 3,
+            'doubleTap': 4,
+            'tap': 5,        // Lowest priority
+            'swipe': 6
+        };
+        this.activeGestures = new Set();
+        this.gestureConflictTimer = null;
+        
         this.currentMode = this.modes.NAVIGATE;
         this.activeElement = null;
         this.touchConnectionStart = null;
@@ -485,56 +519,118 @@ class MobileTouchManager {
         this.setupTouchTargets();
         this.setupAccessibility();
         this.setupPerformanceOptimizations();
+        this.setupGestureConflictResolution();
         
         this.isInitialized = true;
         console.log('📱 Mobile Touch Manager initialized');
     }
     
+    setupGestureConflictResolution() {
+        // Method to resolve gesture conflicts based on priority
+        this.resolveGestureConflict = (newGesture) => {
+            const newPriority = this.gesturesPriority[newGesture] || 999;
+            
+            // Check if any active gesture has higher priority
+            for (const activeGesture of this.activeGestures) {
+                const activePriority = this.gesturesPriority[activeGesture] || 999;
+                if (activePriority < newPriority) {
+                    console.log(`🚫 Gesture conflict: ${newGesture} blocked by ${activeGesture}`);
+                    return false; // Block the new gesture
+                }
+            }
+            
+            // Remove lower priority gestures
+            for (const activeGesture of this.activeGestures) {
+                const activePriority = this.gesturesPriority[activeGesture] || 999;
+                if (activePriority > newPriority) {
+                    this.activeGestures.delete(activeGesture);
+                    console.log(`⚡ Gesture override: ${newGesture} overrode ${activeGesture}`);
+                }
+            }
+            
+            this.activeGestures.add(newGesture);
+            
+            // Clear gesture after timeout
+            if (this.gestureConflictTimer) {
+                clearTimeout(this.gestureConflictTimer);
+            }
+            
+            this.gestureConflictTimer = setTimeout(() => {
+                this.activeGestures.clear();
+            }, 1000);
+            
+            return true; // Allow the new gesture
+        };
+    }
+    
     setupGestureHandlers() {
         // Tap gesture - select nodes/connections
         this.gestureManager.on('tap', (data) => {
-            this.handleTap(data);
+            if (this.resolveGestureConflict('tap')) {
+                this.handleTap(data);
+            }
         });
         
         // Double tap - create new node or edit existing
         this.gestureManager.on('doubleTap', (data) => {
-            this.handleDoubleTap(data);
+            if (this.resolveGestureConflict('doubleTap')) {
+                this.handleDoubleTap(data);
+            }
         });
         
         // Long press - context menu
         this.gestureManager.on('longPress', (data) => {
-            this.handleLongPress(data);
+            if (this.resolveGestureConflict('longPress')) {
+                this.handleLongPress(data);
+            }
         });
         
         // Drag - move nodes or pan canvas
         this.gestureManager.on('dragstart', (data) => {
-            this.handleDragStart(data);
+            if (this.resolveGestureConflict('drag')) {
+                this.handleDragStart(data);
+            }
         });
         
         this.gestureManager.on('drag', (data) => {
-            this.handleDrag(data);
+            // Continue drag if already active, no need to resolve conflict again
+            if (this.activeGestures.has('drag')) {
+                this.handleDrag(data);
+            }
         });
         
         this.gestureManager.on('dragend', (data) => {
-            this.handleDragEnd(data);
+            if (this.activeGestures.has('drag')) {
+                this.handleDragEnd(data);
+                this.activeGestures.delete('drag'); // Remove drag from active gestures
+            }
         });
         
-        // Pinch - zoom
+        // Pinch - zoom (highest priority)
         this.gestureManager.on('pinchstart', (data) => {
-            this.handlePinchStart(data);
+            if (this.resolveGestureConflict('pinch')) {
+                this.handlePinchStart(data);
+            }
         });
         
         this.gestureManager.on('pinch', (data) => {
-            this.handlePinch(data);
+            if (this.activeGestures.has('pinch')) {
+                this.handlePinch(data);
+            }
         });
         
         this.gestureManager.on('pinchend', (data) => {
-            this.handlePinchEnd(data);
+            if (this.activeGestures.has('pinch')) {
+                this.handlePinchEnd(data);
+                this.activeGestures.delete('pinch'); // Remove pinch from active gestures
+            }
         });
         
         // Swipe - quick navigation
         this.gestureManager.on('swipe', (data) => {
-            this.handleSwipe(data);
+            if (this.resolveGestureConflict('swipe')) {
+                this.handleSwipe(data);
+            }
         });
     }
     
@@ -792,16 +888,27 @@ class MobileTouchManager {
         if (!this.dragModeNode || !this.dragModeElement) return;
         
         const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        const currentOffset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
         
-        // Calculate delta from the drag start position, not from current position
-        const totalDeltaX = (data.currentPosition.x - this.dragModeStartPos.x) / currentZoom;
-        const totalDeltaY = (data.currentPosition.y - this.dragModeStartPos.y) / currentZoom;
+        // Get canvas rectangle for proper coordinate transformation
+        const canvasRect = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
         
-        // Calculate new position based on original node position + total delta
-        const newX = this.dragModeNodeStartPos.x + totalDeltaX;
-        const newY = this.dragModeNodeStartPos.y + totalDeltaY;
+        // Calculate position relative to canvas, accounting for zoom and offset
+        const canvasX = (data.currentPosition.x - canvasRect.left - currentOffset.x) / currentZoom;
+        const canvasY = (data.currentPosition.y - canvasRect.top - currentOffset.y) / currentZoom;
         
-        // Snap to grid
+        // Calculate delta from the original drag start position in canvas coordinates
+        const startCanvasX = (this.dragModeStartPos.x - canvasRect.left - currentOffset.x) / currentZoom;
+        const startCanvasY = (this.dragModeStartPos.y - canvasRect.top - currentOffset.y) / currentZoom;
+        
+        const deltaX = canvasX - startCanvasX;
+        const deltaY = canvasY - startCanvasY;
+        
+        // Calculate new position based on original node position + delta
+        const newX = this.dragModeNodeStartPos.x + deltaX;
+        const newY = this.dragModeNodeStartPos.y + deltaY;
+        
+        // Snap to grid for better alignment
         const currentGridSize = typeof gridSize !== 'undefined' ? gridSize : 20;
         const snapX = Math.round(newX / currentGridSize) * currentGridSize;
         const snapY = Math.round(newY / currentGridSize) * currentGridSize;
@@ -810,13 +917,23 @@ class MobileTouchManager {
         this.dragModeNode.x = snapX;
         this.dragModeNode.y = snapY;
         
-        // Update DOM element position
-        this.dragModeElement.style.left = snapX + 'px';
-        this.dragModeElement.style.top = snapY + 'px';
+        // Update DOM element position with requestAnimationFrame for smooth movement
+        requestAnimationFrame(() => {
+            if (this.dragModeElement) {
+                this.dragModeElement.style.left = snapX + 'px';
+                this.dragModeElement.style.top = snapY + 'px';
+            }
+        });
         
-        // Update connections
+        // Update connections with throttling for performance
         if (typeof updateRelatedConnections !== 'undefined') {
-            updateRelatedConnections(this.dragModeNode.id, true);
+            if (!this.connectionUpdateThrottle) {
+                this.connectionUpdateThrottle = true;
+                requestAnimationFrame(() => {
+                    updateRelatedConnections(this.dragModeNode.id, true);
+                    this.connectionUpdateThrottle = false;
+                });
+            }
         }
     }
     
@@ -1181,9 +1298,14 @@ class MobileTouchManager {
         const deltaX = currentX - this.lastTouchPosition.x;
         const deltaY = currentY - this.lastTouchPosition.y;
         
-        // Apply movement instantly - no buffering or delays
-        canvasOffset.x += deltaX;
-        canvasOffset.y += deltaY;
+        // Apply smoothing for better user experience
+        const smoothingFactor = 0.8; // Adjust for responsiveness vs smoothness
+        const smoothedDeltaX = deltaX * smoothingFactor;
+        const smoothedDeltaY = deltaY * smoothingFactor;
+        
+        // Apply movement with improved responsiveness
+        canvasOffset.x += smoothedDeltaX;
+        canvasOffset.y += smoothedDeltaY;
         
         // Update last position for next frame
         this.lastTouchPosition.x = currentX;
@@ -1590,52 +1712,67 @@ class MobileTouchManager {
             /* Enhanced Touch Styles */
             @media (hover: none) and (pointer: coarse) {
                 .node {
-                    min-width: 48px !important;
-                    min-height: 48px !important;
+                    min-width: 60px !important;
+                    min-height: 50px !important;
                     font-size: 16px !important;
-                    padding: 12px !important;
+                    padding: 14px !important;
+                    border-width: 3px !important; /* Thicker borders for better visibility */
                 }
                 
                 .node-title {
-                    font-size: 16px !important;
+                    font-size: 17px !important;
                     font-weight: 600 !important;
+                    line-height: 1.3 !important;
                 }
                 
                 .node-content {
-                    font-size: 14px !important;
+                    font-size: 15px !important;
+                    line-height: 1.4 !important;
                 }
                 
                 .add-node-btn {
-                    width: 32px !important;
-                    height: 32px !important;
-                    font-size: 18px !important;
+                    width: 36px !important;
+                    height: 36px !important;
+                    font-size: 20px !important;
+                    border-width: 2px !important;
                 }
                 
                 .connection-hitzone {
-                    stroke-width: 20px !important;
+                    stroke-width: 24px !important; /* Wider hit areas for connections */
                 }
                 
                 .connection-control-point {
-                    r: 12px !important;
+                    r: 14px !important; /* Larger control points */
                 }
                 
                 .tool-btn {
-                    min-width: 48px !important;
-                    min-height: 48px !important;
-                    font-size: 16px !important;
-                    padding: 12px !important;
+                    min-width: 52px !important;
+                    min-height: 52px !important;
+                    font-size: 18px !important;
+                    padding: 14px !important;
                 }
                 
                 .context-menu-item {
-                    padding: 16px 20px !important;
-                    font-size: 16px !important;
-                    min-height: 48px !important;
+                    padding: 18px 24px !important;
+                    font-size: 17px !important;
+                    min-height: 52px !important;
                 }
                 
                 .zoom-controls button {
-                    min-width: 48px !important;
-                    min-height: 48px !important;
-                    font-size: 20px !important;
+                    min-width: 52px !important;
+                    min-height: 52px !important;
+                    font-size: 22px !important;
+                }
+                
+                /* Better touch feedback */
+                .node:active {
+                    transform: scale(0.97) !important;
+                    transition: transform 0.1s ease !important;
+                }
+                
+                .tool-btn:active, .context-menu-item:active {
+                    transform: scale(0.95) !important;
+                    transition: transform 0.1s ease !important;
                 }
                 
                 /* Touch feedback */
