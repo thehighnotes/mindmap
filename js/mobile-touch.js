@@ -353,15 +353,29 @@ class ModernTouchManager {
             const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
             const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
             
+            // Haal canvas rectangle op voor berekeningen
+            const rect = canvas.getBoundingClientRect();
+            
+            // Bereken het vaste punt in canvas coördinaten (dit punt moet vast blijven tijdens zoom)
+            const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+            const currentOffsetX = typeof canvasOffset !== 'undefined' ? canvasOffset.x : 0;
+            const currentOffsetY = typeof canvasOffset !== 'undefined' ? canvasOffset.y : 0;
+            
+            const fixedPointCanvasX = (pinchCenterX - rect.left - currentOffsetX) / currentZoom;
+            const fixedPointCanvasY = (pinchCenterY - rect.top - currentOffsetY) / currentZoom;
+            
             this.state.pinchStart = {
                 distance: distance,
-                scale: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
-                // Sla het EXACTE pinch center op
-                centerX: pinchCenterX,
-                centerY: pinchCenterY,
-                // Sla de huidige canvas offset op
-                offsetX: typeof canvasOffset !== 'undefined' ? canvasOffset.x : 0,
-                offsetY: typeof canvasOffset !== 'undefined' ? canvasOffset.y : 0
+                scale: currentZoom,
+                // Sla het pinch center op in viewport coördinaten
+                centerX: pinchCenterX - rect.left,
+                centerY: pinchCenterY - rect.top,
+                // Sla het vaste punt op in canvas coördinaten
+                fixedPointX: fixedPointCanvasX,
+                fixedPointY: fixedPointCanvasY,
+                // Sla de initiële offset op
+                initialOffsetX: currentOffsetX,
+                initialOffsetY: currentOffsetY
             };
             
             this.showZoomIndicator();
@@ -369,6 +383,7 @@ class ModernTouchManager {
     }
     
     
+    // Verbeterde handlePinchMove functie
     handlePinchMove() {
         if (this.state.mode !== 'pinching' || !this.state.pinchStart) return;
         
@@ -380,7 +395,7 @@ class ModernTouchManager {
             pointers[1].currentX, pointers[1].currentY
         );
         
-        // Bereken de scale factor
+        // Bereken de scale factor met smoothing
         const sensitivityFactor = 0.5;
         const rawScale = currentDistance / this.state.pinchStart.distance;
         const scale = 1 + (rawScale - 1) * sensitivityFactor;
@@ -388,23 +403,16 @@ class ModernTouchManager {
         const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * smoothedScale));
         
         if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
-            const rect = canvas.getBoundingClientRect();
-            
-            // Bereken het huidige pinch center
-            const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
-            const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
-            
-            // Bereken het punt in canvas coördinaten dat vast moet blijven
-            const canvasX = (pinchCenterX - rect.left - this.state.pinchStart.offsetX) / this.state.pinchStart.scale;
-            const canvasY = (pinchCenterY - rect.top - this.state.pinchStart.offsetY) / this.state.pinchStart.scale;
-            
-            // Update zoom
+            // Update zoom level
             setZoomLevel(newZoom);
             
-            // Bereken nieuwe offset om het focal point op dezelfde plek te houden
+            // Bereken nieuwe offset zodat het vaste punt op dezelfde viewport positie blijft
             if (typeof canvasOffset !== 'undefined') {
-                canvasOffset.x = pinchCenterX - rect.left - (canvasX * newZoom);
-                canvasOffset.y = pinchCenterY - rect.top - (canvasY * newZoom);
+                // Het vaste punt moet op dezelfde viewport positie blijven
+                // viewport positie = canvas positie * zoom + offset
+                // Dus: offset = viewport positie - (canvas positie * zoom)
+                canvasOffset.x = this.state.pinchStart.centerX - (this.state.pinchStart.fixedPointX * newZoom);
+                canvasOffset.y = this.state.pinchStart.centerY - (this.state.pinchStart.fixedPointY * newZoom);
             }
             
             updateCanvasTransform();
