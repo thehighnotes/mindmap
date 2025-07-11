@@ -324,103 +324,96 @@ class ModernTouchManager {
     
     // ===== MobileTouchManager Pinch Functies =====
 
-    handlePinchStart() {
-        // Cancel any ongoing pan or drag operations
-        if (this.state.mode === 'panning') {
-            this.endCanvasPan();
-        } else if (this.state.mode === 'dragging') {
-            this.endNodeDrag();
-        }
-        
-        // Reset momentum om ongewenste beweging te voorkomen
-        this.momentum = {
-            velocityX: 0,
-            velocityY: 0,
-            lastX: 0,
-            lastY: 0,
-            lastTime: 0
-        };
-        
-        this.state.mode = 'pinching';
-        const pointers = Array.from(this.state.activePointers.values());
-        
+    // Aanpassing voor handlePinchStart om het initiële vaste punt correct op te slaan
+    handlePinchStart(pointers) {
         if (pointers.length >= 2) {
+            // Bereken de initiële afstand
             const distance = this.getDistance(
                 pointers[0].currentX, pointers[0].currentY,
                 pointers[1].currentX, pointers[1].currentY
             );
             
-            // Bereken het pinch center
-            const pinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
-            const pinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
+            // Bereken het centrum tussen de twee vingers
+            const centerX = (pointers[0].currentX + pointers[1].currentX) / 2;
+            const centerY = (pointers[0].currentY + pointers[1].currentY) / 2;
             
-            // Haal canvas rectangle op
-            const rect = canvas.getBoundingClientRect();
-            
-            // Sla huidige zoom en offset op
-            const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-            const currentOffsetX = typeof canvasOffset !== 'undefined' ? canvasOffset.x : 0;
-            const currentOffsetY = typeof canvasOffset !== 'undefined' ? canvasOffset.y : 0;
-            
-            // Bereken en sla het vaste punt op in canvas coördinaten
-            const fixedPointCanvasX = (pinchCenterX - rect.left - currentOffsetX) / currentZoom;
-            const fixedPointCanvasY = (pinchCenterY - rect.top - currentOffsetY) / currentZoom;
-            
+            // Sla de start staat op
             this.state.pinchStart = {
                 distance: distance,
-                scale: currentZoom,
-                // Sla het vaste punt op dat constant blijft tijdens de pinch
-                fixedPoint: {
-                    canvasX: fixedPointCanvasX,
-                    canvasY: fixedPointCanvasY,
-                    viewportX: pinchCenterX - rect.left,
-                    viewportY: pinchCenterY - rect.top
-                }
+                scale: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
+                center: { x: centerX, y: centerY }
             };
             
-            console.log('📌 Pinch start:', {
-                fixedPoint: this.state.pinchStart.fixedPoint,
-                currentZoom: currentZoom,
-                currentOffset: { x: currentOffsetX, y: currentOffsetY }
-            });
+            // Bereken en sla het vaste punt op in canvas coördinaten
+            if (typeof canvas !== 'undefined' && typeof canvasOffset !== 'undefined') {
+                const rect = canvas.getBoundingClientRect();
+                const viewportX = centerX - rect.left;
+                const viewportY = centerY - rect.top;
+                
+                // Converteer viewport positie naar canvas coördinaten
+                // Canvas positie = (viewport positie - offset) / zoom
+                const canvasX = (viewportX - canvasOffset.x) / this.state.pinchStart.scale;
+                const canvasY = (viewportY - canvasOffset.y) / this.state.pinchStart.scale;
+                
+                this.state.pinchStart.fixedPoint = {
+                    canvasX: canvasX,
+                    canvasY: canvasY,
+                    viewportX: viewportX,
+                    viewportY: viewportY
+                };
+            }
             
-            this.showZoomIndicator();
+            console.log('Pinch gestart:', {
+                afstand: distance,
+                centrum: { x: centerX, y: centerY },
+                vastPunt: this.state.pinchStart.fixedPoint
+            });
         }
     }
     
     
-    handlePinchMove() {
-        if (this.state.mode !== 'pinching' || !this.state.pinchStart) return;
+    handlePinchMove(pointers) {
+    // Verkrijg de huidige afstand tussen de twee touch punten
+    const currentDistance = this.getDistance(
+        pointers[0].currentX, pointers[0].currentY,
+        pointers[1].currentX, pointers[1].currentY
+    );
+    
+    // Bereken het HUIDIGE centrum tussen de twee vingers (in scherm coördinaten)
+    const currentCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
+    const currentCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
+    
+    // Bereken de nieuwe zoom factor
+    const scaleDelta = currentDistance / this.state.pinchStart.distance;
+    const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scaleDelta));
+    
+    // Update de zoom level
+    if (typeof setZoomLevel === 'function') {
+        setZoomLevel(newZoom);
         
-        const pointers = Array.from(this.state.activePointers.values());
-        if (pointers.length < 2) return;
-        
-        const currentDistance = this.getDistance(
-            pointers[0].currentX, pointers[0].currentY,
-            pointers[1].currentX, pointers[1].currentY
-        );
-        
-        // Bereken de scale factor met aangepaste sensitiviteit
-        const rawScale = currentDistance / this.state.pinchStart.distance;
-        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * rawScale));
-        
-        if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
-            // Update zoom level
-            setZoomLevel(newZoom);
+        // BELANGRIJK: Bereken de nieuwe offset zodat het pinch centrum op dezelfde plek blijft
+        if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint) {
+            const rect = canvas.getBoundingClientRect();
             
-            // Gebruik het opgeslagen vaste punt voor correcte offset berekening
-            if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint) {
-                // Het vaste punt moet op dezelfde viewport positie blijven
-                // Formule: offset = viewport positie - (canvas positie × zoom)
-                canvasOffset.x = this.state.pinchStart.fixedPoint.viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
-                canvasOffset.y = this.state.pinchStart.fixedPoint.viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
-                
-                // Direct update canvas transform to prevent any delay
-                updateCanvasTransform();
-            }
+            // Converteer het huidige scherm centrum naar viewport coördinaten
+            const viewportX = currentCenterX - rect.left;
+            const viewportY = currentCenterY - rect.top;
             
-            this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
+            // Het vaste punt in canvas coördinaten moet op de nieuwe viewport positie blijven
+            // Nieuwe formule: offset = huidige_viewport_positie - (originele_canvas_positie * nieuwe_zoom)
+            canvasOffset.x = viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
+            canvasOffset.y = viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
+            
+            // Update de canvas transform direct
+            updateCanvasTransform();
         }
+    }
+}
+    
+    // Extra helper functie voor soepelere zoom interpolatie
+    smoothZoom(currentZoom, targetZoom, factor = 0.1) {
+        // Interpoleer tussen huidige en doel zoom voor soepelere beweging
+        return currentZoom + (targetZoom - currentZoom) * factor;
     }
     
     endPinch() {
