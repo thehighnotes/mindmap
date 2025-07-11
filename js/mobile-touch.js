@@ -190,7 +190,8 @@ class ModernTouchManager {
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         // Check if we should start dragging
-        if (this.state.mode === 'idle' && distance > this.config.dragThreshold) {
+        // Only start actions if we truly have a single pointer (prevents conflicts with pinch)
+        if (this.state.mode === 'idle' && distance > this.config.dragThreshold && this.state.activePointers.size === 1) {
             this.clearTimer('longPress'); // Cancel long press
             
             if (this.state.dragTarget) {
@@ -200,14 +201,16 @@ class ModernTouchManager {
             }
         }
         
-        // Continue current action
-        switch (this.state.mode) {
-            case 'dragging':
-                this.updateNodeDrag(pointer);
-                break;
-            case 'panning':
-                this.updateCanvasPan(pointer);
-                break;
+        // Continue current action only if not in multi-touch mode
+        if (this.state.activePointers.size === 1) {
+            switch (this.state.mode) {
+                case 'dragging':
+                    this.updateNodeDrag(pointer);
+                    break;
+                case 'panning':
+                    this.updateCanvasPan(pointer);
+                    break;
+            }
         }
     }
     
@@ -321,7 +324,12 @@ class ModernTouchManager {
     
     // Pinch handling
     handlePinchStart() {
-        if (this.state.mode !== 'idle') return;
+        // Cancel any ongoing pan or drag operations
+        if (this.state.mode === 'panning') {
+            this.endCanvasPan();
+        } else if (this.state.mode === 'dragging') {
+            this.endNodeDrag();
+        }
         
         this.state.mode = 'pinching';
         const pointers = Array.from(this.state.activePointers.values());
@@ -403,6 +411,15 @@ class ModernTouchManager {
         this.state.mode = 'idle';
         this.state.pinchStart = null;
         this.hideZoomIndicator();
+        
+        // Clear any momentum that might have been built up
+        this.momentum = {
+            velocityX: 0,
+            velocityY: 0,
+            lastX: 0,
+            lastY: 0,
+            lastTime: 0
+        };
     }
     
     // Node dragging
