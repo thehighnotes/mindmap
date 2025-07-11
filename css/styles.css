@@ -178,7 +178,14 @@ body {
     }
     
     .desktop-only {
-        display: none;
+        display: none !important;
+    }
+    
+    /* Hide all toolbar buttons on mobile - use hamburger menu instead */
+    .header .button-group,
+    .header .btn,
+    .header .tool-btn {
+        display: none !important;
     }
     
     .header h1 {
