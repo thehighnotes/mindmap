@@ -1,1642 +1,966 @@
 /**
- * mobile-touch.js - Comprehensive mobile touch support for mindmap
- * Enhanced touch interactions for all mindmap features
+ * mobile-touch.js - Modern mobile touch support for mindmap
+ * Implements best practices for touch interactions using Pointer Events API
  */
 
 // ==========================
-// TOUCH GESTURE SYSTEM
+// MODERN TOUCH MANAGER
 // ==========================
 
-class TouchGestureManager {
+class ModernTouchManager {
     constructor() {
-        this.activeGestures = new Map();
-        this.touchStartTime = null;
-        this.touchStartPos = null;
-        this.lastTouchEnd = 0;
-        this.touchSequence = [];
-        this.longPressTimer = null;
-        this.longPressThreshold = 500; // 500ms for long press
-        this.doubleTapThreshold = 300; // 300ms for double tap
-        this.dragThreshold = 8; // 8px minimum movement to start drag (optimized for touch accuracy)
-        this.pinchThreshold = 15; // 15px minimum distance change for pinch (prevents accidental activation)
-        this.velocityTracker = [];
-        this.velocityThreshold = 0.3; // Minimum velocity for swipe
+        // Touch state using simple state machine
+        this.state = {
+            mode: 'idle', // idle, panning, pinching, dragging, connecting
+            activePointers: new Map(),
+            dragTarget: null,
+            panStart: null,
+            pinchStart: null,
+            lastPinchDistance: 0
+        };
         
-        // Touch state
-        this.isTouching = false;
-        this.isLongPressed = false;
-        this.isPinching = false;
-        this.isDragging = false;
-        this.touchCount = 0;
-        this.lastPinchDistance = 0;
-        this.lastPinchCenter = null;
+        // Configuration
+        this.config = {
+            dragThreshold: 10, // Standard threshold for drag detection
+            doubleTapDelay: 300,
+            longPressDelay: 500,
+            pinchThreshold: 0.02, // 2% scale change threshold
+            momentumFriction: 0.92
+        };
         
-        // Gesture callbacks
-        this.callbacks = {
-            tap: [],
-            doubleTap: [],
-            longPress: [],
-            drag: [],
-            pinch: [],
-            swipe: [],
-            rotate: []
+        // Timers
+        this.timers = {
+            doubleTap: null,
+            longPress: null,
+            momentum: null
+        };
+        
+        // Last tap info for double tap detection
+        this.lastTap = {
+            time: 0,
+            target: null,
+            x: 0,
+            y: 0
+        };
+        
+        // Momentum tracking
+        this.momentum = {
+            velocityX: 0,
+            velocityY: 0,
+            lastX: 0,
+            lastY: 0,
+            lastTime: 0
         };
         
         this.init();
     }
     
     init() {
-        // Check if canvas is available
+        // Wait for canvas availability
+        if (!this.waitForCanvas()) return;
+        
+        // Use single pointer event handler for all interactions
+        this.setupPointerEvents();
+        
+        // Setup CSS for optimal touch behavior
+        this.setupTouchCSS();
+        
+        // Setup visual feedback
+        this.setupVisualFeedback();
+        
+        console.log('📱 Modern touch support initialized');
+    }
+    
+    waitForCanvas() {
         if (typeof canvas === 'undefined' || !canvas) {
-            console.warn('⚠️ Canvas not available for touch gesture manager, retrying...');
+            console.warn('⚠️ Canvas not ready, retrying...');
             setTimeout(() => this.init(), 100);
-            return;
+            return false;
         }
-        
-        // Bind touch events with proper options
-        canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
-        canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
-        canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
-        canvas.addEventListener('touchcancel', this.handleTouchCancel.bind(this), { passive: false });
-        
-        console.log('🎯 Touch Gesture Manager initialized');
+        return true;
     }
     
-    // Register callback for specific gesture
-    on(gesture, callback) {
-        if (this.callbacks[gesture]) {
-            this.callbacks[gesture].push(callback);
-        }
-    }
-    
-    // Remove callback for specific gesture
-    off(gesture, callback) {
-        if (this.callbacks[gesture]) {
-            const index = this.callbacks[gesture].indexOf(callback);
-            if (index > -1) {
-                this.callbacks[gesture].splice(index, 1);
+    setupPointerEvents() {
+        // Use pointer events for unified mouse/touch handling
+        canvas.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+        canvas.addEventListener('pointermove', this.handlePointerMove.bind(this));
+        canvas.addEventListener('pointerup', this.handlePointerUp.bind(this));
+        canvas.addEventListener('pointercancel', this.handlePointerCancel.bind(this));
+        
+        // Prevent default touch behaviors
+        canvas.style.touchAction = 'none';
+        
+        // Handle context menu (for long press)
+        canvas.addEventListener('contextmenu', (e) => {
+            if (e.pointerType === 'touch') {
+                e.preventDefault();
             }
-        }
+        });
     }
     
-    // Emit gesture event
-    emit(gesture, data) {
-        if (this.callbacks[gesture]) {
-            this.callbacks[gesture].forEach(callback => {
-                try {
-                    callback(data);
-                } catch (e) {
-                    console.error('Touch gesture callback error:', e);
-                }
-            });
+    handlePointerDown(e) {
+        // Store pointer info
+        this.state.activePointers.set(e.pointerId, {
+            id: e.pointerId,
+            type: e.pointerType,
+            startX: e.clientX,
+            startY: e.clientY,
+            currentX: e.clientX,
+            currentY: e.clientY,
+            startTime: Date.now(),
+            target: e.target
+        });
+        
+        const pointerCount = this.state.activePointers.size;
+        
+        if (pointerCount === 1) {
+            this.handleSinglePointerDown(e);
+        } else if (pointerCount === 2) {
+            this.handlePinchStart();
         }
+        
+        // Capture pointer for consistent events
+        e.target.setPointerCapture(e.pointerId);
     }
     
-    handleTouchStart(e) {
-        // Better event handling - only prevent default when necessary
-        const isInteractiveElement = e.target.closest('button, input, textarea, select, [contenteditable="true"], .btn, .menu-item, .hamburger-btn');
-        
-        if (!isInteractiveElement) {
-            e.preventDefault();
-        }
-        
-        const now = Date.now();
-        const touch = e.touches[0];
-        this.touchCount = e.touches.length;
-        this.isTouching = true;
-        this.touchStartTime = now;
-        this.touchStartPos = {
-            x: touch.clientX,
-            y: touch.clientY,
-            canvasX: this.getCanvasCoordinates(touch).x,
-            canvasY: this.getCanvasCoordinates(touch).y
-        };
-        
-        // Clear any existing long press timer
-        if (this.longPressTimer) {
-            clearTimeout(this.longPressTimer);
-        }
-        
-        // Handle multi-touch
-        if (this.touchCount === 1) {
-            this.handleSingleTouch(e, touch, now);
-        } else if (this.touchCount === 2) {
-            this.handlePinchStart(e);
-        }
-        
-        // Track velocity
-        this.velocityTracker = [{
-            time: now,
-            x: touch.clientX,
-            y: touch.clientY
-        }];
-        
-        // Start long press timer
-        this.longPressTimer = setTimeout(() => {
-            if (this.isTouching && !this.isDragging && !this.isPinching) {
-                this.handleLongPress(e);
-            }
-        }, this.longPressThreshold);
-    }
-    
-    handleSingleTouch(e, touch, now) {
-        const timeSinceLastTouch = now - this.lastTouchEnd;
+    handleSinglePointerDown(e) {
+        const pointer = this.state.activePointers.get(e.pointerId);
+        const element = this.getInteractiveElement(e);
         
         // Check for double tap
-        if (timeSinceLastTouch < this.doubleTapThreshold) {
-            this.handleDoubleTap(e, touch);
+        const now = Date.now();
+        const tapDelta = now - this.lastTap.time;
+        const distance = this.getDistance(
+            e.clientX, e.clientY,
+            this.lastTap.x, this.lastTap.y
+        );
+        
+        if (tapDelta < this.config.doubleTapDelay && 
+            distance < 30 && 
+            this.lastTap.target === element) {
+            this.handleDoubleTap(e, element);
             return;
         }
         
-        // Store touch info for potential drag
-        this.touchStartPos = {
-            x: touch.clientX,
-            y: touch.clientY,
-            canvasX: this.getCanvasCoordinates(touch).x,
-            canvasY: this.getCanvasCoordinates(touch).y
-        };
-        
-        // Emit touch start event
-        this.emit('touchstart', {
-            touch: touch,
-            position: this.touchStartPos,
-            target: e.target,
-            originalEvent: e
-        });
-    }
-    
-    handleTouchMove(e) {
-        // Only prevent default if we're actively handling the gesture
-        if (this.isTouching && this.touchCount > 0) {
-            e.preventDefault();
-        }
-        
-        if (!this.isTouching) return;
-        
-        const touch = e.touches[0];
-        const now = Date.now();
-        
-        // Update velocity tracker
-        this.velocityTracker.push({
+        // Update last tap info
+        this.lastTap = {
             time: now,
-            x: touch.clientX,
-            y: touch.clientY
-        });
-        
-        // Keep only recent velocity data
-        this.velocityTracker = this.velocityTracker.filter(v => now - v.time < 50); // Reduced time window for more responsive tracking
-        
-        if (this.touchCount === 1) {
-            this.handleSingleTouchMove(e, touch);
-        } else if (this.touchCount === 2) {
-            this.handlePinchMove(e);
-        }
-        
-        // Cancel long press if we're moving
-        if (this.longPressTimer && this.isDragging) {
-            clearTimeout(this.longPressTimer);
-            this.longPressTimer = null;
-        }
-    }
-    
-    handleSingleTouchMove(e, touch) {
-        const deltaX = touch.clientX - this.touchStartPos.x;
-        const deltaY = touch.clientY - this.touchStartPos.y;
-        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        
-        // Start drag if threshold exceeded with improved detection
-        if (!this.isDragging && distance > this.dragThreshold) {
-            this.isDragging = true;
-            
-            // Clear long press timer since we're now dragging
-            if (this.longPressTimer) {
-                clearTimeout(this.longPressTimer);
-                this.longPressTimer = null;
-            }
-            
-            this.emit('dragstart', {
-                touch: touch,
-                startPosition: this.touchStartPos,
-                currentPosition: { x: touch.clientX, y: touch.clientY },
-                delta: { x: deltaX, y: deltaY },
-                target: e.target,
-                originalEvent: e
-            });
-        }
-        
-        // Continue drag with immediate response
-        if (this.isDragging) {
-            this.emit('drag', {
-                touch: touch,
-                startPosition: this.touchStartPos,
-                currentPosition: { x: touch.clientX, y: touch.clientY },
-                delta: { x: deltaX, y: deltaY },
-                target: e.target,
-                originalEvent: e
-            });
-        }
-    }
-    
-    handleTouchEnd(e) {
-        e.preventDefault();
-        
-        const now = Date.now();
-        this.lastTouchEnd = now;
-        this.isTouching = false;
-        this.touchCount = e.touches.length;
-        
-        // Clear timers
-        if (this.longPressTimer) {
-            clearTimeout(this.longPressTimer);
-            this.longPressTimer = null;
-        }
-        
-        // Handle end of gestures
-        if (this.isDragging) {
-            this.handleDragEnd(e);
-        } else if (this.isPinching) {
-            this.handlePinchEnd(e);
-        } else if (!this.isLongPressed && this.touchStartTime) {
-            // Simple tap
-            const touchDuration = now - this.touchStartTime;
-            if (touchDuration < this.longPressThreshold) {
-                this.handleTap(e);
-            }
-        }
-        
-        // Check for swipe
-        if (this.velocityTracker.length > 1) {
-            this.checkForSwipe(e);
-        }
-        
-        // Reset state
-        this.resetGestureState();
-    }
-    
-    handleTouchCancel(e) {
-        e.preventDefault();
-        this.resetGestureState();
-    }
-    
-    handleTap(e) {
-        const touch = e.changedTouches[0];
-        this.emit('tap', {
-            touch: touch,
-            position: this.touchStartPos,
-            target: e.target,
-            originalEvent: e
-        });
-    }
-    
-    handleDoubleTap(e) {
-        const touch = e.touches[0];
-        this.emit('doubleTap', {
-            touch: touch,
-            position: this.touchStartPos,
-            target: e.target,
-            originalEvent: e
-        });
-    }
-    
-    handleLongPress(e) {
-        this.isLongPressed = true;
-        const touch = e.touches[0];
-        this.emit('longPress', {
-            touch: touch,
-            position: this.touchStartPos,
-            target: e.target,
-            originalEvent: e
-        });
-    }
-    
-    handleDragEnd(e) {
-        const touch = e.changedTouches[0];
-        this.emit('dragend', {
-            touch: touch,
-            startPosition: this.touchStartPos,
-            endPosition: { x: touch.clientX, y: touch.clientY },
-            target: e.target,
-            originalEvent: e
-        });
-    }
-    
-    handlePinchStart(e) {
-        if (e.touches.length !== 2) return;
-        
-        this.isPinching = true;
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        
-        this.lastPinchDistance = this.getDistance(touch1, touch2);
-        this.lastPinchCenter = this.getCenter(touch1, touch2);
-        
-        this.emit('pinchstart', {
-            touches: [touch1, touch2],
-            distance: this.lastPinchDistance,
-            center: this.lastPinchCenter,
-            originalEvent: e
-        });
-    }
-    
-    handlePinchMove(e) {
-        if (e.touches.length !== 2 || !this.isPinching) return;
-        
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        
-        const currentDistance = this.getDistance(touch1, touch2);
-        const currentCenter = this.getCenter(touch1, touch2);
-        
-        // Only emit pinch events if distance change is significant enough
-        const distanceChange = Math.abs(currentDistance - this.lastPinchDistance);
-        if (distanceChange < this.pinchThreshold) return;
-        
-        const scale = currentDistance / this.lastPinchDistance;
-        const deltaX = currentCenter.x - this.lastPinchCenter.x;
-        const deltaY = currentCenter.y - this.lastPinchCenter.y;
-        
-        // Prevent extreme scale values
-        const clampedScale = Math.max(0.5, Math.min(2.0, scale));
-        
-        this.emit('pinch', {
-            touches: [touch1, touch2],
-            distance: currentDistance,
-            center: currentCenter,
-            scale: clampedScale,
-            delta: { x: deltaX, y: deltaY },
-            originalEvent: e
-        });
-        
-        this.lastPinchDistance = currentDistance;
-        this.lastPinchCenter = currentCenter;
-    }
-    
-    handlePinchEnd(e) {
-        this.emit('pinchend', {
-            originalEvent: e
-        });
-    }
-    
-    checkForSwipe(e) {
-        if (this.velocityTracker.length < 2) return;
-        
-        const recent = this.velocityTracker[this.velocityTracker.length - 1];
-        const start = this.velocityTracker[0];
-        
-        const deltaTime = recent.time - start.time;
-        const deltaX = recent.x - start.x;
-        const deltaY = recent.y - start.y;
-        
-        const velocityX = deltaX / deltaTime;
-        const velocityY = deltaY / deltaTime;
-        const velocity = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-        
-        if (velocity > this.velocityThreshold) {
-            let direction = 'unknown';
-            if (Math.abs(velocityX) > Math.abs(velocityY)) {
-                direction = velocityX > 0 ? 'right' : 'left';
-            } else {
-                direction = velocityY > 0 ? 'down' : 'up';
-            }
-            
-            this.emit('swipe', {
-                direction: direction,
-                velocity: velocity,
-                delta: { x: deltaX, y: deltaY },
-                target: e.target,
-                originalEvent: e
-            });
-        }
-    }
-    
-    getDistance(touch1, touch2) {
-        const dx = touch1.clientX - touch2.clientX;
-        const dy = touch1.clientY - touch2.clientY;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-    
-    getCenter(touch1, touch2) {
-        return {
-            x: (touch1.clientX + touch2.clientX) / 2,
-            y: (touch1.clientY + touch2.clientY) / 2
-        };
-    }
-    
-    getCanvasCoordinates(touch) {
-        if (!canvas) {
-            console.warn('⚠️ Canvas not available for coordinate calculation');
-            return { x: 0, y: 0 };
-        }
-        
-        const canvasRect = canvas.getBoundingClientRect();
-        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        return {
-            x: (touch.clientX - canvasRect.left) / zoom,
-            y: (touch.clientY - canvasRect.top) / zoom
-        };
-    }
-    
-    resetGestureState() {
-        this.isDragging = false;
-        this.isPinching = false;
-        this.isLongPressed = false;
-        this.touchStartTime = null;
-        this.touchStartPos = null;
-        this.velocityTracker = [];
-        this.lastPinchDistance = 0;
-        this.lastPinchCenter = null;
-    }
-    
-    // Public method to check if currently touching
-    isTouchActive() {
-        return this.isTouching;
-    }
-    
-    // Public method to get touch count
-    getTouchCount() {
-        return this.touchCount;
-    }
-}
-
-// ==========================
-// ENHANCED TOUCH SUPPORT
-// ==========================
-
-class MobileTouchManager {
-    constructor() {
-        this.gestureManager = new TouchGestureManager();
-        this.touchTargets = new Map();
-        this.touchFeedback = new Map();
-        this.isInitialized = false;
-        
-        // Touch interaction modes
-        this.modes = {
-            NAVIGATE: 'navigate',
-            SELECT: 'select',
-            CREATE: 'create',
-            EDIT: 'edit',
-            CONNECT: 'connect'
+            target: element,
+            x: e.clientX,
+            y: e.clientY
         };
         
-        // Gesture conflict resolution
-        this.gesturesPriority = {
-            'pinch': 1,      // Highest priority
-            'longPress': 2,
-            'drag': 3,
-            'doubleTap': 4,
-            'tap': 5,        // Lowest priority
-            'swipe': 6
-        };
-        this.activeGestures = new Set();
-        this.gestureConflictTimer = null;
-        
-        this.currentMode = this.modes.NAVIGATE;
-        this.activeElement = null;
-        this.touchConnectionStart = null;
-        this.touchConnectionLine = null;
-        
-        // Drag mode state
-        this.isDragModeEnabled = false;
-        this.dragModeNode = null;
-        this.dragModeElement = null;
-        this.dragModeStartPos = null;
-        this.dragModeActive = false;
-        
-        // Connection mode state
-        this.isConnectionModeEnabled = false;
-        this.connectionStartNode = null;
-        this.connectionStartElement = null;
-        this.connectionPreviewLine = null;
-        
-        this.init();
-    }
-    
-    init() {
-        if (this.isInitialized) return;
-        
-        this.setupGestureHandlers();
-        this.setupTouchStyles();
-        this.setupTouchTargets();
-        this.setupAccessibility();
-        this.setupPerformanceOptimizations();
-        this.setupGestureConflictResolution();
-        
-        this.isInitialized = true;
-        console.log('📱 Mobile Touch Manager initialized');
-    }
-    
-    setupGestureConflictResolution() {
-        // Method to resolve gesture conflicts based on priority
-        this.resolveGestureConflict = (newGesture) => {
-            const newPriority = this.gesturesPriority[newGesture] || 999;
-            
-            // Check if any active gesture has higher priority
-            for (const activeGesture of this.activeGestures) {
-                const activePriority = this.gesturesPriority[activeGesture] || 999;
-                if (activePriority < newPriority) {
-                    console.log(`🚫 Gesture conflict: ${newGesture} blocked by ${activeGesture}`);
-                    return false; // Block the new gesture
-                }
+        // Start long press timer
+        this.clearTimer('longPress');
+        this.timers.longPress = setTimeout(() => {
+            if (this.state.mode === 'idle' && this.state.activePointers.has(e.pointerId)) {
+                this.handleLongPress(e, element);
             }
-            
-            // Remove lower priority gestures
-            for (const activeGesture of this.activeGestures) {
-                const activePriority = this.gesturesPriority[activeGesture] || 999;
-                if (activePriority > newPriority) {
-                    this.activeGestures.delete(activeGesture);
-                    console.log(`⚡ Gesture override: ${newGesture} overrode ${activeGesture}`);
-                }
-            }
-            
-            this.activeGestures.add(newGesture);
-            
-            // Clear gesture after timeout
-            if (this.gestureConflictTimer) {
-                clearTimeout(this.gestureConflictTimer);
-            }
-            
-            this.gestureConflictTimer = setTimeout(() => {
-                this.activeGestures.clear();
-            }, 1000);
-            
-            return true; // Allow the new gesture
-        };
-    }
-    
-    setupGestureHandlers() {
-        // Tap gesture - select nodes/connections
-        this.gestureManager.on('tap', (data) => {
-            if (this.resolveGestureConflict('tap')) {
-                this.handleTap(data);
-            }
-        });
+        }, this.config.longPressDelay);
         
-        // Double tap - create new node or edit existing
-        this.gestureManager.on('doubleTap', (data) => {
-            if (this.resolveGestureConflict('doubleTap')) {
-                this.handleDoubleTap(data);
-            }
-        });
-        
-        // Long press - context menu
-        this.gestureManager.on('longPress', (data) => {
-            if (this.resolveGestureConflict('longPress')) {
-                this.handleLongPress(data);
-            }
-        });
-        
-        // Drag - move nodes or pan canvas
-        this.gestureManager.on('dragstart', (data) => {
-            if (this.resolveGestureConflict('drag')) {
-                this.handleDragStart(data);
-            }
-        });
-        
-        this.gestureManager.on('drag', (data) => {
-            // Continue drag if already active, no need to resolve conflict again
-            if (this.activeGestures.has('drag')) {
-                this.handleDrag(data);
-            }
-        });
-        
-        this.gestureManager.on('dragend', (data) => {
-            if (this.activeGestures.has('drag')) {
-                this.handleDragEnd(data);
-                this.activeGestures.delete('drag'); // Remove drag from active gestures
-            }
-        });
-        
-        // Pinch - zoom (highest priority)
-        this.gestureManager.on('pinchstart', (data) => {
-            if (this.resolveGestureConflict('pinch')) {
-                this.handlePinchStart(data);
-            }
-        });
-        
-        this.gestureManager.on('pinch', (data) => {
-            if (this.activeGestures.has('pinch')) {
-                this.handlePinch(data);
-            }
-        });
-        
-        this.gestureManager.on('pinchend', (data) => {
-            if (this.activeGestures.has('pinch')) {
-                this.handlePinchEnd(data);
-                this.activeGestures.delete('pinch'); // Remove pinch from active gestures
-            }
-        });
-        
-        // Swipe - quick navigation
-        this.gestureManager.on('swipe', (data) => {
-            if (this.resolveGestureConflict('swipe')) {
-                this.handleSwipe(data);
-            }
-        });
-    }
-    
-    handleTap(data) {
-        const element = data.target.closest('.node, .connection, .tool-btn');
-        
-        if (element) {
-            this.showTouchFeedback(element, 'tap');
-            
-            if (element.classList.contains('node')) {
-                this.handleNodeTap(element, data);
-            } else if (element.classList.contains('connection')) {
-                this.handleConnectionTap(element, data);
-            } else if (element.classList.contains('tool-btn')) {
-                this.handleToolTap(element, data);
-            }
-        } else {
-            // Tap on empty canvas
-            this.handleCanvasTap(data);
-        }
-    }
-    
-    handleDoubleTap(data) {
-        const element = data.target.closest('.node, .connection');
-        
-        if (element) {
-            this.showTouchFeedback(element, 'doubleTap');
-            
-            if (element.classList.contains('node')) {
-                // Open context menu for node
-                const node = nodes.find(n => n.id === element.id);
-                if (node) {
-                    this.showTouchContextMenu(data.position.x, data.position.y, 'node', node);
-                }
-            } else if (element.classList.contains('connection')) {
-                // Open context menu for connection
-                const connection = connections.find(c => c.id === element.id);
-                if (connection) {
-                    this.showTouchContextMenu(data.position.x, data.position.y, 'connection', connection);
-                }
-            }
-        } else {
-            // Create new node
-            this.createNodeAtPosition(data.position.canvasX, data.position.canvasY);
-        }
-    }
-    
-    handleLongPress(data) {
-        const element = data.target.closest('.node');
-        
+        // Store potential drag target
         if (element && element.classList.contains('node')) {
-            // Long press on node - enable dragging mode
+            this.state.dragTarget = element;
+        }
+    }
+    
+    handlePointerMove(e) {
+        const pointer = this.state.activePointers.get(e.pointerId);
+        if (!pointer) return;
+        
+        // Update pointer position
+        pointer.currentX = e.clientX;
+        pointer.currentY = e.clientY;
+        
+        const pointerCount = this.state.activePointers.size;
+        
+        if (pointerCount === 1) {
+            this.handleSinglePointerMove(e, pointer);
+        } else if (pointerCount === 2) {
+            this.handlePinchMove();
+        }
+    }
+    
+    handleSinglePointerMove(e, pointer) {
+        const dx = pointer.currentX - pointer.startX;
+        const dy = pointer.currentY - pointer.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Check if we should start dragging
+        if (this.state.mode === 'idle' && distance > this.config.dragThreshold) {
+            this.clearTimer('longPress'); // Cancel long press
+            
+            if (this.state.dragTarget) {
+                this.startNodeDrag(this.state.dragTarget, pointer);
+            } else {
+                this.startCanvasPan(pointer);
+            }
+        }
+        
+        // Continue current action
+        switch (this.state.mode) {
+            case 'dragging':
+                this.updateNodeDrag(pointer);
+                break;
+            case 'panning':
+                this.updateCanvasPan(pointer);
+                break;
+        }
+    }
+    
+    handlePointerUp(e) {
+        const pointer = this.state.activePointers.get(e.pointerId);
+        if (!pointer) return;
+        
+        const pointerCount = this.state.activePointers.size;
+        
+        if (pointerCount === 1) {
+            // Single pointer release
+            const duration = Date.now() - pointer.startTime;
+            const distance = this.getDistance(
+                pointer.currentX, pointer.currentY,
+                pointer.startX, pointer.startY
+            );
+            
+            if (this.state.mode === 'idle' && distance < this.config.dragThreshold) {
+                // It's a tap
+                this.clearTimer('longPress');
+                const element = this.getInteractiveElement(e);
+                this.handleTap(e, element);
+            } else if (this.state.mode === 'panning') {
+                this.endCanvasPan();
+            } else if (this.state.mode === 'dragging') {
+                this.endNodeDrag();
+            }
+        } else if (pointerCount === 2 && this.state.mode === 'pinching') {
+            // End pinch when one finger lifts
+            this.endPinch();
+        }
+        
+        // Clean up pointer
+        this.state.activePointers.delete(e.pointerId);
+        e.target.releasePointerCapture(e.pointerId);
+        
+        // Reset state if no more pointers
+        if (this.state.activePointers.size === 0) {
+            this.resetState();
+        }
+    }
+    
+    handlePointerCancel(e) {
+        this.handlePointerUp(e);
+    }
+    
+    // Gesture handlers
+    handleTap(e, element) {
+        if (!element) {
+            // Tap on canvas - deselect
+            if (typeof deselectAll === 'function') {
+                deselectAll();
+            }
+            return;
+        }
+        
+        if (element.classList.contains('node')) {
+            const nodeId = element.id;
+            if (typeof selectNode === 'function') {
+                selectNode(nodeId);
+            }
+            this.showVisualFeedback(element, 'tap');
+        } else if (element.classList.contains('connection')) {
+            const connection = connections.find(c => c.id === element.id);
+            if (connection && typeof selectConnection === 'function') {
+                selectConnection(connection);
+            }
+            this.showVisualFeedback(element, 'tap');
+        }
+    }
+    
+    handleDoubleTap(e, element) {
+        this.clearTimer('doubleTap');
+        
+        if (!element) {
+            // Double tap on canvas - create node
+            const coords = this.getCanvasCoordinates(e);
+            this.createNodeAtPosition(coords.x, coords.y);
+        } else if (element.classList.contains('node')) {
+            // Double tap on node - show context menu
             const node = nodes.find(n => n.id === element.id);
             if (node) {
-                this.showTouchFeedback(element, 'longPress');
-                
-                // Select the node first
-                selectNode(node.id);
-                
-                // Enable dragging mode
-                this.enableDragMode(element, node, data);
-                
-                // Show visual feedback for drag mode
-                this.showToast('Drag-modus ingeschakeld (sleep om te verplaatsen)', false);
+                this.showContextMenu(e.clientX, e.clientY, 'node', node);
             }
-        } else {
-            // Long press on canvas or connection - show context menu
-            const connectionElement = data.target.closest('.connection');
-            if (connectionElement) {
-                const connection = connections.find(c => c.id === connectionElement.id);
-                if (connection) {
-                    this.showTouchContextMenu(data.position.x, data.position.y, 'connection', connection);
-                }
-            } else {
-                // Long press on canvas
-                this.showTouchContextMenu(data.position.x, data.position.y, 'canvas', null);
+        } else if (element.classList.contains('connection')) {
+            // Double tap on connection - show context menu
+            const connection = connections.find(c => c.id === element.id);
+            if (connection) {
+                this.showContextMenu(e.clientX, e.clientY, 'connection', connection);
             }
         }
+        
+        this.showVisualFeedback(element || canvas, 'double-tap');
     }
     
-    handleDragStart(data) {
-        // Check if we're in drag mode and should handle this differently
-        if (this.isDragModeEnabled && this.dragModeNode) {
-            // Already in drag mode, don't start new drag
-            return;
+    handleLongPress(e, element) {
+        if (element && element.classList.contains('node')) {
+            // Long press on node - enable drag mode
+            const node = nodes.find(n => n.id === element.id);
+            if (node) {
+                this.enableDragMode(element, node);
+                this.showToast('Sleep om te verplaatsen');
+            }
+        } else {
+            // Long press elsewhere - show context menu
+            this.showContextMenu(e.clientX, e.clientY, 'canvas', null);
         }
         
-        const element = data.target.closest('.node, .connection');
+        this.showVisualFeedback(element || canvas, 'long-press');
+    }
+    
+    // Pinch handling
+    handlePinchStart() {
+        if (this.state.mode !== 'idle') return;
         
-        if (element) {
-            this.activeElement = element;
-            this.showTouchFeedback(element, 'dragStart');
+        this.state.mode = 'pinching';
+        const pointers = Array.from(this.state.activePointers.values());
+        
+        if (pointers.length >= 2) {
+            const distance = this.getDistance(
+                pointers[0].currentX, pointers[0].currentY,
+                pointers[1].currentX, pointers[1].currentY
+            );
             
-            if (element.classList.contains('node')) {
-                // Don't start regular node drag, require long press for drag mode
-                // This prevents accidental dragging
-                return;
-            } else if (element.classList.contains('connection')) {
-                this.startConnectionDrag(element, data);
-            }
-        } else {
-            // Start canvas pan immediately for real-time dragging
-            this.startCanvasPan(data);
-        }
-    }
-    
-    handleDrag(data) {
-        // Check if we're in drag mode
-        if (this.isDragModeEnabled && this.dragModeNode) {
-            this.handleDragModeMove(data);
-            return;
-        }
-        
-        if (this.activeElement) {
-            if (this.activeElement.classList.contains('node')) {
-                // Regular node drag is disabled, only drag mode allowed
-                return;
-            } else if (this.activeElement.classList.contains('connection')) {
-                this.updateConnectionDrag(this.activeElement, data);
-            }
-        } else {
-            // Update canvas pan with real-time response
-            this.updateCanvasPan(data);
-        }
-    }
-    
-    handleDragEnd(data) {
-        if (this.activeElement) {
-            this.showTouchFeedback(this.activeElement, 'dragEnd');
+            this.state.pinchStart = {
+                distance: distance,
+                scale: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
+                centerX: (pointers[0].currentX + pointers[1].currentX) / 2,
+                centerY: (pointers[0].currentY + pointers[1].currentY) / 2
+            };
             
-            if (this.activeElement.classList.contains('node')) {
-                this.endNodeDrag(this.activeElement, data);
-            } else if (this.activeElement.classList.contains('connection')) {
-                this.endConnectionDrag(this.activeElement, data);
-            }
-            
-            this.activeElement = null;
-        } else {
-            // End canvas pan
-            this.endCanvasPan(data);
+            this.showZoomIndicator();
         }
     }
     
-    handlePinchStart(data) {
-        // Store initial zoom state
-        this.initialZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        this.initialOffset = typeof canvasOffset !== 'undefined' ? { ...canvasOffset } : { x: 0, y: 0 };
+    handlePinchMove() {
+        if (this.state.mode !== 'pinching' || !this.state.pinchStart) return;
         
-        // Store the initial pinch center
-        this.initialPinchCenter = { x: data.center.x, y: data.center.y };
+        const pointers = Array.from(this.state.activePointers.values());
+        if (pointers.length < 2) return;
         
-        // Show zoom indicator at screen center for better visibility
-        this.showZoomIndicator(window.innerWidth / 2, window.innerHeight / 2);
-    }
-    
-    handlePinch(data) {
-        // Check if required globals are available
-        if (typeof setZoomLevel === 'undefined' || typeof updateCanvasTransform === 'undefined') {
-            console.warn('⚠️ Required zoom functions not available');
-            return;
-        }
+        const currentDistance = this.getDistance(
+            pointers[0].currentX, pointers[0].currentY,
+            pointers[1].currentX, pointers[1].currentY
+        );
         
-        // Calculate new zoom level with better scaling
-        const scaleChange = data.scale;
-        const newZoom = Math.max(0.1, Math.min(3, this.initialZoom * scaleChange));
-        
-        // Get pinch center relative to viewport
-        const centerX = data.center.x;
-        const centerY = data.center.y;
+        const scale = currentDistance / this.state.pinchStart.distance;
+        const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scale));
         
         // Apply zoom
-        setZoomLevel(newZoom);
-        
-        // Adjust offset to zoom towards pinch center
-        if (typeof canvasOffset !== 'undefined') {
-            // Calculate the point in canvas coordinates that should remain fixed
-            const fixedPointX = (centerX - this.initialOffset.x) / this.initialZoom;
-            const fixedPointY = (centerY - this.initialOffset.y) / this.initialZoom;
+        if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
+            setZoomLevel(newZoom);
             
-            // Calculate new offset to keep the fixed point at the same screen position
-            canvasOffset.x = centerX - (fixedPointX * newZoom);
-            canvasOffset.y = centerY - (fixedPointY * newZoom);
+            // Zoom towards pinch center
+            const centerX = (pointers[0].currentX + pointers[1].currentX) / 2;
+            const centerY = (pointers[0].currentY + pointers[1].currentY) / 2;
+            
+            if (typeof canvasOffset !== 'undefined') {
+                const rect = canvas.getBoundingClientRect();
+                const canvasX = (centerX - rect.left - canvasOffset.x) / this.state.pinchStart.scale;
+                const canvasY = (centerY - rect.top - canvasOffset.y) / this.state.pinchStart.scale;
+                
+                canvasOffset.x = centerX - rect.left - canvasX * newZoom;
+                canvasOffset.y = centerY - rect.top - canvasY * newZoom;
+            }
+            
+            updateCanvasTransform();
+            this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
         }
-        
-        updateCanvasTransform();
-        
-        // Update zoom indicator
-        this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
     }
     
-    handlePinchEnd(data) {
+    endPinch() {
+        this.state.mode = 'idle';
+        this.state.pinchStart = null;
         this.hideZoomIndicator();
     }
     
-    handleSwipe(data) {
-        // Swipe gesture handling disabled for pure real-time dragging experience
-        // All navigation is now handled through real-time drag operations
-        console.log('🚀 Swipe detected but ignored (real-time dragging active):', data.direction, 'velocity:', data.velocity);
+    // Node dragging
+    startNodeDrag(element, pointer) {
+        const node = nodes.find(n => n.id === element.id);
+        if (!node) return;
         
-        // Optional: Show swipe feedback but don't navigate
-        // this.showToast(`Swipe ${data.direction} gedetecteerd (gebruik drag voor navigatie)`, false);
-    }
-    
-    enableDragMode(element, node, data) {
-        // Set dragging mode state
-        this.isDragModeEnabled = true;
-        this.dragModeNode = node;
-        this.dragModeElement = element;
-        this.dragModeStartPos = data.position;
-        this.dragModeNodeStartPos = { x: node.x, y: node.y }; // Store original node position
-        this.dragModeLastPos = null; // Track last position for relative movement
-        
-        // Visual feedback for drag mode
-        element.style.transform = 'scale(1.05)';
-        element.style.opacity = '0.8';
-        element.style.zIndex = '1000';
-        element.classList.add('drag-mode-active');
+        this.state.mode = 'dragging';
         
         // Save state for undo
-        if (typeof saveStateForUndo !== 'undefined') {
+        if (typeof saveStateForUndo === 'function') {
             saveStateForUndo();
         }
         
-        // Set up drag listener
-        this.setupDragModeListeners();
+        // Store drag info
+        this.state.dragInfo = {
+            node: node,
+            element: element,
+            startX: node.x,
+            startY: node.y,
+            pointerStartX: pointer.startX,
+            pointerStartY: pointer.startY
+        };
+        
+        // Visual feedback
+        element.classList.add('dragging');
+        this.showVisualFeedback(element, 'drag-start');
     }
     
-    setupDragModeListeners() {
-        // Override normal gesture handlers while in drag mode
-        this.dragModeActive = true;
+    updateNodeDrag(pointer) {
+        if (!this.state.dragInfo) return;
         
-        // Listen for drag gestures
-        this.gestureManager.on('drag', (data) => {
-            if (this.isDragModeEnabled && this.dragModeNode) {
-                this.handleDragModeMove(data);
-            }
-        });
+        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        const offset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
         
-        // Listen for drag end
-        this.gestureManager.on('dragend', (data) => {
-            if (this.isDragModeEnabled) {
-                this.disableDragMode();
-            }
-        });
+        // Calculate new position
+        const dx = (pointer.currentX - this.state.dragInfo.pointerStartX) / zoom;
+        const dy = (pointer.currentY - this.state.dragInfo.pointerStartY) / zoom;
         
-        // Listen for tap to disable drag mode
-        this.gestureManager.on('tap', (data) => {
-            if (this.isDragModeEnabled) {
-                this.disableDragMode();
-            }
-        });
-    }
-    
-    handleDragModeMove(data) {
-        if (!this.dragModeNode || !this.dragModeElement) return;
+        const newX = this.state.dragInfo.startX + dx;
+        const newY = this.state.dragInfo.startY + dy;
         
-        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        const currentOffset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
-        
-        // Get canvas rectangle for proper coordinate transformation
-        const canvasRect = canvas ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
-        
-        // Calculate position relative to canvas, accounting for zoom and offset
-        const canvasX = (data.currentPosition.x - canvasRect.left - currentOffset.x) / currentZoom;
-        const canvasY = (data.currentPosition.y - canvasRect.top - currentOffset.y) / currentZoom;
-        
-        // Calculate delta from the original drag start position in canvas coordinates
-        const startCanvasX = (this.dragModeStartPos.x - canvasRect.left - currentOffset.x) / currentZoom;
-        const startCanvasY = (this.dragModeStartPos.y - canvasRect.top - currentOffset.y) / currentZoom;
-        
-        const deltaX = canvasX - startCanvasX;
-        const deltaY = canvasY - startCanvasY;
-        
-        // Calculate new position based on original node position + delta
-        const newX = this.dragModeNodeStartPos.x + deltaX;
-        const newY = this.dragModeNodeStartPos.y + deltaY;
-        
-        // Snap to grid for better alignment
-        const currentGridSize = typeof gridSize !== 'undefined' ? gridSize : 20;
-        const snapX = Math.round(newX / currentGridSize) * currentGridSize;
-        const snapY = Math.round(newY / currentGridSize) * currentGridSize;
+        // Snap to grid
+        const gridSize = typeof window.gridSize !== 'undefined' ? window.gridSize : 20;
+        const snapX = Math.round(newX / gridSize) * gridSize;
+        const snapY = Math.round(newY / gridSize) * gridSize;
         
         // Update node position
-        this.dragModeNode.x = snapX;
-        this.dragModeNode.y = snapY;
+        this.state.dragInfo.node.x = snapX;
+        this.state.dragInfo.node.y = snapY;
         
-        // Update DOM element position with requestAnimationFrame for smooth movement
+        // Update DOM
         requestAnimationFrame(() => {
-            if (this.dragModeElement) {
-                this.dragModeElement.style.left = snapX + 'px';
-                this.dragModeElement.style.top = snapY + 'px';
-            }
-        });
-        
-        // Update connections with throttling for performance
-        if (typeof updateRelatedConnections !== 'undefined') {
-            if (!this.connectionUpdateThrottle) {
-                this.connectionUpdateThrottle = true;
-                requestAnimationFrame(() => {
-                    updateRelatedConnections(this.dragModeNode.id, true);
-                    this.connectionUpdateThrottle = false;
-                });
-            }
-        }
-    }
-    
-    disableDragMode() {
-        if (!this.isDragModeEnabled) return;
-        
-        // Reset visual feedback for current drag element
-        if (this.dragModeElement) {
-            this.dragModeElement.style.transform = '';
-            this.dragModeElement.style.opacity = '';
-            this.dragModeElement.style.zIndex = '';
-            this.dragModeElement.classList.remove('drag-mode-active');
-        }
-        
-        // Force cleanup of any lingering drag mode indicators
-        this.forceCleanupDragModeIndicators();
-        
-        // Final connection update
-        if (this.dragModeNode && typeof refreshConnections !== 'undefined') {
-            refreshConnections();
-        }
-        
-        // Reset state
-        this.isDragModeEnabled = false;
-        this.dragModeNode = null;
-        this.dragModeElement = null;
-        this.dragModeStartPos = null;
-        this.dragModeNodeStartPos = null;
-        this.dragModeLastPos = null;
-        this.dragModeActive = false;
-        
-        this.showToast('Drag-modus uitgeschakeld', false);
-    }
-    
-    forceCleanupDragModeIndicators() {
-        // Remove drag-mode-active class from all nodes
-        const allNodes = document.querySelectorAll('.node');
-        allNodes.forEach(node => {
-            node.classList.remove('drag-mode-active');
-            node.style.transform = '';
-            node.style.opacity = '';
-            node.style.zIndex = '';
-        });
-    }
-    
-    enableConnectionMode(element, node) {
-        // Disable drag mode if active
-        if (this.isDragModeEnabled) {
-            this.disableDragMode();
-        }
-        
-        // Set connection mode state
-        this.isConnectionModeEnabled = true;
-        this.connectionStartNode = node;
-        this.connectionStartElement = element;
-        
-        // Visual feedback for connection mode
-        element.style.border = '3px solid #2196F3';
-        element.style.boxShadow = '0 0 15px rgba(33, 150, 243, 0.6)';
-        element.classList.add('connection-mode-active');
-        
-        // Show instruction toast
-        this.showToast('Tik op een andere node om te verbinden', false);
-        
-        // Set up connection mode listeners
-        this.setupConnectionModeListeners();
-    }
-    
-    setupConnectionModeListeners() {
-        // Listen for taps on other nodes
-        this.connectionModeActive = true;
-        
-        // Override normal tap handler for connection mode
-        this.originalTapHandler = this.handleTap;
-        this.handleTap = (data) => {
-            if (this.isConnectionModeEnabled) {
-                this.handleConnectionModeTap(data);
-            } else {
-                this.originalTapHandler(data);
-            }
-        };
-    }
-    
-    handleConnectionModeTap(data) {
-        const element = data.target.closest('.node');
-        
-        if (element && element.classList.contains('node')) {
-            const targetNode = nodes.find(n => n.id === element.id);
-            
-            if (targetNode && targetNode.id !== this.connectionStartNode.id) {
-                // Create connection
-                if (typeof createConnection !== 'undefined') {
-                    createConnection(this.connectionStartNode.id, targetNode.id);
-                    this.showToast('Verbinding gemaakt!', false);
-                } else {
-                    this.showToast('Fout bij maken verbinding', true);
-                }
-                
-                // Disable connection mode
-                this.disableConnectionMode();
-            } else if (targetNode && targetNode.id === this.connectionStartNode.id) {
-                // Clicked on same node, cancel connection mode
-                this.disableConnectionMode();
-            }
-        } else {
-            // Clicked on canvas, cancel connection mode
-            this.disableConnectionMode();
-        }
-    }
-    
-    disableConnectionMode() {
-        if (!this.isConnectionModeEnabled) return;
-        
-        // Reset visual feedback
-        if (this.connectionStartElement) {
-            this.connectionStartElement.style.border = '';
-            this.connectionStartElement.style.boxShadow = '';
-            this.connectionStartElement.classList.remove('connection-mode-active');
-        }
-        
-        // Remove connection preview line if exists
-        if (this.connectionPreviewLine) {
-            this.connectionPreviewLine.remove();
-            this.connectionPreviewLine = null;
-        }
-        
-        // Reset state
-        this.isConnectionModeEnabled = false;
-        this.connectionStartNode = null;
-        this.connectionStartElement = null;
-        this.connectionModeActive = false;
-        
-        // Restore original tap handler
-        if (this.originalTapHandler) {
-            this.handleTap = this.originalTapHandler;
-            this.originalTapHandler = null;
-        }
-        
-        this.showToast('Verbindingsmodus uitgeschakeld', false);
-    }
-    
-    createIntermediateNode(connection, screenX, screenY) {
-        // Get the canvas coordinates for the new node
-        const canvasCoords = this.gestureManager.getCanvasCoordinates({ clientX: screenX, clientY: screenY });
-        
-        // Get source and target nodes
-        const sourceNode = nodes.find(n => n.id === connection.source);
-        const targetNode = nodes.find(n => n.id === connection.target);
-        
-        if (!sourceNode || !targetNode) {
-            this.showToast('Fout: Kan bron- of doelnode niet vinden', true);
-            return;
-        }
-        
-        // Create new intermediate node
-        const intermediateNode = createNode(
-            'Tussennode',
-            '',
-            sourceNode.color,
-            canvasCoords.x,
-            canvasCoords.y,
-            'rounded'
-        );
-        
-        // Save state for undo
-        if (typeof saveStateForUndo !== 'undefined') {
-            saveStateForUndo();
-        }
-        
-        // Delete original connection
-        if (typeof deleteConnection !== 'undefined') {
-            deleteConnection(connection.id);
-        }
-        
-        // Create two new connections
-        if (typeof createConnection !== 'undefined') {
-            createConnection(sourceNode.id, intermediateNode.id);
-            createConnection(intermediateNode.id, targetNode.id);
-        }
-        
-        // Auto-edit the new node
-        setTimeout(() => {
-            const nodeEl = document.getElementById(intermediateNode.id);
-            if (nodeEl) {
-                const titleEl = nodeEl.querySelector('.node-title');
-                if (titleEl && typeof makeEditable !== 'undefined') {
-                    makeEditable(titleEl, intermediateNode);
-                }
-            }
-        }, 100);
-        
-        this.showToast('Tussennode toegevoegd', false);
-    }
-    
-    // Node-specific touch handlers
-    handleNodeTap(element, data) {
-        // First, disable any active drag mode
-        if (this.isDragModeEnabled) {
-            this.disableDragMode();
-        }
-        
-        const node = nodes.find(n => n.id === element.id);
-        if (node) {
-            selectNode(node.id);
-        }
-    }
-    
-    startNodeDrag(element, data) {
-        const node = nodes.find(n => n.id === element.id);
-        if (node) {
-            saveStateForUndo();
-            draggedNode = node;
-            isDragging = true;
-            mouseStartPos = data.position;
-            nodeStartPos = { x: node.x, y: node.y };
-            
-            // Visual feedback
-            element.style.transform = 'scale(1.05)';
-            element.style.zIndex = '1000';
-            element.style.opacity = '0.8';
-        }
-    }
-    
-    updateNodeDrag(element, data) {
-        if (draggedNode) {
-            const deltaX = (data.currentPosition.x - data.startPosition.x) / zoomLevel;
-            const deltaY = (data.currentPosition.y - data.startPosition.y) / zoomLevel;
-            
-            const newX = nodeStartPos.x + deltaX;
-            const newY = nodeStartPos.y + deltaY;
-            
-            // Snap to grid
-            const snapX = Math.round(newX / gridSize) * gridSize;
-            const snapY = Math.round(newY / gridSize) * gridSize;
-            
-            draggedNode.x = snapX;
-            draggedNode.y = snapY;
-            
-            element.style.left = snapX + 'px';
-            element.style.top = snapY + 'px';
+            this.state.dragInfo.element.style.left = snapX + 'px';
+            this.state.dragInfo.element.style.top = snapY + 'px';
             
             // Update connections
-            updateRelatedConnections(draggedNode.id, true);
-        }
-    }
-    
-    endNodeDrag(element, data) {
-        if (draggedNode) {
-            // Reset visual feedback
-            element.style.transform = '';
-            element.style.zIndex = '';
-            element.style.opacity = '';
-            
-            // Check for drop into connection
-            const connectionElement = this.findConnectionAtPosition(data.endPosition.x, data.endPosition.y);
-            if (connectionElement && canDropNodeIntoConnection(draggedNode.id, connectionElement.id)) {
-                const canvasCoords = this.gestureManager.getCanvasCoordinates(data.endPosition);
-                dropNodeIntoConnection(draggedNode.id, connectionElement.id, canvasCoords.x, canvasCoords.y);
+            if (typeof updateRelatedConnections === 'function') {
+                updateRelatedConnections(this.state.dragInfo.node.id, true);
             }
-            
-            // Final connection update
-            refreshConnections();
-            
-            isDragging = false;
-            draggedNode = null;
-        }
+        });
     }
     
-    // Connection-specific touch handlers
-    handleConnectionTap(element, data) {
-        const connection = connections.find(c => c.id === element.id);
-        if (connection) {
-            selectConnection(connection);
-        }
-    }
-    
-    startConnectionDrag(element, data) {
-        const connection = connections.find(c => c.id === element.id);
-        if (connection) {
-            saveStateForUndo();
-            
-            // Start connection curve manipulation
-            currentSelectedConnection = connection;
-            currentSelectedNode = connection.id;
-            
-            // Visual feedback
-            element.classList.add('connection-dragging');
-        }
-    }
-    
-    updateConnectionDrag(element, data) {
-        if (currentSelectedConnection) {
-            const canvasCoords = this.gestureManager.getCanvasCoordinates(data.currentPosition);
-            
-            // Update connection control point
-            currentSelectedConnection.controlPoint = {
-                x: canvasCoords.x,
-                y: canvasCoords.y
-            };
-            
-            // Redraw connection
-            if (typeof drawConnection === 'function') {
-                drawConnection(currentSelectedConnection);
-            }
-        }
-    }
-    
-    endConnectionDrag(element, data) {
-        if (currentSelectedConnection) {
-            element.classList.remove('connection-dragging');
+    endNodeDrag() {
+        if (!this.state.dragInfo) return;
+        
+        // Remove visual feedback
+        this.state.dragInfo.element.classList.remove('dragging');
+        
+        // Final connection update
+        if (typeof refreshConnections === 'function') {
             refreshConnections();
         }
-    }
-    
-    // Canvas-specific touch handlers
-    handleCanvasTap(data) {
-        // Deselect all
-        deselectAll();
-    }
-    
-    startCanvasPan(data) {
-        // Check if required globals are available
-        if (typeof canvasOffset === 'undefined' || typeof updateCanvasTransform === 'undefined') {
-            console.warn('⚠️ Canvas pan functions not available');
-            return;
-        }
         
-        this.canvasDragging = true;
-        this.canvasDragStart = {
-            x: data.currentPosition.x,
-            y: data.currentPosition.y
-        };
-        this.canvasStartOffset = { ...canvasOffset };
-        this.lastTouchPosition = {
-            x: data.currentPosition.x,
-            y: data.currentPosition.y
+        this.state.dragInfo = null;
+    }
+    
+    enableDragMode(element, node) {
+        // Visual feedback for drag mode
+        element.classList.add('drag-mode');
+        
+        // Store for future drag
+        this.state.dragTarget = element;
+    }
+    
+    // Canvas panning
+    startCanvasPan(pointer) {
+        if (typeof canvasOffset === 'undefined') return;
+        
+        this.state.mode = 'panning';
+        this.state.panStart = {
+            x: canvasOffset.x,
+            y: canvasOffset.y,
+            pointerX: pointer.startX,
+            pointerY: pointer.startY
         };
         
-        // Disable transitions for real-time movement
-        if (canvas) {
-            canvas.style.cursor = 'grabbing';
-            canvas.style.transition = 'none';
-        }
+        // Track momentum
+        this.momentum = {
+            velocityX: 0,
+            velocityY: 0,
+            lastX: pointer.startX,
+            lastY: pointer.startY,
+            lastTime: Date.now()
+        };
         
-        // Initialize velocity tracking
-        this.canvasPanVelocity = { x: 0, y: 0 };
-        this.canvasPanHistory = [{
-            time: Date.now(),
-            x: data.currentPosition.x,
-            y: data.currentPosition.y
-        }];
+        canvas.style.cursor = 'grabbing';
     }
     
-    updateCanvasPan(data) {
-        if (!this.canvasDragging || typeof canvasOffset === 'undefined') return;
+    updateCanvasPan(pointer) {
+        if (!this.state.panStart || typeof canvasOffset === 'undefined') return;
         
         const now = Date.now();
-        const currentX = data.currentPosition.x;
-        const currentY = data.currentPosition.y;
+        const dt = now - this.momentum.lastTime;
         
-        // Calculate real-time delta from last position for instant response
-        const deltaX = currentX - this.lastTouchPosition.x;
-        const deltaY = currentY - this.lastTouchPosition.y;
-        
-        // Apply smoothing for better user experience
-        const smoothingFactor = 0.8; // Adjust for responsiveness vs smoothness
-        const smoothedDeltaX = deltaX * smoothingFactor;
-        const smoothedDeltaY = deltaY * smoothingFactor;
-        
-        // Apply movement with improved responsiveness
-        canvasOffset.x += smoothedDeltaX;
-        canvasOffset.y += smoothedDeltaY;
-        
-        // Update last position for next frame
-        this.lastTouchPosition.x = currentX;
-        this.lastTouchPosition.y = currentY;
-        
-        // Track velocity for momentum (using position history)
-        this.canvasPanHistory.push({
-            time: now,
-            x: currentX,
-            y: currentY
-        });
-        
-        // Keep only recent history for velocity calculation
-        this.canvasPanHistory = this.canvasPanHistory.filter(entry => now - entry.time < 100);
-        
-        // Calculate velocity for momentum
-        if (this.canvasPanHistory.length > 1) {
-            const recent = this.canvasPanHistory[this.canvasPanHistory.length - 1];
-            const older = this.canvasPanHistory[0];
-            const timeDiff = recent.time - older.time;
-            if (timeDiff > 0) {
-                this.canvasPanVelocity.x = (recent.x - older.x) / timeDiff;
-                this.canvasPanVelocity.y = (recent.y - older.y) / timeDiff;
-            }
+        if (dt > 0) {
+            // Calculate velocity for momentum
+            this.momentum.velocityX = (pointer.currentX - this.momentum.lastX) / dt;
+            this.momentum.velocityY = (pointer.currentY - this.momentum.lastY) / dt;
         }
         
-        // Update canvas transform immediately
-        updateCanvasTransform();
+        // Update canvas offset
+        canvasOffset.x = this.state.panStart.x + (pointer.currentX - this.state.panStart.pointerX);
+        canvasOffset.y = this.state.panStart.y + (pointer.currentY - this.state.panStart.pointerY);
         
-        // Show real-time feedback (optional - can be disabled for performance)
-        const totalDeltaX = currentX - this.canvasDragStart.x;
-        const totalDeltaY = currentY - this.canvasDragStart.y;
-        const totalDistance = Math.sqrt(totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY);
+        // Update momentum tracking
+        this.momentum.lastX = pointer.currentX;
+        this.momentum.lastY = pointer.currentY;
+        this.momentum.lastTime = now;
         
-        if (totalDistance > 10) { // Only show if significant total movement
-            const directionX = totalDeltaX > 0 ? 'rechts' : 'links';
-            const directionY = totalDeltaY > 0 ? 'omhoog' : 'omlaag';
-            const primaryDirection = Math.abs(totalDeltaX) > Math.abs(totalDeltaY) ? directionX : directionY;
-            const primaryDistance = Math.round(Math.abs(totalDeltaX) > Math.abs(totalDeltaY) ? Math.abs(totalDeltaX) : Math.abs(totalDeltaY));
-            
-            this.showRealTimePanFeedback(primaryDirection, primaryDistance);
+        // Update transform
+        if (typeof updateCanvasTransform === 'function') {
+            updateCanvasTransform();
         }
     }
     
-    endCanvasPan(data) {
-        if (!this.canvasDragging) return;
+    endCanvasPan() {
+        canvas.style.cursor = '';
         
-        this.canvasDragging = false;
-        
-        // Reset canvas cursor and transitions
-        if (canvas) {
-            canvas.style.cursor = 'default';
-            canvas.style.transition = '';
+        // Apply momentum if significant velocity
+        if (Math.abs(this.momentum.velocityX) > 0.1 || Math.abs(this.momentum.velocityY) > 0.1) {
+            this.applyMomentum();
         }
         
-        // Hide real-time pan feedback
-        this.hideRealTimePanFeedback();
-        
-        // Calculate final movement distance for feedback
-        const finalDeltaX = data.endPosition.x - this.canvasDragStart.x;
-        const finalDeltaY = data.endPosition.y - this.canvasDragStart.y;
-        const totalDistance = Math.sqrt(finalDeltaX * finalDeltaX + finalDeltaY * finalDeltaY);
-        
-        // Apply momentum if velocity is significant
-        if (this.canvasPanVelocity && (Math.abs(this.canvasPanVelocity.x) > 0.2 || Math.abs(this.canvasPanVelocity.y) > 0.2)) {
-            this.applyCanvasMomentum();
-        }
-        
-        // Clean up
-        this.canvasDragStart = null;
-        this.canvasStartOffset = null;
-        this.lastTouchPosition = null;
-        this.canvasPanHistory = [];
+        this.state.panStart = null;
     }
     
-    applyCanvasMomentum() {
-        if (!this.canvasPanVelocity || typeof canvasOffset === 'undefined') return;
-        
-        const friction = 0.88; // Balanced friction for natural feel
-        const minVelocity = 0.05;
-        const velocityMultiplier = 12; // Optimized for smooth momentum
+    applyMomentum() {
+        if (typeof canvasOffset === 'undefined' || typeof updateCanvasTransform === 'undefined') return;
         
         const animate = () => {
-            // Apply velocity to offset with smooth control
-            canvasOffset.x += this.canvasPanVelocity.x * velocityMultiplier;
-            canvasOffset.y += this.canvasPanVelocity.y * velocityMultiplier;
+            // Apply velocity
+            canvasOffset.x += this.momentum.velocityX * 10;
+            canvasOffset.y += this.momentum.velocityY * 10;
             
             // Apply friction
-            this.canvasPanVelocity.x *= friction;
-            this.canvasPanVelocity.y *= friction;
+            this.momentum.velocityX *= this.config.momentumFriction;
+            this.momentum.velocityY *= this.config.momentumFriction;
             
             updateCanvasTransform();
             
-            // Continue animation if velocity is still significant
-            if (Math.abs(this.canvasPanVelocity.x) > minVelocity || Math.abs(this.canvasPanVelocity.y) > minVelocity) {
-                requestAnimationFrame(animate);
+            // Continue if velocity is significant
+            if (Math.abs(this.momentum.velocityX) > 0.01 || Math.abs(this.momentum.velocityY) > 0.01) {
+                this.timers.momentum = requestAnimationFrame(animate);
             }
         };
         
-        requestAnimationFrame(animate);
+        animate();
     }
     
-    handleToolTap(element, data) {
-        // Simulate click on tool button
-        element.click();
-    }
-    
-    // Touch-specific UI methods
-    createNodeAtPosition(x, y) {
-        const currentGridSize = typeof gridSize !== 'undefined' ? gridSize : 20;
-        const snapX = Math.round(x / currentGridSize) * currentGridSize;
-        const snapY = Math.round(y / currentGridSize) * currentGridSize;
-        
-        const newNode = createNode('Nieuw idee', '', '#4CAF50', snapX, snapY, 'rounded', null, nodes.length === 0);
-        
-        // Auto-edit new node
-        setTimeout(() => {
-            const nodeEl = document.getElementById(newNode.id);
-            if (nodeEl) {
-                const titleEl = nodeEl.querySelector('.node-title');
-                if (titleEl) {
-                    makeEditable(titleEl, newNode);
-                }
-            }
-        }, 100);
-        
-        this.showToast('Nieuwe node aangemaakt (dubbel-tik)', false);
-    }
-    
-    showTouchContextMenu(x, y, type, target) {
-        // Create touch-friendly context menu
-        const contextMenu = document.createElement('div');
-        contextMenu.className = 'touch-context-menu';
-        contextMenu.style.cssText = `
+    // Context menu
+    showContextMenu(x, y, type, target) {
+        const menu = document.createElement('div');
+        menu.className = 'touch-context-menu';
+        menu.style.cssText = `
             position: fixed;
             left: ${x}px;
             top: ${y}px;
-            background: rgba(0, 0, 0, 0.9);
-            border-radius: 12px;
-            padding: 8px;
-            z-index: 10000;
             transform: translate(-50%, -50%);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 8px 0;
+            min-width: 180px;
+            z-index: 10000;
         `;
         
-        let menuItems = [];
+        const items = this.getContextMenuItems(type, target);
         
-        if (type === 'node' && target) {
-            menuItems = [
-                { label: 'Bewerken', action: () => openNodeEditor(target) },
-                { label: 'Tekst bewerken', action: () => {
-                    const titleEl = document.querySelector(`#${target.id} .node-title`);
-                    if (titleEl) makeEditable(titleEl, target);
-                }},
-                { label: 'Drag-modus', action: () => {
-                    const element = document.getElementById(target.id);
-                    if (element) {
-                        this.enableDragMode(element, target, { position: { x: x, y: y } });
-                    }
-                }},
-                { label: 'Verbind met...', action: () => {
-                    const element = document.getElementById(target.id);
-                    if (element) {
-                        this.enableConnectionMode(element, target);
-                    }
-                }},
-                { label: 'Nieuw subknooppunt', action: () => {
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = 150;
-                    const childNode = createNode('Nieuw idee', '', target.color, 
-                        target.x + Math.cos(angle) * distance, 
-                        target.y + Math.sin(angle) * distance, 
-                        'rounded', target.id);
-                }},
-                { label: 'Verwijderen', action: () => deleteNode(target.id), style: 'color: #f44336;' }
-            ];
-        } else if (type === 'connection' && target) {
-            menuItems = [
-                { label: 'Bewerken', action: () => openConnectionEditor(target) },
-                { label: 'Tussennode toevoegen', action: () => {
-                    this.createIntermediateNode(target, x, y);
-                }},
-                { label: 'Verwijderen', action: () => deleteConnection(target.id), style: 'color: #f44336;' }
-            ];
-        } else if (type === 'canvas') {
-            menuItems = [
-                { label: 'Nieuwe node', action: () => {
-                    const canvasCoords = this.gestureManager.getCanvasCoordinates({ clientX: x, clientY: y });
-                    this.createNodeAtPosition(canvasCoords.x, canvasCoords.y);
-                }},
-                { label: 'Centreren', action: () => {
-                    if (rootNodeId) {
-                        centerOnNode(rootNodeId);
-                    }
-                }},
-                { label: 'Auto-layout', action: () => arrangeNodes() }
-            ];
-        }
-        
-        // Create menu items
-        menuItems.forEach(item => {
-            const itemEl = document.createElement('div');
-            itemEl.className = 'touch-menu-item';
-            itemEl.textContent = item.label;
-            itemEl.style.cssText = `
+        items.forEach(item => {
+            const menuItem = document.createElement('div');
+            menuItem.className = 'context-menu-item';
+            menuItem.textContent = item.label;
+            menuItem.style.cssText = `
                 padding: 12px 20px;
-                color: white;
-                font-size: 16px;
                 cursor: pointer;
-                border-radius: 8px;
-                margin: 2px 0;
-                text-align: center;
-                min-width: 120px;
-                ${item.style || ''}
+                font-size: 16px;
+                color: ${item.danger ? '#f44336' : '#333'};
             `;
             
-            itemEl.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                itemEl.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            });
-            
-            itemEl.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            menuItem.addEventListener('click', () => {
                 item.action();
-                contextMenu.remove();
+                menu.remove();
             });
             
-            contextMenu.appendChild(itemEl);
+            menuItem.addEventListener('pointerenter', () => {
+                menuItem.style.backgroundColor = '#f5f5f5';
+            });
+            
+            menuItem.addEventListener('pointerleave', () => {
+                menuItem.style.backgroundColor = '';
+            });
+            
+            menu.appendChild(menuItem);
         });
         
-        document.body.appendChild(contextMenu);
+        document.body.appendChild(menu);
         
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            if (contextMenu.parentNode) {
-                contextMenu.remove();
+        // Auto-remove after delay
+        setTimeout(() => menu.remove(), 5000);
+        
+        // Remove on outside click
+        const removeOnOutside = (e) => {
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('pointerdown', removeOnOutside);
             }
-        }, 5000);
+        };
+        setTimeout(() => document.addEventListener('pointerdown', removeOnOutside), 100);
+    }
+    
+    getContextMenuItems(type, target) {
+        const items = [];
         
-        // Hide on touch outside
-        setTimeout(() => {
-            const hideMenu = (e) => {
-                if (!contextMenu.contains(e.target)) {
-                    contextMenu.remove();
-                    document.removeEventListener('touchstart', hideMenu);
+        if (type === 'node' && target) {
+            items.push(
+                {
+                    label: 'Bewerken',
+                    action: () => {
+                        if (typeof openNodeEditor === 'function') {
+                            openNodeEditor(target);
+                        }
+                    }
+                },
+                {
+                    label: 'Verbind met...',
+                    action: () => this.startConnectionMode(target)
+                },
+                {
+                    label: 'Nieuw subknooppunt',
+                    action: () => {
+                        if (typeof createNode === 'function') {
+                            const angle = Math.random() * Math.PI * 2;
+                            const distance = 150;
+                            createNode(
+                                'Nieuw idee',
+                                '',
+                                target.color,
+                                target.x + Math.cos(angle) * distance,
+                                target.y + Math.sin(angle) * distance,
+                                'rounded',
+                                target.id
+                            );
+                        }
+                    }
+                },
+                {
+                    label: 'Verwijderen',
+                    danger: true,
+                    action: () => {
+                        if (typeof deleteNode === 'function') {
+                            deleteNode(target.id);
+                        }
+                    }
                 }
-            };
-            document.addEventListener('touchstart', hideMenu);
+            );
+        } else if (type === 'connection' && target) {
+            items.push(
+                {
+                    label: 'Bewerken',
+                    action: () => {
+                        if (typeof openConnectionEditor === 'function') {
+                            openConnectionEditor(target);
+                        }
+                    }
+                },
+                {
+                    label: 'Verwijderen',
+                    danger: true,
+                    action: () => {
+                        if (typeof deleteConnection === 'function') {
+                            deleteConnection(target.id);
+                        }
+                    }
+                }
+            );
+        } else if (type === 'canvas') {
+            items.push(
+                {
+                    label: 'Nieuwe node',
+                    action: () => {
+                        const coords = this.getCanvasCoordinates({ clientX: x, clientY: y });
+                        this.createNodeAtPosition(coords.x, coords.y);
+                    }
+                },
+                {
+                    label: 'Centreren',
+                    action: () => {
+                        if (typeof centerOnNode === 'function' && typeof rootNodeId !== 'undefined') {
+                            centerOnNode(rootNodeId);
+                        }
+                    }
+                }
+            );
+        }
+        
+        return items;
+    }
+    
+    startConnectionMode(sourceNode) {
+        // Simple connection mode - click another node to connect
+        const element = document.getElementById(sourceNode.id);
+        if (!element) return;
+        
+        element.classList.add('connection-source');
+        this.showToast('Tik op een andere node om te verbinden');
+        
+        // Store connection state
+        this.connectionMode = {
+            sourceNode: sourceNode,
+            element: element
+        };
+        
+        // Override tap handler temporarily
+        this.originalHandleTap = this.handleTap;
+        this.handleTap = (e, targetElement) => {
+            if (targetElement && targetElement.classList.contains('node')) {
+                const targetNode = nodes.find(n => n.id === targetElement.id);
+                if (targetNode && targetNode.id !== sourceNode.id) {
+                    if (typeof createConnection === 'function') {
+                        createConnection(sourceNode.id, targetNode.id);
+                        this.showToast('Verbinding gemaakt!');
+                    }
+                }
+            }
+            
+            // End connection mode
+            element.classList.remove('connection-source');
+            this.handleTap = this.originalHandleTap;
+            this.connectionMode = null;
+        };
+    }
+    
+    // Helper methods
+    getInteractiveElement(e) {
+        return e.target.closest('.node, .connection, .tool-btn');
+    }
+    
+    getCanvasCoordinates(e) {
+        const rect = canvas.getBoundingClientRect();
+        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        const offset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
+        
+        return {
+            x: (e.clientX - rect.left - offset.x) / zoom,
+            y: (e.clientY - rect.top - offset.y) / zoom
+        };
+    }
+    
+    getDistance(x1, y1, x2, y2) {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    createNodeAtPosition(x, y) {
+        if (typeof createNode !== 'function') return;
+        
+        const gridSize = typeof window.gridSize !== 'undefined' ? window.gridSize : 20;
+        const snapX = Math.round(x / gridSize) * gridSize;
+        const snapY = Math.round(y / gridSize) * gridSize;
+        
+        const node = createNode(
+            'Nieuw idee',
+            '',
+            '#4CAF50',
+            snapX,
+            snapY,
+            'rounded'
+        );
+        
+        // Auto-edit new node
+        setTimeout(() => {
+            const element = document.getElementById(node.id);
+            if (element) {
+                const title = element.querySelector('.node-title');
+                if (title && typeof makeEditable === 'function') {
+                    makeEditable(title, node);
+                }
+            }
         }, 100);
     }
     
-    showTouchFeedback(element, type) {
-        // Create visual feedback for touch interactions
-        const feedback = document.createElement('div');
-        feedback.className = `touch-feedback touch-feedback-${type}`;
-        
-        const rect = element.getBoundingClientRect();
-        feedback.style.cssText = `
-            position: fixed;
-            left: ${rect.left}px;
-            top: ${rect.top}px;
-            width: ${rect.width}px;
-            height: ${rect.height}px;
-            border-radius: 8px;
-            pointer-events: none;
-            z-index: 9999;
-            transition: all 0.2s ease;
+    // Visual feedback
+    setupVisualFeedback() {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Modern touch styles using CSS variables and proper specificity */
+            :root {
+                --touch-target-min: 44px;
+                --touch-padding: 12px;
+                --touch-highlight: rgba(0, 122, 255, 0.2);
+            }
+            
+            /* Enhance touch targets */
+            @media (pointer: coarse) {
+                .node {
+                    min-width: var(--touch-target-min);
+                    min-height: var(--touch-target-min);
+                    padding: var(--touch-padding);
+                }
+                
+                .tool-btn {
+                    min-width: var(--touch-target-min);
+                    min-height: var(--touch-target-min);
+                }
+                
+                .connection-hitzone {
+                    stroke-width: 20px;
+                }
+            }
+            
+            /* Visual states */
+            .node.dragging {
+                opacity: 0.8;
+                transform: scale(1.05);
+                z-index: 1000;
+                transition: transform 0.2s ease;
+            }
+            
+            .node.drag-mode {
+                box-shadow: 0 0 0 3px #ff9800;
+                animation: pulse 2s infinite;
+            }
+            
+            .node.connection-source {
+                box-shadow: 0 0 0 3px #2196f3;
+                animation: pulse 2s infinite;
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.8; }
+            }
+            
+            /* Touch feedback */
+            .touch-feedback {
+                position: absolute;
+                border-radius: 50%;
+                background: var(--touch-highlight);
+                pointer-events: none;
+                animation: ripple 0.6s ease-out;
+            }
+            
+            @keyframes ripple {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+            
+            /* Context menu */
+            .touch-context-menu {
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            .context-menu-item {
+                user-select: none;
+                transition: background-color 0.2s ease;
+            }
+            
+            /* Zoom indicator */
+            .zoom-indicator {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-size: 14px;
+                font-weight: 600;
+                pointer-events: none;
+                z-index: 10000;
+            }
+            
+            /* Toast messages */
+            .touch-toast {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-size: 14px;
+                pointer-events: none;
+                z-index: 10000;
+                animation: slideUp 0.3s ease-out;
+            }
+            
+            @keyframes slideUp {
+                from {
+                    transform: translateX(-50%) translateY(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(-50%) translateY(0);
+                    opacity: 1;
+                }
+            }
         `;
+        document.head.appendChild(style);
+    }
+    
+    setupTouchCSS() {
+        // Set proper touch-action for different elements
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Prevent default touch behaviors on interactive elements */
+            .node, .connection, .tool-btn {
+                touch-action: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+            
+            /* Allow scrolling on modals and menus */
+            .modal-content, .context-menu {
+                touch-action: pan-y;
+            }
+            
+            /* Preserve text selection in editable areas */
+            [contenteditable="true"], input, textarea {
+                touch-action: auto;
+                user-select: text;
+                -webkit-user-select: text;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    showVisualFeedback(element, type) {
+        const rect = element.getBoundingClientRect();
+        const feedback = document.createElement('div');
+        feedback.className = 'touch-feedback';
         
-        // Different feedback styles for different actions
-        switch (type) {
-            case 'tap':
-                feedback.style.background = 'rgba(33, 150, 243, 0.3)';
-                feedback.style.transform = 'scale(1.05)';
-                break;
-            case 'doubleTap':
-                feedback.style.background = 'rgba(76, 175, 80, 0.3)';
-                feedback.style.transform = 'scale(1.1)';
-                break;
-            case 'longPress':
-                feedback.style.background = 'rgba(255, 152, 0, 0.3)';
-                feedback.style.transform = 'scale(1.08)';
-                break;
-            case 'dragStart':
-                feedback.style.background = 'rgba(156, 39, 176, 0.3)';
-                feedback.style.transform = 'scale(1.05)';
-                break;
-            case 'dragEnd':
-                feedback.style.background = 'rgba(76, 175, 80, 0.3)';
-                feedback.style.transform = 'scale(1)';
-                break;
-        }
+        // Position at touch point
+        const size = 40;
+        feedback.style.width = size + 'px';
+        feedback.style.height = size + 'px';
+        feedback.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
+        feedback.style.top = (rect.top + rect.height / 2 - size / 2) + 'px';
+        feedback.style.position = 'fixed';
         
         document.body.appendChild(feedback);
         
         // Remove after animation
-        setTimeout(() => {
-            feedback.style.opacity = '0';
-            feedback.style.transform = 'scale(1)';
-            setTimeout(() => {
-                if (feedback.parentNode) {
-                    feedback.remove();
-                }
-            }, 200);
-        }, 300);
+        feedback.addEventListener('animationend', () => feedback.remove());
     }
     
-    showZoomIndicator(x, y) {
-        this.zoomIndicator = document.createElement('div');
-        this.zoomIndicator.className = 'zoom-indicator';
-        this.zoomIndicator.style.cssText = `
-            position: fixed;
-            left: ${x}px;
-            top: ${y}px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: bold;
-            transform: translate(-50%, -50%);
-            z-index: 10000;
-            pointer-events: none;
-        `;
-        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        this.zoomIndicator.textContent = Math.round(currentZoom * 100) + '%';
+    showZoomIndicator() {
+        if (!this.zoomIndicator) {
+            this.zoomIndicator = document.createElement('div');
+            this.zoomIndicator.className = 'zoom-indicator';
+            document.body.appendChild(this.zoomIndicator);
+        }
         
-        document.body.appendChild(this.zoomIndicator);
+        const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        this.zoomIndicator.textContent = Math.round(zoom * 100) + '%';
     }
     
     updateZoomIndicator(text) {
@@ -1652,524 +976,53 @@ class MobileTouchManager {
         }
     }
     
-    showRealTimePanFeedback(direction, distance) {
-        // Disable real-time feedback during dragging to reduce visual noise
-        // and improve performance for smoother dragging experience
-        return;
+    showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'touch-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
         
-        /* Original implementation kept for reference
-        if (!this.panIndicator) {
-            this.panIndicator = document.createElement('div');
-            this.panIndicator.className = 'pan-indicator';
-            this.panIndicator.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 8px 12px;
-                border-radius: 20px;
-                font-size: 14px;
-                font-weight: bold;
-                z-index: 10000;
-                pointer-events: none;
-                transition: opacity 0.1s ease;
-            `;
-            document.body.appendChild(this.panIndicator);
-        }
-        
-        this.panIndicator.textContent = `Pan ${direction}: ${distance}px`;
-        this.panIndicator.style.opacity = '1';
-        */
-    }
-    
-    hideRealTimePanFeedback() {
-        if (this.panIndicator) {
-            this.panIndicator.style.opacity = '0';
-            setTimeout(() => {
-                if (this.panIndicator && this.panIndicator.parentNode) {
-                    this.panIndicator.remove();
-                    this.panIndicator = null;
-                }
-            }, 200);
-        }
-    }
-    
-    findConnectionAtPosition(x, y) {
-        const elements = document.elementsFromPoint(x, y);
-        for (const element of elements) {
-            if (element.classList.contains('connection')) {
-                return element;
-            }
-        }
-        return null;
-    }
-    
-    setupTouchStyles() {
-        // Enhanced touch styles
-        const style = document.createElement('style');
-        style.textContent = `
-            /* Enhanced Touch Styles */
-            @media (hover: none) and (pointer: coarse) {
-                .node {
-                    min-width: 60px !important;
-                    min-height: 50px !important;
-                    font-size: 16px !important;
-                    padding: 14px !important;
-                    border-width: 3px !important; /* Thicker borders for better visibility */
-                }
-                
-                .node-title {
-                    font-size: 17px !important;
-                    font-weight: 600 !important;
-                    line-height: 1.3 !important;
-                }
-                
-                .node-content {
-                    font-size: 15px !important;
-                    line-height: 1.4 !important;
-                }
-                
-                .add-node-btn {
-                    width: 36px !important;
-                    height: 36px !important;
-                    font-size: 20px !important;
-                    border-width: 2px !important;
-                }
-                
-                .connection-hitzone {
-                    stroke-width: 24px !important; /* Wider hit areas for connections */
-                }
-                
-                .connection-control-point {
-                    r: 14px !important; /* Larger control points */
-                }
-                
-                .tool-btn {
-                    min-width: 52px !important;
-                    min-height: 52px !important;
-                    font-size: 18px !important;
-                    padding: 14px !important;
-                }
-                
-                .context-menu-item {
-                    padding: 18px 24px !important;
-                    font-size: 17px !important;
-                    min-height: 52px !important;
-                }
-                
-                .zoom-controls button {
-                    min-width: 52px !important;
-                    min-height: 52px !important;
-                    font-size: 22px !important;
-                }
-                
-                /* Better touch feedback */
-                .node:active {
-                    transform: scale(0.97) !important;
-                    transition: transform 0.1s ease !important;
-                }
-                
-                .tool-btn:active, .context-menu-item:active {
-                    transform: scale(0.95) !important;
-                    transition: transform 0.1s ease !important;
-                }
-                
-                /* Touch feedback */
-                .touch-feedback {
-                    border: 2px solid transparent;
-                    animation: touchPulse 0.3s ease-out;
-                }
-                
-                @keyframes touchPulse {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
-                    100% { transform: scale(1); }
-                }
-                
-                .touch-context-menu {
-                    animation: touchMenuSlide 0.3s ease-out;
-                }
-                
-                @keyframes touchMenuSlide {
-                    0% { 
-                        opacity: 0;
-                        transform: translate(-50%, -50%) scale(0.8);
-                    }
-                    100% { 
-                        opacity: 1;
-                        transform: translate(-50%, -50%) scale(1);
-                    }
-                }
-                
-                .touch-menu-item:active {
-                    background-color: rgba(255, 255, 255, 0.2) !important;
-                    transform: scale(0.95);
-                }
-                
-                /* Prevent text selection on touch */
-                .node-title:not([contenteditable="true"]),
-                .node-content:not([contenteditable="true"]),
-                .tool-btn,
-                .context-menu-item {
-                    -webkit-touch-callout: none;
-                    -webkit-user-select: none;
-                    -khtml-user-select: none;
-                    -moz-user-select: none;
-                    -ms-user-select: none;
-                    user-select: none;
-                }
-                
-                /* Enable text selection for editable elements */
-                .node-title[contenteditable="true"],
-                .node-content[contenteditable="true"],
-                input,
-                textarea {
-                    -webkit-user-select: text;
-                    -moz-user-select: text;
-                    -ms-user-select: text;
-                    user-select: text;
-                }
-                
-                /* Prevent keyboard popup by removing focus from non-editable elements */
-                .node:not(.editing) .node-title,
-                .node:not(.editing) .node-content,
-                .canvas-container,
-                #mindmap-canvas,
-                .connection,
-                .tool-btn:not(input):not(textarea) {
-                    -webkit-user-select: none;
-                    -moz-user-select: none;
-                    -ms-user-select: none;
-                    user-select: none;
-                    outline: none;
-                }
-                
-                /* Prevent focus on canvas elements */
-                .node:not(.editing),
-                .connection,
-                .canvas-container,
-                #mindmap-canvas {
-                    -webkit-tap-highlight-color: transparent;
-                    -webkit-focus-ring-color: transparent;
-                    outline: none;
-                }
-            }
-            
-            /* Touch-specific connection styles */
-            .connection-dragging {
-                stroke-width: 4px !important;
-                stroke-dasharray: 5,5 !important;
-                animation: connectionDragPulse 1s ease-in-out infinite alternate;
-            }
-            
-            @keyframes connectionDragPulse {
-                0% { stroke-opacity: 0.7; }
-                100% { stroke-opacity: 1; }
-            }
-            
-            /* Touch ripple effect */
-            @keyframes touchRipple {
-                0% {
-                    transform: scale(0);
-                    opacity: 1;
-                }
-                100% {
-                    transform: scale(4);
-                    opacity: 0;
-                }
-            }
-            
-            .touch-ripple {
-                position: absolute;
-                border-radius: 50%;
-                background: rgba(255, 255, 255, 0.6);
-                animation: touchRipple 0.6s ease-out;
-                pointer-events: none;
-            }
-            
-            /* Drag mode styles */
-            .drag-mode-active {
-                border: 2px solid #FF9800 !important;
-                box-shadow: 0 0 20px rgba(255, 152, 0, 0.6) !important;
-                animation: dragModePulse 1.5s ease-in-out infinite alternate;
-            }
-            
-            @keyframes dragModePulse {
-                0% { 
-                    box-shadow: 0 0 20px rgba(255, 152, 0, 0.6);
-                }
-                100% { 
-                    box-shadow: 0 0 30px rgba(255, 152, 0, 0.8);
-                }
-            }
-            
-            /* Connection mode styles */
-            .connection-mode-active {
-                border: 3px solid #2196F3 !important;
-                box-shadow: 0 0 20px rgba(33, 150, 243, 0.6) !important;
-                animation: connectionModePulse 1.5s ease-in-out infinite alternate;
-            }
-            
-            @keyframes connectionModePulse {
-                0% { 
-                    box-shadow: 0 0 15px rgba(33, 150, 243, 0.6);
-                }
-                100% { 
-                    box-shadow: 0 0 25px rgba(33, 150, 243, 0.8);
-                }
-            }
-            
-            /* Enhanced swipe feedback */
-            .swipe-feedback {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 12px 20px;
-                border-radius: 25px;
-                font-size: 14px;
-                font-weight: bold;
-                z-index: 10000;
-                pointer-events: none;
-                animation: swipeFeedback 0.8s ease-out;
-            }
-            
-            @keyframes swipeFeedback {
-                0% { 
-                    opacity: 0;
-                    transform: translate(-50%, -50%) scale(0.8);
-                }
-                30% { 
-                    opacity: 1;
-                    transform: translate(-50%, -50%) scale(1);
-                }
-                100% { 
-                    opacity: 0;
-                    transform: translate(-50%, -50%) scale(1.1);
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    setupTouchTargets() {
-        // Enhance touch targets for better accessibility
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        this.enhanceTouchTargets(node);
-                    }
-                });
-            });
-        });
-        
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-        
-        // Enhance existing elements
-        this.enhanceTouchTargets(document.body);
-        
-        // Prevent keyboard popup on canvas interactions
-        this.setupKeyboardPrevention();
-    }
-    
-    enhanceTouchTargets(container) {
-        // Enhance nodes
-        const nodes = container.querySelectorAll('.node');
-        nodes.forEach(node => {
-            if (!node.hasAttribute('data-touch-enhanced')) {
-                node.setAttribute('data-touch-enhanced', 'true');
-                
-                // Add touch-specific event listeners
-                node.addEventListener('touchstart', (e) => {
-                    this.addTouchRipple(node, e.touches[0]);
-                }, { passive: true });
-            }
-        });
-        
-        // Enhance connections
-        const connections = container.querySelectorAll('.connection');
-        connections.forEach(connection => {
-            if (!connection.hasAttribute('data-touch-enhanced')) {
-                connection.setAttribute('data-touch-enhanced', 'true');
-                
-                // Increase hit area for connections
-                const hitzone = connection.querySelector('.connection-hitzone');
-                if (hitzone) {
-                    hitzone.style.strokeWidth = '20px';
-                }
-            }
-        });
-        
-        // Enhance tools
-        const tools = container.querySelectorAll('.tool-btn');
-        tools.forEach(tool => {
-            if (!tool.hasAttribute('data-touch-enhanced')) {
-                tool.setAttribute('data-touch-enhanced', 'true');
-                
-                tool.addEventListener('touchstart', (e) => {
-                    this.addTouchRipple(tool, e.touches[0]);
-                }, { passive: true });
-            }
-        });
-    }
-    
-    addTouchRipple(element, touch) {
-        const rect = element.getBoundingClientRect();
-        const ripple = document.createElement('div');
-        ripple.className = 'touch-ripple';
-        
-        const size = Math.max(rect.width, rect.height);
-        ripple.style.width = size + 'px';
-        ripple.style.height = size + 'px';
-        ripple.style.left = (touch.clientX - rect.left - size / 2) + 'px';
-        ripple.style.top = (touch.clientY - rect.top - size / 2) + 'px';
-        
-        element.appendChild(ripple);
-        
-        // Remove after animation
         setTimeout(() => {
-            if (ripple.parentNode) {
-                ripple.remove();
-            }
-        }, 600);
+            toast.style.animation = 'slideUp 0.3s ease-out reverse';
+            toast.addEventListener('animationend', () => toast.remove());
+        }, 2000);
     }
     
-    setupAccessibility() {
-        // Add ARIA labels and roles for better accessibility
-        const addAriaLabels = () => {
-            // Nodes
-            document.querySelectorAll('.node').forEach(node => {
-                if (!node.getAttribute('role')) {
-                    node.setAttribute('role', 'button');
-                    node.setAttribute('aria-label', 'Mindmap node');
-                    node.setAttribute('tabindex', '0');
-                }
-            });
-            
-            // Connections
-            document.querySelectorAll('.connection').forEach(connection => {
-                if (!connection.getAttribute('role')) {
-                    connection.setAttribute('role', 'button');
-                    connection.setAttribute('aria-label', 'Mindmap connection');
-                    connection.setAttribute('tabindex', '0');
-                }
-            });
-            
-            // Tools
-            document.querySelectorAll('.tool-btn').forEach(tool => {
-                if (!tool.getAttribute('aria-label')) {
-                    tool.setAttribute('aria-label', tool.title || 'Tool');
-                }
-            });
-        };
-        
-        // Run initially and on DOM changes
-        addAriaLabels();
-        const observer = new MutationObserver(addAriaLabels);
-        observer.observe(document.body, { childList: true, subtree: true });
+    clearTimer(name) {
+        if (this.timers[name]) {
+            clearTimeout(this.timers[name]);
+            this.timers[name] = null;
+        }
     }
     
-    setupPerformanceOptimizations() {
-        // Remove throttling for real-time dragging experience
-        // Touch events are now processed immediately for instant response
+    resetState() {
+        this.state.mode = 'idle';
+        this.state.dragTarget = null;
+        this.state.panStart = null;
+        this.state.pinchStart = null;
+        this.state.dragInfo = null;
         
-        // Add passive event listeners where possible
-        const passiveEvents = ['touchstart', 'touchmove', 'touchend'];
-        passiveEvents.forEach(event => {
-            canvas.addEventListener(event, (e) => {
-                // Prevent default only when necessary
-                if (e.target.closest('.node, .connection, .tool-btn')) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
+        // Clear all timers
+        Object.keys(this.timers).forEach(timer => this.clearTimer(timer));
+        
+        // Reset visual states
+        document.querySelectorAll('.dragging, .drag-mode, .connection-source').forEach(el => {
+            el.classList.remove('dragging', 'drag-mode', 'connection-source');
         });
         
-        // Optimize canvas transforms for better performance
-        if (canvas) {
-            canvas.style.willChange = 'transform';
-            canvas.style.transformStyle = 'preserve-3d';
-        }
-    }
-    
-    showToast(message, isError = false) {
-        if (typeof showToast === 'function') {
-            showToast(message, isError);
-        }
+        canvas.style.cursor = '';
     }
     
     // Public API
-    setMode(mode) {
-        this.currentMode = mode;
-    }
-    
-    getMode() {
-        return this.currentMode;
-    }
-    
-    isActive() {
-        return this.gestureManager.isTouchActive();
-    }
-    
-    setupKeyboardPrevention() {
-        // Prevent keyboard popup by ensuring canvas and non-editable elements don't get focus
-        const preventFocus = (e) => {
-            const target = e.target;
-            const isEditableNode = target.contentEditable === 'true' || target.closest('[contenteditable="true"]');
-            const isFormElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-            
-            if (!isEditableNode && !isFormElement) {
-                e.preventDefault();
-                target.blur();
-            }
-        };
-        
-        // Add to canvas and nodes
-        document.addEventListener('focusin', preventFocus);
-        document.addEventListener('touchstart', (e) => {
-            const target = e.target;
-            if (target.classList.contains('node') || target.closest('.node')) {
-                const node = target.closest('.node');
-                if (node && !node.classList.contains('editing')) {
-                    e.preventDefault();
-                }
-            }
-        });
-        
-        // Prevent long press context menu on non-editable elements
-        document.addEventListener('contextmenu', (e) => {
-            const target = e.target;
-            const isEditableNode = target.contentEditable === 'true' || target.closest('[contenteditable="true"]');
-            const isFormElement = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-            
-            if (!isEditableNode && !isFormElement) {
-                e.preventDefault();
-            }
-        });
-    }
-    
     cleanup() {
-        // Remove event listeners and clean up
-        this.gestureManager.resetGestureState();
-        this.activeElement = null;
-        this.touchConnectionStart = null;
-        this.touchConnectionLine = null;
+        this.resetState();
+        this.state.activePointers.clear();
         
-        // Clean up drag mode
-        if (this.isDragModeEnabled) {
-            this.disableDragMode();
-        }
-        
-        // Clean up connection mode
-        if (this.isConnectionModeEnabled) {
-            this.disableConnectionMode();
-        }
+        // Remove event listeners
+        canvas.removeEventListener('pointerdown', this.handlePointerDown);
+        canvas.removeEventListener('pointermove', this.handlePointerMove);
+        canvas.removeEventListener('pointerup', this.handlePointerUp);
+        canvas.removeEventListener('pointercancel', this.handlePointerCancel);
     }
 }
 
@@ -2177,35 +1030,27 @@ class MobileTouchManager {
 // INITIALIZATION
 // ==========================
 
-let mobileTouchManager = null;
+let modernTouchManager = null;
 
-function initializeMobileTouch() {
-    // Check if required globals are available
-    if (typeof canvas === 'undefined' || !canvas) {
-        console.warn('⚠️ Canvas not available for mobile touch initialization, retrying...');
-        setTimeout(initializeMobileTouch, 100);
-        return;
+function initializeModernTouch() {
+    if (modernTouchManager) {
+        modernTouchManager.cleanup();
     }
     
-    if (mobileTouchManager) {
-        mobileTouchManager.cleanup();
-    }
-    
-    mobileTouchManager = new MobileTouchManager();
+    modernTouchManager = new ModernTouchManager();
     
     // Export for global access
-    window.mobileTouchManager = mobileTouchManager;
+    window.mobileTouchManager = modernTouchManager;
     
-    console.log('📱 Enhanced mobile touch support initialized');
+    console.log('📱 Modern mobile touch support initialized');
 }
 
-// Auto-initialize when DOM is ready and canvas is available
+// Auto-initialize when ready
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeMobileTouch);
+    document.addEventListener('DOMContentLoaded', initializeModernTouch);
 } else {
-    // Wait a bit for the canvas to be initialized
-    setTimeout(initializeMobileTouch, 100);
+    setTimeout(initializeModernTouch, 100);
 }
 
-// Export for manual initialization
-window.initializeMobileTouch = initializeMobileTouch;
+// Export initialization function
+window.initializeMobileTouch = initializeModernTouch;

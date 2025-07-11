@@ -2147,35 +2147,10 @@ function setupTouchConnectionCreation() {
     
     // Enhanced connection creation for touch
     function startTouchConnection(startNode, touchPos) {
-        if (window.mobileTouchManager) {
-            window.mobileTouchManager.setMode('connect');
-            
-            // Show connection preview
-            const connectionPreview = document.createElement('div');
-            connectionPreview.id = 'touch-connection-preview';
-            connectionPreview.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-                z-index: 1000;
-            `;
-            
-            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.style.cssText = 'width: 100%; height: 100%;';
-            
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('stroke', '#2196F3');
-            line.setAttribute('stroke-width', '3');
-            line.setAttribute('stroke-dasharray', '5,5');
-            
-            svg.appendChild(line);
-            connectionPreview.appendChild(svg);
-            canvas.appendChild(connectionPreview);
-            
-            return connectionPreview;
+        if (window.mobileTouchManager && window.mobileTouchManager.startConnectionMode) {
+            // Connection mode is now handled internally by the modern touch manager
+            // via the context menu "Verbind met..." option
+            window.mobileTouchManager.startConnectionMode(startNode);
         }
     }
     
@@ -2187,23 +2162,9 @@ function setupTouchConnectionCreation() {
  * Setup touch-friendly branch creation
  */
 function setupTouchBranchCreation() {
-    // Add touch gesture for branch creation
-    if (window.mobileTouchManager) {
-        // Add two-finger tap on connection to create branch
-        window.mobileTouchManager.gestureManager.on('tap', (data) => {
-            if (data.originalEvent.touches && data.originalEvent.touches.length === 2) {
-                const connection = data.target.closest('.connection');
-                if (connection) {
-                    const conn = connections.find(c => c.id === connection.id);
-                    if (conn) {
-                        // Create branch at touch position
-                        const canvasCoords = window.mobileTouchManager.gestureManager.getCanvasCoordinates(data.touch);
-                        startBranchFromConnection(conn, canvasCoords.x, canvasCoords.y);
-                    }
-                }
-            }
-        });
-    }
+    // Branch creation is now handled via context menus in the modern touch implementation
+    // Two-finger gestures are reserved for pinch-to-zoom
+    // This function is kept for compatibility but no longer needed
 }
 
 /**
