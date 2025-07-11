@@ -400,10 +400,6 @@ class ModernTouchManager {
             pointers[1].currentX, pointers[1].currentY
         );
         
-        // Bereken de huidige pinch center
-        const currentPinchCenterX = (pointers[0].currentX + pointers[1].currentX) / 2;
-        const currentPinchCenterY = (pointers[0].currentY + pointers[1].currentY) / 2;
-        
         // Bereken de scale factor met aangepaste sensitiviteit
         const rawScale = currentDistance / this.state.pinchStart.distance;
         const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * rawScale));
@@ -414,18 +410,10 @@ class ModernTouchManager {
             
             // Gebruik het opgeslagen vaste punt voor correcte offset berekening
             if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint) {
-                // Bereken de nieuwe offset zodat het vaste punt in canvas coördinaten
-                // blijft op de huidige pinch center positie in viewport coördinaten
-                const rect = canvas.getBoundingClientRect();
-                
-                // Update de viewport positie naar de huidige pinch center
-                const viewportX = currentPinchCenterX - rect.left;
-                const viewportY = currentPinchCenterY - rect.top;
-                
-                // Het vaste punt moet op de huidige pinch positie blijven
+                // Het vaste punt moet op dezelfde viewport positie blijven
                 // Formule: offset = viewport positie - (canvas positie × zoom)
-                canvasOffset.x = viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
-                canvasOffset.y = viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
+                canvasOffset.x = this.state.pinchStart.fixedPoint.viewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
+                canvasOffset.y = this.state.pinchStart.fixedPoint.viewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
                 
                 // Direct update canvas transform to prevent any delay
                 updateCanvasTransform();

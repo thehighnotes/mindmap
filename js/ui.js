@@ -1865,7 +1865,10 @@ function setupTouchSupport() {
     } else {
         // Fallback to basic touch support
         console.log('📱 Using basic touch fallback');
-        setupBasicTouchSupport();
+        // Don't set up basic touch support if mobile touch manager exists
+        if (!window.mobileTouchManager) {
+            setupBasicTouchSupport();
+        }
     }
     
     // Add CSS for touch interactions
@@ -1924,7 +1927,7 @@ function setupBasicTouchSupport() {
  * Handle touch start events (fallback)
  */
 function handleTouchStart(e) {
-    if (mobileOptimized) return; // Skip if using enhanced system
+    if (mobileOptimized || window.mobileTouchManager) return; // Skip if using enhanced system or mobile touch manager is active
     
     const now = Date.now();
     
@@ -1959,7 +1962,7 @@ function handleTouchStart(e) {
  * Handle touch move events (fallback)
  */
 function handleTouchMove(e) {
-    if (mobileOptimized) return; // Skip if using enhanced system
+    if (mobileOptimized || window.mobileTouchManager) return; // Skip if using enhanced system or mobile touch manager is active
     
     if (e.touches.length === 1) {
         // Single touch move - simulate mousemove
@@ -1983,7 +1986,7 @@ function handleTouchMove(e) {
  * Handle touch end events (fallback)
  */
 function handleTouchEnd(e) {
-    if (mobileOptimized) return; // Skip if using enhanced system
+    if (mobileOptimized || window.mobileTouchManager) return; // Skip if using enhanced system or mobile touch manager is active
     
     const now = Date.now();
     const touchDuration = touchStartTime ? now - touchStartTime : 0;
