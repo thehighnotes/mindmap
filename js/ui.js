@@ -1921,14 +1921,15 @@ function setupMobileOptimizations() {
  * Setup basic touch support as fallback
  */
 function setupBasicTouchSupport() {
+    // DISABLED: mobile-nav.js now handles all touch events to prevent conflicts
     // Touch start handler
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    // canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     
     // Touch move handler
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    // canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
     
     // Touch end handler
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    // canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
     
     // Prevent ghost clicks after touch
     canvas.addEventListener('click', handleGhostClick, { passive: false });
@@ -2188,13 +2189,14 @@ function setupTouchPerformanceOptimizations() {
     // Optimize touch move events
     const originalTouchMove = canvas.addEventListener;
     
+    // DISABLED: mobile-nav.js now handles all touch events to prevent conflicts
     // Use passive listeners where possible
-    canvas.addEventListener('touchstart', (e) => {
-        // Only prevent default when necessary
-        if (e.touches.length > 1 || e.target.closest('.node, .connection')) {
-            e.preventDefault();
-        }
-    }, { passive: false });
+    // canvas.addEventListener('touchstart', (e) => {
+    //     // Only prevent default when necessary
+    //     if (e.touches.length > 1 || e.target.closest('.node, .connection')) {
+    //         e.preventDefault();
+    //     }
+    // }, { passive: false });
     
     // Add will-change for better performance
     const style = document.createElement('style');
