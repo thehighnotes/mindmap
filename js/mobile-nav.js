@@ -243,36 +243,36 @@ class MobileNavigationManager {
         const currentCenterX = (touch1.clientX + touch2.clientX) / 2;
         const currentCenterY = (touch1.clientY + touch2.clientY) / 2;
         
-        // If we have a previous center, calculate pan movement
-        if (this.state.previousPinchCenter) {
-            const panDX = currentCenterX - this.state.previousPinchCenter.x;
-            const panDY = currentCenterY - this.state.previousPinchCenter.y;
-            
-            // Apply pan first
-            canvasOffset.x += panDX;
-            canvasOffset.y += panDY;
-        }
+        // Temporarily disable pan during pinch to isolate zoom issue
+        // if (this.state.previousPinchCenter) {
+        //     const panDX = currentCenterX - this.state.previousPinchCenter.x;
+        //     const panDY = currentCenterY - this.state.previousPinchCenter.y;
+        //     
+        //     // Apply pan first
+        //     canvasOffset.x += panDX;
+        //     canvasOffset.y += panDY;
+        // }
         
         // Calculate new zoom
         const scale = currentDistance / this.state.pinchStartDistance;
         const newZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, this.state.pinchStartZoom * scale));
         
-        // Convert screen coordinates to container coordinates
+        // Calculate offset to keep pinch center fixed
+        // Convert screen coordinates to container coordinates first
         const rect = this.canvasContainer.getBoundingClientRect();
         const containerX = currentCenterX - rect.left;
         const containerY = currentCenterY - rect.top;
         
-        // Account for the CSS transform offset (-2000px, -2000px) and current canvas offset
-        // The world coordinate calculation must match the coordinate system used by nodes
-        const worldX = (containerX - canvasOffset.x + 2000) / zoomLevel;
-        const worldY = (containerY - canvasOffset.y + 2000) / zoomLevel;
+        // Calculate what point in world space we want to keep fixed
+        const worldX = (containerX - canvasOffset.x) / zoomLevel;
+        const worldY = (containerY - canvasOffset.y) / zoomLevel;
         
-        // Update zoom
+        // Update zoom first
         setZoomLevel(newZoom);
         
-        // Keep the world point fixed at the container position
-        canvasOffset.x = containerX - (worldX * newZoom) + 2000;
-        canvasOffset.y = containerY - (worldY * newZoom) + 2000;
+        // Calculate new offset to keep the world point at the same container position
+        canvasOffset.x = containerX - worldX * newZoom;
+        canvasOffset.y = containerY - worldY * newZoom;
         
         // Update canvas transform
         updateCanvasTransform();
