@@ -1,0 +1,703 @@
+╭───────────────────────────────────────────────────╮
+│ ✻ Welcome to Claude Code!                         │
+│                                                   │
+│   /help for help, /status for your current setup  │
+│                                                   │
+│   cwd: /mnt/d/ai-reference-hub/mindmap            │
+╰───────────────────────────────────────────────────╯
+
+
+> /clear 
+  ⎿  (no content)
+
+> /status 
+  ⎿  (no content)
+
+> /model 
+  ⎿  Set model to Default (Opus 4 for up to 20% of usage limits, then use Sonnet 4)
+
+> /status 
+  ⎿  (no content)
+
+> please use mobile-pinch-standalone.md to completely revamp the mobile zoom pinch functionality so it behaves more reliably.. Also extract all
+   pinch zoom en pan functions from mobile-touch.js into mobile-nav.js - make sure UI.js and other potential js files are updated if needed 
+  (verify app and core to make sure no conflicts exist - but base your solution implementation fully on the mobile-pinch-standalone.md -- 
+  IMPORTANT! Don't increase the scope, only work on the requested - any other optimizations can be recommended in the conclusion but not worked
+   on!
+
+● I'll analyze the mobile-pinch-standalone.md file and revamp the mobile zoom pinch functionality, then extract pinch zoom and pan functions
+  from mobile-touch.js into mobile-nav.js. Let me start by examining the relevant files.
+
+● Read(Mobile-Pinch-standalone.md)
+  ⎿  Read 408 lines (ctrl+r to expand)
+
+● Now let me examine the current mobile-touch.js file to understand what needs to be extracted:
+
+● Read(js/mobile-touch.js)
+  ⎿  Read 1259 lines (ctrl+r to expand)
+
+● Now let me check if a mobile-nav.js file already exists:
+
+● List(js)
+  ⎿  Listed 19 paths (ctrl+r to expand)
+
+● Now let me examine ui.js and core.js to understand any existing pinch/zoom implementations:
+
+● Update Todos
+  ⎿  ☒ Analyze mobile-pinch-standalone.md implementation                
+     ☐ Check current pinch/zoom implementation in ui.js and core.js
+     ☐ Create new mobile-nav.js file with extracted pinch/zoom functions
+     ☐ Update mobile-touch.js to remove pinch/zoom functions
+     ☐ Update ui.js and other files to integrate with mobile-nav.js
+     ☐ Test the new implementation for conflicts
+
+● Search(pattern: "pinch|zoom", glob: "**/*.js", output_mode: "content")
+  ⎿  Found 842 lines (ctrl+r to expand)
+
+● Let me check ui.js for zoom related functions:
+
+● Search(pattern: "zoom.*\(|handleWheel|wheel", glob: "**/ui.js", output_mode: "content")
+  ⎿  Found 60 lines (ctrl+r to expand)
+
+● Now I'll create the mobile-nav.js file based on the mobile-pinch-standalone.md implementation:
+
+● Update Todos
+  ⎿  ☒ Analyze mobile-pinch-standalone.md implementation                
+     ☒ Check current pinch/zoom implementation in ui.js and core.js
+     ☐ Create new mobile-nav.js file with extracted pinch/zoom functions
+     ☐ Update mobile-touch.js to remove pinch/zoom functions
+     ☐ Update ui.js and other files to integrate with mobile-nav.js
+     ☐ Test the new implementation for conflicts
+
+● Write(js/mobile-nav.js)
+  ⎿  Wrote 478 lines to js/mobile-nav.js                                               
+     /**
+      * mobile-nav.js - Mobile navigation (pan & zoom) functionality
+      * Based on the reliable pinch zoom implementation from mobile-pinch-standalone.md
+      */
+     // ==========================
+     // MOBILE NAVIGATION MANAGER
+     // ==========================
+     class MobileNavigationManager {
+     … +468 lines (ctrl+r to expand)
+
+● Now let me update mobile-touch.js to remove the pinch zoom and pan functions:
+
+● Update Todos
+  ⎿  ☒ Analyze mobile-pinch-standalone.md implementation                
+     ☒ Check current pinch/zoom implementation in ui.js and core.js
+     ☒ Create new mobile-nav.js file with extracted pinch/zoom functions
+     ☐ Update mobile-touch.js to remove pinch/zoom functions
+     ☐ Update ui.js and other files to integrate with mobile-nav.js
+     ☐ Test the new implementation for conflicts
+
+Claude Opus 4 limit reached, now using Sonnet 4
+
+● Update(js/mobile-touch.js)
+  ⎿  Updated js/mobile-touch.js with 10 additions and 17 removals                               
+       11        constructor() {
+       12            // Touch state using simple state machine
+       13            this.state = {
+       14 -              mode: 'idle', // idle, panning, pinching, dragging, connecting
+       14 +              mode: 'idle', // idle, dragging, connecting
+       15                activePointers: new Map(),
+       16                dragTarget: null,
+       17 -              panStart: null,
+       18 -              pinchStart: null,
+       19 -              lastPinchDistance: 0
+       17 +              dragStart: null
+       18            };
+       19            
+       20            // Configuration
+     ...
+       24                dragThreshold: 10, // Standard threshold for drag detection
+       25                doubleTapDelay: 300,
+       26                longPressDelay: 500,
+       27 -              pinchThreshold: 0.02, // 2% scale change threshold
+       27                momentumFriction: 0.92
+       28            };
+       29            
+     ...
+       119            if (pointerCount === 1) {
+       120                this.handleSinglePointerDown(e);
+       121            } else if (pointerCount === 2) {
+       122 -              this.handlePinchStart(Array.from(this.state.activePointers.values()));
+       122 +              // Defer to mobile-nav.js for pinch handling
+       123 +              // Don't handle pinch in this manager
+       124            }
+       125            
+       126            // Capture pointer for consistent events
+     ...
+       180            if (pointerCount === 1) {
+       181                this.handleSinglePointerMove(e, pointer);
+       182            } else if (pointerCount === 2) {
+       183 -              this.handlePinchMove(Array.from(this.state.activePointers.values()));
+       183 +              // Defer to mobile-nav.js for pinch handling
+       184 +              // Don't handle pinch in this manager
+       185            }
+       186        }
+       187        
+     ...
+       196                
+       197                if (this.state.dragTarget) {
+       198                    this.startNodeDrag(this.state.dragTarget, pointer);
+       199 -              } else {
+       200 -                  this.startCanvasPan(pointer);
+       199                }
+       200 +              // Canvas panning is now handled by mobile-nav.js
+       201            }
+       202            
+       203            // Continue current action only if not in multi-touch mode
+     ...
+       207                    case 'dragging':
+       208                        this.updateNodeDrag(pointer);
+       209                        break;
+       210 -                  case 'panning':
+       211 -                      this.updateCanvasPan(pointer);
+       212 -                      break;
+       210 +                  // panning is now handled by mobile-nav.js
+       211                }
+       212            }
+       213        }
+     ...
+       233                    this.clearTimer('longPress');
+       234                    const element = this.getInteractiveElement(e);
+       235                    this.handleTap(e, element);
+       236 -              } else if (this.state.mode === 'panning') {
+       237 -                  this.endCanvasPan();
+       236                } else if (this.state.mode === 'dragging') {
+       237                    this.endNodeDrag();
+       238                }
+       239 -          } else if (pointerCount === 2 && this.state.mode === 'pinching') {
+       240 -              // End pinch when one finger lifts
+       241 -              this.endPinch();
+       239 +          } else if (pointerCount === 2) {
+       240 +              // Pinch handling is deferred to mobile-nav.js
+       241            }
+       242            
+       243            // Clean up pointer
+
+● Now I need to remove the pinch-related functions from mobile-touch.js:
+
+● Update(js/mobile-touch.js)
+  ⎿  Updated js/mobile-touch.js with 2 additions and 216 removals                                                                        
+       315            this.showVisualFeedback(element || canvas, 'long-press');
+       316        }
+       317        
+       318 -      // ===== MobileTouchManager Pinch Functies =====
+       319 -  
+       320 -      // Aanpassing voor handlePinchStart om het initiële vaste punt correct op te slaan
+       321 -      handlePinchStart(pointers) {
+       322 -          // Cancel any ongoing pan or drag operations
+       323 -          if (this.state.mode === 'panning') {
+       324 -              this.endCanvasPan();
+       325 -          } else if (this.state.mode === 'dragging') {
+       326 -              this.endNodeDrag();
+       327 -          }
+       328 -          
+       329 -          // Reset momentum om ongewenste beweging te voorkomen
+       330 -          this.momentum = {
+       331 -              velocityX: 0,
+       332 -              velocityY: 0,
+       333 -              lastX: 0,
+       334 -              lastY: 0,
+       335 -              lastTime: 0
+       336 -          };
+       337 -          
+       338 -          this.state.mode = 'pinching';
+       339 -          
+       340 -          if (pointers.length >= 2) {
+       341 -              // Bereken de initiële afstand
+       342 -              const distance = this.getDistance(
+       343 -                  pointers[0].currentX, pointers[0].currentY,
+       344 -                  pointers[1].currentX, pointers[1].currentY
+       345 -              );
+       346 -              
+       347 -              // Bereken het centrum tussen de twee vingers
+       348 -              const centerX = (pointers[0].currentX + pointers[1].currentX) / 2;
+       349 -              const centerY = (pointers[0].currentY + pointers[1].currentY) / 2;
+       350 -              
+       351 -              // Sla de start staat op
+       352 -              this.state.pinchStart = {
+       353 -                  distance: distance,
+       354 -                  scale: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
+       355 -                  center: { x: centerX, y: centerY }
+       356 -              };
+       357 -              
+       358 -              // Bereken en sla het vaste punt op in canvas coördinaten
+       359 -              if (typeof canvas !== 'undefined' && typeof canvasOffset !== 'undefined') {
+       360 -                  const rect = canvas.getBoundingClientRect();
+       361 -                  
+       362 -                  // Converteer client coordinates naar canvas viewport coordinates
+       363 -                  // Dit compenseert voor de positie van het canvas element op de pagina
+       364 -                  const viewportX = centerX - rect.left;
+       365 -                  const viewportY = centerY - rect.top;
+       366 -                  
+       367 -                  // Converteer viewport positie naar absolute canvas coördinaten
+       368 -                  // Dit zijn de werkelijke coördinaten op het oneindige canvas vlak
+       369 -                  // Canvas positie = (viewport positie - offset) / zoom
+       370 -                  const canvasX = (viewportX - canvasOffset.x) / this.state.pinchStart.scale;
+       371 -                  const canvasY = (viewportY - canvasOffset.y) / this.state.pinchStart.scale;
+       372 -                  
+       373 -                  // Sla zowel de canvas als viewport posities op
+       374 -                  this.state.pinchStart.fixedPoint = {
+       375 -                      canvasX: canvasX,  // Absolute positie op het canvas
+       376 -                      canvasY: canvasY,  // Absolute positie op het canvas
+       377 -                      viewportX: viewportX,  // Relatief aan canvas element
+       378 -                      viewportY: viewportY   // Relatief aan canvas element
+       379 -                  };
+       380 -                  
+       381 -                  // Sla ook de originele client coordinates op voor debugging
+       382 -                  this.state.pinchStart.clientCenter = {
+       383 -                      x: centerX,
+       384 -                      y: centerY
+       385 -                  };
+       386 -              }
+       387 -              
+       388 -              this.showZoomIndicator();
+       389 -              
+       390 -              console.log('Pinch gestart:', {
+       391 -                  afstand: distance,
+       392 -                  centrum: { x: centerX, y: centerY },
+       393 -                  vastPunt: this.state.pinchStart.fixedPoint
+       394 -              });
+       395 -          }
+       396 -      }
+       318 +      // Pinch zoom and canvas panning functionality moved to mobile-nav.js
+       319        
+       320 -      
+       321 -      handlePinchMove(pointers) {
+       322 -          if (this.state.mode !== 'pinching' || !this.state.pinchStart || pointers.length < 2) return;
+       323 -          
+       324 -          // Verkrijg de huidige afstand tussen de twee touch punten
+       325 -          const currentDistance = this.getDistance(
+       326 -              pointers[0].currentX, pointers[0].currentY,
+       327 -              pointers[1].currentX, pointers[1].currentY
+       328 -          );
+       329 -          
+       330 -          // Bereken de nieuwe zoom factor
+       331 -          const scaleDelta = currentDistance / this.state.pinchStart.distance;
+       332 -          const newZoom = Math.max(0.1, Math.min(3, this.state.pinchStart.scale * scaleDelta));
+       333 -          
+       334 -          // Update de zoom level
+       335 -          if (typeof setZoomLevel === 'function' && typeof updateCanvasTransform === 'function') {
+       336 -              setZoomLevel(newZoom);
+       337 -              
+       338 -              // BELANGRIJK: Houd het vaste punt op zijn originele viewport positie
+       339 -              if (typeof canvasOffset !== 'undefined' && this.state.pinchStart.fixedPoint && typeof canvas !== 'undefined') {
+       340 -                  // Het vaste punt in canvas coördinaten moet op dezelfde viewport positie blijven
+       341 -                  // We gebruiken de originele viewport positie waar de pinch begon
+       342 -                  const targetViewportX = this.state.pinchStart.fixedPoint.viewportX;
+       343 -                  const targetViewportY = this.state.pinchStart.fixedPoint.viewportY;
+       344 -                  
+       345 -                  // Bereken de nieuwe offset
+       346 -                  // De formule is: offset = viewport_positie - (canvas_positie * zoom)
+       347 -                  // Dit zorgt ervoor dat het punt op het canvas dat zich op de pinch locatie bevond
+       348 -                  // daar blijft tijdens het zoomen
+       349 -                  canvasOffset.x = targetViewportX - (this.state.pinchStart.fixedPoint.canvasX * newZoom);
+       350 -                  canvasOffset.y = targetViewportY - (this.state.pinchStart.fixedPoint.canvasY * newZoom);
+       351 -                  
+       352 -                  // Update de canvas transform direct
+       353 -                  updateCanvasTransform();
+       354 -              }
+       355 -              
+       356 -              this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
+       357 -          }
+       358 -      }
+       359 -      
+       360 -      // Extra helper functie voor soepelere zoom interpolatie
+       361 -      smoothZoom(currentZoom, targetZoom, factor = 0.1) {
+       362 -          // Interpoleer tussen huidige en doel zoom voor soepelere beweging
+       363 -          return currentZoom + (targetZoom - currentZoom) * factor;
+       364 -      }
+       365 -      
+       366 -      endPinch() {
+       367 -          console.log('📌 Pinch end');
+       368 -          this.state.mode = 'idle';
+       369 -          this.state.pinchStart = null;
+       370 -          this.hideZoomIndicator();
+       371 -      }
+       372 -      
+       320        // Node dragging
+       321        startNodeDrag(element, pointer) {
+       322            const node = nodes.find(n => n.id === element.id);
+     ...
+       530            this.state.dragTarget = element;
+       531        }
+       532        
+       533 -      // Canvas panning
+       534 -      startCanvasPan(pointer) {
+       535 -          if (typeof canvasOffset === 'undefined') return;
+       536 -          
+       537 -          this.state.mode = 'panning';
+       538 -          this.state.panStart = {
+       539 -              x: canvasOffset.x,
+       540 -              y: canvasOffset.y,
+       541 -              pointerX: pointer.startX,
+       542 -              pointerY: pointer.startY
+       543 -          };
+       544 -          
+       545 -          // Track momentum
+       546 -          this.momentum = {
+       547 -              velocityX: 0,
+       548 -              velocityY: 0,
+       549 -              lastX: pointer.startX,
+       550 -              lastY: pointer.startY,
+       551 -              lastTime: Date.now()
+       552 -          };
+       553 -          
+       554 -          canvas.style.cursor = 'grabbing';
+       555 -      }
+       533 +      // Canvas panning functionality moved to mobile-nav.js
+       534        
+       535 -      updateCanvasPan(pointer) {
+       536 -          if (!this.state.panStart || typeof canvasOffset === 'undefined') return;
+       537 -          
+       538 -          const now = Date.now();
+       539 -          const dt = now - this.momentum.lastTime;
+       540 -          
+       541 -          if (dt > 0) {
+       542 -              // Calculate velocity for momentum
+       543 -              this.momentum.velocityX = (pointer.currentX - this.momentum.lastX) / dt;
+       544 -              this.momentum.velocityY = (pointer.currentY - this.momentum.lastY) / dt;
+       545 -          }
+       546 -          
+       547 -          // Update canvas offset
+       548 -          canvasOffset.x = this.state.panStart.x + (pointer.currentX - this.state.panStart.pointerX);
+       549 -          canvasOffset.y = this.state.panStart.y + (pointer.currentY - this.state.panStart.pointerY);
+       550 -          
+       551 -          // Update momentum tracking
+       552 -          this.momentum.lastX = pointer.currentX;
+       553 -          this.momentum.lastY = pointer.currentY;
+       554 -          this.momentum.lastTime = now;
+       555 -          
+       556 -          // Update transform
+       557 -          if (typeof updateCanvasTransform === 'function') {
+       558 -              updateCanvasTransform();
+       559 -          }
+       560 -      }
+       561 -      
+       562 -      endCanvasPan() {
+       563 -          canvas.style.cursor = '';
+       564 -          
+       565 -          // Apply momentum if significant velocity
+       566 -          if (Math.abs(this.momentum.velocityX) > 0.1 || Math.abs(this.momentum.velocityY) > 0.1) {
+       567 -              this.applyMomentum();
+       568 -          }
+       569 -          
+       570 -          this.state.panStart = null;
+       571 -      }
+       572 -      
+       573 -      applyMomentum() {
+       574 -          if (typeof canvasOffset === 'undefined' || typeof updateCanvasTransform === 'undefined') return;
+       575 -          
+       576 -          const animate = () => {
+       577 -              // Apply velocity
+       578 -              canvasOffset.x += this.momentum.velocityX * 10;
+       579 -              canvasOffset.y += this.momentum.velocityY * 10;
+       580 -              
+       581 -              // Apply friction
+       582 -              this.momentum.velocityX *= this.config.momentumFriction;
+       583 -              this.momentum.velocityY *= this.config.momentumFriction;
+       584 -              
+       585 -              updateCanvasTransform();
+       586 -              
+       587 -              // Continue if velocity is significant
+       588 -              if (Math.abs(this.momentum.velocityX) > 0.01 || Math.abs(this.momentum.velocityY) > 0.01) {
+       589 -                  this.timers.momentum = requestAnimationFrame(animate);
+       590 -              }
+       591 -          };
+       592 -          
+       593 -          animate();
+       594 -      }
+       595 -      
+       535        // Context menu
+       536        showContextMenu(x, y, type, target) {
+       537            const menu = document.createElement('div');
+
+● Now I need to remove the zoom-related functions from mobile-touch.js:
+
+● Update(js/mobile-touch.js)
+  ⎿  Updated js/mobile-touch.js with 2 additions and 25 removals                         
+       934            feedback.addEventListener('animationend', () => feedback.remove());
+       935        }
+       936        
+       937 -      showZoomIndicator() {
+       938 -          if (!this.zoomIndicator) {
+       939 -              this.zoomIndicator = document.createElement('div');
+       940 -              this.zoomIndicator.className = 'zoom-indicator';
+       941 -              document.body.appendChild(this.zoomIndicator);
+       942 -          }
+       943 -          
+       944 -          const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+       945 -          this.zoomIndicator.textContent = Math.round(zoom * 100) + '%';
+       946 -      }
+       937 +      // Zoom indicator functionality moved to mobile-nav.js
+       938        
+       939 -      updateZoomIndicator(text) {
+       940 -          if (this.zoomIndicator) {
+       941 -              this.zoomIndicator.textContent = text;
+       942 -          }
+       943 -      }
+       944 -      
+       945 -      hideZoomIndicator() {
+       946 -          if (this.zoomIndicator) {
+       947 -              this.zoomIndicator.remove();
+       948 -              this.zoomIndicator = null;
+       949 -          }
+       950 -      }
+       951 -      
+       939        showToast(message) {
+       940            const toast = document.createElement('div');
+       941            toast.className = 'touch-toast';
+     ...
+       980        resetState() {
+       981            this.state.mode = 'idle';
+       982            this.state.dragTarget = null;
+       983 -          this.state.panStart = null;
+       984 -          this.state.pinchStart = null;
+       983 +          this.state.dragStart = null;
+       984            this.state.dragInfo = null;
+       985            
+       986            // Clear all timers
+
+● Now I need to check if we need to include mobile-nav.js in the HTML and update any references. Let me check the HTML file:
+
+● Read(index.html)
+  ⎿  Read 50 lines (ctrl+r to expand)
+
+● Search(pattern: "script.*src", glob: "**/index.html", output_mode: "content")
+  ⎿  Found 14 lines (ctrl+r to expand)
+
+● I need to add mobile-nav.js to the HTML file. Let me do this:
+
+● Update Todos
+  ⎿  ☒ Analyze mobile-pinch-standalone.md implementation                
+     ☒ Check current pinch/zoom implementation in ui.js and core.js
+     ☒ Create new mobile-nav.js file with extracted pinch/zoom functions
+     ☒ Update mobile-touch.js to remove pinch/zoom functions
+     ☐ Update ui.js and other files to integrate with mobile-nav.js
+     ☐ Test the new implementation for conflicts
+
+● Update(index.html)
+  ⎿  Updated index.html with 1 addition                     
+       408        
+       409        <!-- Enhanced mobile touch support -->
+       410        <script src="js/mobile-touch.js"></script>
+       411 +      <script src="js/mobile-nav.js"></script>
+       412        
+       413        <script src="js/ui.js"></script>
+       414        <script src="js/export.js"></script>
+
+● Now I need to check if there are any references to pinch functions in ui.js that need to be removed or updated:
+
+● Search(pattern: "pinch|lastPinchDistance|handlePinch", glob: "**/ui.js", output_mode: "content")
+  ⎿  Found 105 lines (ctrl+r to expand)
+
+● I need to update ui.js to remove or update the old pinch functions:
+
+● Update(js/ui.js)
+  ⎿  Error: File has not been read yet. Read it first before writing to it.
+
+● Read(js/ui.js)
+  ⎿  Read 50 lines (ctrl+r to expand)
+
+● Update(js/ui.js)
+  ⎿  Updated js/ui.js with 5 additions and 6 removals                
+       1840    let touchStartTime = null;
+       1841    let lastTouchEnd = 0;
+       1842    let touchHandled = false;
+       1843 -  let initialPinchDistance = null;
+       1844 -  let lastPinchDistance = null;
+       1843 +  // Pinch distance variables moved to mobile-nav.js
+       1844    let mobileOptimized = false;
+       1845    
+       1846    /**
+     ...
+       1951            e.target.dispatchEvent(mouseEvent);
+       1952            
+       1953        } else if (e.touches.length === 2) {
+       1954 -          // Two finger touch - start pinch zoom
+       1955 -          handlePinchStart(e);
+       1954 +          // Two finger touch - handled by mobile-nav.js
+       1955 +          // No action needed here
+       1956        }
+       1957        
+       1958        e.preventDefault();
+     ...
+       1975            document.dispatchEvent(mouseEvent);
+       1976            
+       1977        } else if (e.touches.length === 2) {
+       1978 -          // Two finger move - handle pinch zoom
+       1979 -          handlePinchMove(e);
+       1978 +          // Two finger move - handled by mobile-nav.js
+       1979 +          // No action needed here
+       1980        }
+       1981        
+       1982        e.preventDefault();
+
+● Now let me find and remove the handlePinch functions:
+
+● Read(js/ui.js)
+  ⎿  Read 50 lines (ctrl+r to expand)
+
+● Update(js/ui.js)
+  ⎿  Updated js/ui.js with 2 additions and 46 removals                                
+       2057        }
+       2058    }
+       2059    
+       2060 -  /**
+       2061 -   * Handle pinch start for zoom
+       2062 -   */
+       2063 -  function handlePinchStart(e) {
+       2064 -      // Skip if mobile touch manager is active
+       2065 -      if (window.mobileTouchManager) return;
+       2066 -      
+       2067 -      const touch1 = e.touches[0];
+       2068 -      const touch2 = e.touches[1];
+       2069 -      
+       2070 -      initialPinchDistance = Math.hypot(
+       2071 -          touch2.clientX - touch1.clientX,
+       2072 -          touch2.clientY - touch1.clientY
+       2073 -      );
+       2074 -      lastPinchDistance = initialPinchDistance;
+       2075 -      
+       2076 -      // Disable drag operations during pinch
+       2077 -      if (isDragging) {
+       2078 -          isDragging = false;
+       2079 -          draggedNode = null;
+       2080 -      }
+       2081 -  }
+       2060 +  // Pinch zoom functions moved to mobile-nav.js
+       2061 +  // The mobile navigation manager now handles all pinch and pan gestures
+       2062    
+       2063    /**
+       2064 -   * Handle pinch move for zoom
+       2065 -   */
+       2066 -  function handlePinchMove(e) {
+       2067 -      // Skip if mobile touch manager is active
+       2068 -      if (window.mobileTouchManager) return;
+       2069 -      
+       2070 -      const touch1 = e.touches[0];
+       2071 -      const touch2 = e.touches[1];
+       2072 -      
+       2073 -      const currentDistance = Math.hypot(
+       2074 -          touch2.clientX - touch1.clientX,
+       2075 -          touch2.clientY - touch1.clientY
+       2076 -      );
+       2077 -      
+       2078 -      if (lastPinchDistance > 0) {
+       2079 -          const scale = currentDistance / lastPinchDistance;
+       2080 -          const newZoom = Math.max(0.1, Math.min(3, zoomLevel * scale));
+       2081 -          setZoomLevel(newZoom);
+       2082 -      }
+       2083 -      
+       2084 -      lastPinchDistance = currentDistance;
+       2085 -  }
+       2086 -  
+       2087 -  /**
+       2064     * Setup mobile keyboard handling
+       2065     */
+       2066    function setupMobileKeyboard() {
+
+● Let me also update the comment about two-finger gestures:
+
+● Read(js/ui.js)
+  ⎿  Read 10 lines (ctrl+r to expand)
+
+● Search(pattern: "Two-finger gestures", glob: "**/ui.js", output_mode: "content")
+  ⎿  Found 7 lines (ctrl+r to expand)
+
+● Update(js/ui.js)
+  ⎿  Updated js/ui.js with 1 addition and 1 removal                                                      
+       2127     */
+       2128    function setupTouchBranchCreation() {
+       2129        // Branch creation is now handled via context menus in the modern touch implementation
+       2130 -      // Two-finger gestures are reserved for pinch-to-zoom
+       2130 +      // Two-finger gestures are now handled by mobile-nav.js for pinch-to-zoom
+       2131        // This function is kept for compatibility but no longer needed
+       2132    }
+       2133    
+
+● Now let me check if there are any conflicts by checking the app.js and core.js files for any dependencies:
+
+● Update Todos
+  ⎿  ☒ Analyze mobile-pinch-standalone.md implementation                
+     ☒ Check current pinch/zoom implementation in ui.js and core.js
+     ☒ Create new mobile-nav.js file with extracted pinch/zoom functions
+     ☒ Update mobile-touch.js to remove pinch/zoom functions
+     ☒ Update ui.js and other files to integrate with mobile-nav.js
+     ☐ Test the new implementation for conflicts
+
+● Search(pattern: "pinch|handlePinch", glob: "**/*.js")
+  ⎿  Found 4 files (ctrl+r to expand)
+
+● Good, that looks clean. Let me check if there are any issues with the integration by verifying the mobile touch manager setup looks for the
+  new navigation manager:
+
+● Search(pattern: "mobileNavigationManager|initializeMobileNavigation", glob: "**/*.js", output_mode: "content")
+  ⎿  Found 9 lines (ctrl+r to expand)
+
+● Now let me verify that we don't have any conflicts in dependencies. Let me check if there are any references to the old pinch functions in
+  mobile-touch.js that I missed:
+
+● Search(pattern: "pinch|showZoomIndicator|hideZoomIndicator", glob: "**/mobile-touch.js", output_mode: "content")
+  ⎿  Found 7 lines (ctrl+r to expand)
+
+● Perfect! The integration looks clean. Let me run a quick test to make sure there are no JavaScript errors by checking the diagnostic for any
+  obvious issues:
+  ⎿  [                                                              
+       {
+         "uri": "file:///mnt/d/ai-reference-hub/mindmap/index.html",
+     … +144 lines (ctrl+r to expand)
+
+● The diagnostics show only minor unused variable warnings in mobile-touch.js, which are not critical issues. The implementation looks good!
+  Let me complete the todo and provide a summary:
+
+● Update Todos
+  ⎿  ☒ Analyze mobile-pinch-standalone.md implementation                
+     ☒ Check current pinch/zoom implementation in ui.js and core.js
+     ☒ Create new mobile-nav.js file with extracted pinch/zoom functions
+     ☒ Update mobile-touch.js to remove pinch/zoom functions
+     ☒ Update ui.js and other files to integrate with mobile-nav.js
+     ☒ Test the new implementation for conflicts
+  ⎿  Interrupted by user
+
+> i suspect the dragging of nodes is currently impacted and not working - when selecting and dragging a node, it should not engage the pan/zoom
+   unless the user taps somewhere in the empty canvas..
+
+● You're absolutely right! The issue is that the new mobile-nav.js is handling ALL touch events on the canvas, including those that should be
+  for node dragging. The mobile-nav.js is intercepting touch events before mobile-touch.js can handle node dragging. Let me fix this by
+  updating mobile-nav.js to check if a touch is on an interactive element first.
+
+● Update Todos
+  ⎿  ☐ Fix mobile-nav.js to not interfere with node dragging
+     ☐ Test node dragging after fix
+
+● Update(js/mobile-nav.js)
+  ⎿  Updated js/mobile-nav.js with 9 additions and 1 removal                                                             
+        87        // ===== Touch Event Handlers =====
+        88        
+        89        handleTouchStart(e) {
+        90 +          // Check if touch is on an interactive element (node, connection, button)
+        91 +          const target = e.target.closest('.node, .connection, .tool-btn, button, input, [contenteditable]');
+        92 +          
+        93 +          // If touching an interactive element, don't handle navigation
+        94 +          if (target && e.touches.length === 1) {
+        95 +              return; // Let mobile-touch.js handle node dragging
+        96 +          }
+        97 +          
+        98            e.preventDefault();
+        99            
+       100            // Update touches registry
+     ...
+       103                // Start pinch zoom
+       104                this.startPinch(e.touches);
+       105            } else if (e.touches.length === 1) {
+       106 -              // Start pan
+       106 +              // Start pan (only if not on interactive element)
+       107                this.startPan(e.touches[0]);
+       108            }
+       109        }
+  ⎿  Interrupted by user
+

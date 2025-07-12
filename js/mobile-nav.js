@@ -33,8 +33,7 @@ class MobileNavigationManager {
         this.config = {
             momentumFriction: 0.92,
             minZoom: 0.1,
-            maxZoom: 3,
-            smoothingFactor: 0.1
+            maxZoom: 3
         };
         
         // References
@@ -75,27 +74,37 @@ class MobileNavigationManager {
     
     setupEventHandlers() {
         // Touch events for mobile navigation
-        this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
-        this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
-        this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false });
-        this.canvas.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false });
+        // Use capture phase to handle before pointer events
+        this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false, capture: true });
+        this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false, capture: true });
+        this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false, capture: true });
+        this.canvas.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false, capture: true });
         
-        // Prevent default touch behaviors on canvas
-        this.canvas.style.touchAction = 'none';
+        // Don't override touch-action as mobile-touch.js already sets it
+        // this.canvas.style.touchAction = 'none';
     }
     
     // ===== Touch Event Handlers =====
     
     handleTouchStart(e) {
+        // Check if mobile-touch.js is actively dragging
+        if (window.mobileTouchManager && window.mobileTouchManager.state.mode === 'dragging') {
+            return; // Don't interfere with active dragging
+        }
+        
         // Check if touch is on an interactive element (node, connection, button)
         const target = e.target.closest('.node, .connection, .tool-btn, button, input, [contenteditable]');
         
-        // If touching an interactive element, don't handle navigation
+        // If touching an interactive element with single touch, don't handle navigation
         if (target && e.touches.length === 1) {
-            return; // Let mobile-touch.js handle node dragging
+            // Don't prevent default - let pointer events through for mobile-touch.js
+            return;
         }
         
-        e.preventDefault();
+        // Only prevent default for pan/zoom operations
+        if (e.touches.length === 2 || (!target && e.touches.length === 1)) {
+            e.preventDefault();
+        }
         
         // Update touches registry
         this.state.touches = {};
@@ -117,6 +126,16 @@ class MobileNavigationManager {
     }
     
     handleTouchMove(e) {
+        // Check if mobile-touch.js is actively dragging
+        if (window.mobileTouchManager && window.mobileTouchManager.state.mode === 'dragging') {
+            return; // Don't interfere with active dragging
+        }
+        
+        // Only handle if we're actively panning or pinching
+        if (!this.state.isPanning && !this.state.isPinching) {
+            return;
+        }
+        
         e.preventDefault();
         
         // Update touches registry
@@ -137,7 +156,10 @@ class MobileNavigationManager {
     }
     
     handleTouchEnd(e) {
-        e.preventDefault();
+        // Only prevent default if we were handling the gesture
+        if (this.state.isPanning || this.state.isPinching) {
+            e.preventDefault();
+        }
         
         // Update touches registry
         this.state.touches = {};
@@ -242,12 +264,9 @@ class MobileNavigationManager {
             canvasOffset.y += panDY;
         }
         
-        // Calculate new zoom with smoothing
+        // Calculate new zoom
         const scale = currentDistance / this.state.pinchStartDistance;
-        const targetZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, this.state.pinchStartZoom * scale));
-        
-        // Smooth the zoom change
-        const smoothedZoom = this.smoothZoom(zoomLevel, targetZoom, this.config.smoothingFactor);
+        const newZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, this.state.pinchStartZoom * scale));
         
         // Recalculate the fixed point based on current position
         // This prevents jumping when combining pan+zoom
@@ -258,11 +277,11 @@ class MobileNavigationManager {
         const worldY = (viewportY - canvasOffset.y) / zoomLevel;
         
         // Update zoom
-        setZoomLevel(smoothedZoom);
+        setZoomLevel(newZoom);
         
         // Recalculate offset so the fixed point stays at current center
-        canvasOffset.x = viewportX - worldX * smoothedZoom;
-        canvasOffset.y = viewportY - worldY * smoothedZoom;
+        canvasOffset.x = viewportX - worldX * newZoom;
+        canvasOffset.y = viewportY - worldY * newZoom;
         
         // Update canvas transform
         updateCanvasTransform();
@@ -270,7 +289,7 @@ class MobileNavigationManager {
         // Save current center for next frame
         this.state.previousPinchCenter = { x: currentCenterX, y: currentCenterY };
         
-        this.updateZoomIndicator(Math.round(smoothedZoom * 100) + '%');
+        this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
     }
     
     endPinch() {
@@ -349,11 +368,6 @@ class MobileNavigationManager {
     
     getDistance(x1, y1, x2, y2) {
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    }
-    
-    smoothZoom(currentZoom, targetZoom, factor = 0.1) {
-        // Interpolate between current and target zoom for smoother movement
-        return currentZoom + (targetZoom - currentZoom) * factor;
     }
     
     applyMomentum() {
