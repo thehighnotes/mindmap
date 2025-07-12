@@ -208,23 +208,11 @@ class MobileNavigationManager {
         const centerX = (touch1.clientX + touch2.clientX) / 2;
         const centerY = (touch1.clientY + touch2.clientY) / 2;
         
-        // Convert screen coordinates to world coordinates
-        // Use canvas container instead of canvas to get proper viewport coordinates
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const viewportX = centerX - rect.left;
-        const viewportY = centerY - rect.top;
-        
-        // Convert viewport position to canvas coordinates
-        const canvasX = (viewportX - canvasOffset.x) / zoomLevel;
-        const canvasY = (viewportY - canvasOffset.y) / zoomLevel;
-        
+        // Store the screen coordinates of the pinch center
+        // This matches the mobile-pinch-standalone.md approach
         this.state.pinchFixedPoint = {
             screenX: centerX,
-            screenY: centerY,
-            viewportX: viewportX,
-            viewportY: viewportY,
-            canvasX: canvasX,
-            canvasY: canvasY
+            screenY: centerY
         };
         
         // Initialize previous center for smooth pan during pinch
@@ -269,21 +257,17 @@ class MobileNavigationManager {
         const scale = currentDistance / this.state.pinchStartDistance;
         const newZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, this.state.pinchStartZoom * scale));
         
-        // Recalculate the fixed point based on current position
-        // This prevents jumping when combining pan+zoom
-        // Use canvas container instead of canvas to get proper viewport coordinates
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const viewportX = currentCenterX - rect.left;
-        const viewportY = currentCenterY - rect.top;
-        const worldX = (viewportX - canvasOffset.x) / zoomLevel;
-        const worldY = (viewportY - canvasOffset.y) / zoomLevel;
+        // Use the exact algorithm from mobile-pinch-standalone.md
+        // Calculate the world coordinates at the pinch center
+        const worldX = (currentCenterX - canvasOffset.x) / zoomLevel;
+        const worldY = (currentCenterY - canvasOffset.y) / zoomLevel;
         
         // Update zoom
         setZoomLevel(newZoom);
         
-        // Recalculate offset so the fixed point stays at current center
-        canvasOffset.x = viewportX - worldX * newZoom;
-        canvasOffset.y = viewportY - worldY * newZoom;
+        // Keep the world point fixed at the screen position
+        canvasOffset.x = currentCenterX - worldX * newZoom;
+        canvasOffset.y = currentCenterY - worldY * newZoom;
         
         // Update canvas transform
         updateCanvasTransform();

@@ -796,10 +796,22 @@ function setupEventListeners() {
         
         // Bereken schaal verandering
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = zoomLevel * delta;
+        const newZoom = Math.max(0.1, Math.min(3, zoomLevel * delta));
         
-        // Schaalverandering toepassen
+        // Use the same algorithm as mobile-pinch-standalone.md
+        // Calculate the world coordinates at the mouse position
+        const worldX = (mouseX - canvasOffset.x) / zoomLevel;
+        const worldY = (mouseY - canvasOffset.y) / zoomLevel;
+        
+        // Update zoom
         setZoomLevel(newZoom);
+        
+        // Keep the world point fixed at the mouse position
+        canvasOffset.x = mouseX - worldX * newZoom;
+        canvasOffset.y = mouseY - worldY * newZoom;
+        
+        // Apply the transform
+        updateCanvasTransform();
         
         // Bijwerk zoom UI
         updateMinimapViewport();
