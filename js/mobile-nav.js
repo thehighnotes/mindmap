@@ -209,7 +209,8 @@ class MobileNavigationManager {
         const centerY = (touch1.clientY + touch2.clientY) / 2;
         
         // Convert screen coordinates to world coordinates
-        const rect = this.canvas.getBoundingClientRect();
+        // Use canvas container instead of canvas to get proper viewport coordinates
+        const rect = this.canvasContainer.getBoundingClientRect();
         const viewportX = centerX - rect.left;
         const viewportY = centerY - rect.top;
         
@@ -270,7 +271,8 @@ class MobileNavigationManager {
         
         // Recalculate the fixed point based on current position
         // This prevents jumping when combining pan+zoom
-        const rect = this.canvas.getBoundingClientRect();
+        // Use canvas container instead of canvas to get proper viewport coordinates
+        const rect = this.canvasContainer.getBoundingClientRect();
         const viewportX = currentCenterX - rect.left;
         const viewportY = currentCenterY - rect.top;
         const worldX = (viewportX - canvasOffset.x) / zoomLevel;
