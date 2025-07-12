@@ -257,17 +257,22 @@ class MobileNavigationManager {
         const scale = currentDistance / this.state.pinchStartDistance;
         const newZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, this.state.pinchStartZoom * scale));
         
-        // Use the exact algorithm from mobile-pinch-standalone.md
-        // Calculate the world coordinates at the pinch center
-        const worldX = (currentCenterX - canvasOffset.x) / zoomLevel;
-        const worldY = (currentCenterY - canvasOffset.y) / zoomLevel;
+        // Convert screen coordinates to container coordinates
+        const rect = this.canvasContainer.getBoundingClientRect();
+        const containerX = currentCenterX - rect.left;
+        const containerY = currentCenterY - rect.top;
+        
+        // Account for the CSS transform offset (-2000px, -2000px) and current canvas offset
+        // The world coordinate calculation must match the coordinate system used by nodes
+        const worldX = (containerX - canvasOffset.x + 2000) / zoomLevel;
+        const worldY = (containerY - canvasOffset.y + 2000) / zoomLevel;
         
         // Update zoom
         setZoomLevel(newZoom);
         
-        // Keep the world point fixed at the screen position
-        canvasOffset.x = currentCenterX - worldX * newZoom;
-        canvasOffset.y = currentCenterY - worldY * newZoom;
+        // Keep the world point fixed at the container position
+        canvasOffset.x = containerX - (worldX * newZoom) + 2000;
+        canvasOffset.y = containerY - (worldY * newZoom) + 2000;
         
         // Update canvas transform
         updateCanvasTransform();

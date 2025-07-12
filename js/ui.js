@@ -798,17 +798,16 @@ function setupEventListeners() {
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         const newZoom = Math.max(0.1, Math.min(3, zoomLevel * delta));
         
-        // Use the same algorithm as mobile-pinch-standalone.md
-        // Calculate the world coordinates at the mouse position
-        const worldX = (mouseX - canvasOffset.x) / zoomLevel;
-        const worldY = (mouseY - canvasOffset.y) / zoomLevel;
+        // Account for the CSS transform offset (-2000px, -2000px) to match node coordinates
+        const worldX = (mouseX - canvasOffset.x + 2000) / zoomLevel;
+        const worldY = (mouseY - canvasOffset.y + 2000) / zoomLevel;
         
         // Update zoom
         setZoomLevel(newZoom);
         
         // Keep the world point fixed at the mouse position
-        canvasOffset.x = mouseX - worldX * newZoom;
-        canvasOffset.y = mouseY - worldY * newZoom;
+        canvasOffset.x = mouseX - (worldX * newZoom) + 2000;
+        canvasOffset.y = mouseY - (worldY * newZoom) + 2000;
         
         // Apply the transform
         updateCanvasTransform();
