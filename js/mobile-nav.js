@@ -230,8 +230,13 @@ class MobileNavigationManager {
         this.state.isPinching = true;
         
         // Remove any existing context menus when pinch starts
-        if (window.mobileTouchManager && typeof window.mobileTouchManager.removeContextMenu === 'function') {
-            window.mobileTouchManager.removeContextMenu();
+        if (window.mobileTouchManager) {
+            if (typeof window.mobileTouchManager.removeContextMenu === 'function') {
+                window.mobileTouchManager.removeContextMenu();
+            }
+            if (typeof window.mobileTouchManager.removeQuickActionMenu === 'function') {
+                window.mobileTouchManager.removeQuickActionMenu();
+            }
         }
         
         // Calculate initial distance

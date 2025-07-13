@@ -94,8 +94,17 @@ class ModernTouchManager {
         canvas.addEventListener('contextmenu', (e) => {
             if (e.pointerType === 'touch') {
                 e.preventDefault();
+                e.stopPropagation();
             }
         });
+        
+        // Also prevent legacy context menu on nodes for touch events
+        document.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.node') && (e.pointerType === 'touch' || e.type === 'contextmenu')) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
     }
     
     handlePointerDown(e) {
@@ -310,10 +319,10 @@ class ModernTouchManager {
             const coords = this.getCanvasCoordinates(e);
             this.createNodeAtPosition(coords.x, coords.y);
         } else if (element.classList.contains('node')) {
-            // Double tap on node - show context menu
+            // Double tap on node - show quick action menu (different from long-press)
             const node = nodes.find(n => n.id === element.id);
             if (node) {
-                this.showContextMenu(e.clientX, e.clientY, 'node', node);
+                this.showQuickActionMenu(e.clientX, e.clientY, node);
             }
         } else if (element.classList.contains('connection')) {
             // Double tap on connection - show context menu
@@ -435,6 +444,151 @@ class ModernTouchManager {
     
     // Canvas panning functionality moved to mobile-nav.js
     
+    // Quick action menu for double-tap (more streamlined)
+    showQuickActionMenu(x, y, node) {
+        // Don't show if pinching
+        if (window.mobileNavigationManager && window.mobileNavigationManager.state.isPinching) {
+            return;
+        }
+        
+        // Remove any existing menus first
+        this.removeContextMenu();
+        this.removeQuickActionMenu();
+        
+        const menu = document.createElement('div');
+        menu.className = 'touch-quick-action-menu';
+        menu.style.cssText = `
+            position: fixed;
+            left: ${x}px;
+            top: ${y}px;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            padding: 12px;
+            z-index: 10000;
+            display: flex;
+            gap: 8px;
+            animation: quickMenuPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        `;
+        
+        // Store reference
+        this.currentQuickActionMenu = menu;
+        
+        // Quick action buttons
+        const actions = [
+            {
+                icon: '✏️',
+                label: 'Bewerken',
+                action: () => {
+                    if (typeof openNodeEditor === 'function') {
+                        openNodeEditor(node);
+                    }
+                }
+            },
+            {
+                icon: '🔗',
+                label: 'Verbind',
+                action: () => this.startConnectionMode(node)
+            },
+            {
+                icon: '➕',
+                label: 'Nieuw',
+                action: () => {
+                    if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
+                        const distance = 150;
+                        const pos = findNonOverlappingPosition(node.x + distance, node.y);
+                        createNode(
+                            'Nieuw idee',
+                            '',
+                            node.color,
+                            pos.x,
+                            pos.y,
+                            'rounded',
+                            node.id
+                        );
+                    }
+                }
+            },
+            {
+                icon: '🗑️',
+                label: 'Verwijder',
+                action: () => {
+                    if (typeof deleteNode === 'function') {
+                        deleteNode(node.id);
+                    }
+                }
+            }
+        ];
+        
+        actions.forEach(action => {
+            const button = document.createElement('div');
+            button.className = 'quick-action-button';
+            button.style.cssText = `
+                width: 50px;
+                height: 50px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 20px;
+                color: #333;
+                user-select: none;
+            `;
+            
+            button.innerHTML = `
+                <div style="font-size: 16px; margin-bottom: 2px;">${action.icon}</div>
+                <div style="font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${action.label}</div>
+            `;
+            
+            button.addEventListener('click', () => {
+                action.action();
+                this.removeQuickActionMenu();
+            });
+            
+            button.addEventListener('pointerenter', () => {
+                button.style.transform = 'scale(1.1)';
+                button.style.background = 'rgba(255, 255, 255, 1)';
+            });
+            
+            button.addEventListener('pointerleave', () => {
+                button.style.transform = 'scale(1)';
+                button.style.background = 'rgba(255, 255, 255, 0.9)';
+            });
+            
+            menu.appendChild(button);
+        });
+        
+        document.body.appendChild(menu);
+        
+        // Auto-remove after delay
+        this.quickActionMenuTimeout = setTimeout(() => this.removeQuickActionMenu(), 4000);
+        
+        // Remove on outside click
+        const removeOnOutside = (e) => {
+            if (this.currentQuickActionMenu && !this.currentQuickActionMenu.contains(e.target)) {
+                this.removeQuickActionMenu();
+                document.removeEventListener('pointerdown', removeOnOutside);
+            }
+        };
+        setTimeout(() => document.addEventListener('pointerdown', removeOnOutside), 100);
+    }
+    
+    removeQuickActionMenu() {
+        if (this.currentQuickActionMenu) {
+            this.currentQuickActionMenu.remove();
+            this.currentQuickActionMenu = null;
+        }
+        if (this.quickActionMenuTimeout) {
+            clearTimeout(this.quickActionMenuTimeout);
+            this.quickActionMenuTimeout = null;
+        }
+    }
+
     // Context menu
     showContextMenu(x, y, type, target) {
         // Don't show context menu during pinch operations
@@ -516,6 +670,8 @@ class ModernTouchManager {
             clearTimeout(this.contextMenuTimeout);
             this.contextMenuTimeout = null;
         }
+        // Also remove quick action menu when removing context menu
+        this.removeQuickActionMenu();
     }
     
     getContextMenuItems(type, target) {
@@ -956,6 +1112,17 @@ class ModernTouchManager {
                     opacity: 1;
                 }
             }
+            
+            @keyframes quickMenuPop {
+                0% {
+                    transform: translate(-50%, -50%) scale(0.5);
+                    opacity: 0;
+                }
+                100% {
+                    transform: translate(-50%, -50%) scale(1);
+                    opacity: 1;
+                }
+            }
         `;
         document.head.appendChild(style);
     }
@@ -1094,6 +1261,10 @@ class ModernTouchManager {
     cleanup() {
         this.resetState();
         this.state.activePointers.clear();
+        
+        // Remove context menus
+        this.removeContextMenu();
+        this.removeQuickActionMenu();
         
         // Remove event listeners
         canvas.removeEventListener('pointerdown', this.handlePointerDown);
