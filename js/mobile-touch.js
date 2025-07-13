@@ -207,6 +207,11 @@ class ModernTouchManager {
                     break;
                 // panning is now handled by mobile-nav.js
             }
+            
+            // Check for swipe gesture on nodes
+            if (this.state.mode === 'idle' && this.state.dragTarget) {
+                this.checkForSwipeGesture(e, pointer);
+            }
         }
     }
     
@@ -239,6 +244,31 @@ class ModernTouchManager {
                 this.handleTap(e, element);
             } else if (this.state.mode === 'dragging') {
                 this.endNodeDrag();
+            } else if (this.state.mode === 'idle' && this.state.pendingSwipeAction) {
+                // Execute swipe action
+                const swipe = this.state.pendingSwipeAction;
+                const offsets = {
+                    right: { x: swipe.distance, y: 0 },
+                    left: { x: -swipe.distance, y: 0 },
+                    up: { x: 0, y: -swipe.distance },
+                    down: { x: 0, y: swipe.distance }
+                };
+                
+                const offset = offsets[swipe.direction];
+                if (offset && typeof createNode === 'function') {
+                    createNode(
+                        'Nieuw idee',
+                        '',
+                        swipe.node.color,
+                        swipe.node.x + offset.x,
+                        swipe.node.y + offset.y,
+                        'rounded',
+                        swipe.node.id
+                    );
+                    this.showToast(`Node toegevoegd naar ${swipe.direction === 'right' ? 'rechts' : swipe.direction === 'left' ? 'links' : swipe.direction === 'up' ? 'boven' : 'beneden'}`);
+                }
+                
+                this.state.pendingSwipeAction = null;
             }
         } else if (pointerCount === 2) {
             // Pinch handling is deferred to mobile-nav.js
@@ -414,6 +444,108 @@ class ModernTouchManager {
         this.state.dragTarget = element;
     }
     
+    // Swipe gesture detection for quick node creation
+    checkForSwipeGesture(e, pointer) {
+        const dx = pointer.currentX - pointer.startX;
+        const dy = pointer.currentY - pointer.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Only detect swipe if moved more than drag threshold but not dragging
+        if (distance > this.config.dragThreshold * 3 && distance < 100) {
+            const angle = Math.atan2(dy, dx);
+            const node = nodes.find(n => n.id === this.state.dragTarget.id);
+            
+            if (node) {
+                // Determine swipe direction
+                let direction = '';
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    direction = dx > 0 ? 'right' : 'left';
+                } else {
+                    direction = dy > 0 ? 'down' : 'up';
+                }
+                
+                // Show visual feedback
+                this.showSwipeFeedback(this.state.dragTarget, direction);
+                
+                // Store swipe info for release
+                this.state.pendingSwipeAction = {
+                    node: node,
+                    direction: direction,
+                    distance: 150
+                };
+            }
+        }
+    }
+    
+    showSwipeFeedback(element, direction) {
+        const indicator = document.createElement('div');
+        indicator.className = 'swipe-indicator';
+        indicator.style.cssText = `
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #4CAF50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            pointer-events: none;
+            z-index: 10000;
+            animation: swipeIndicator 0.5s ease-out;
+        `;
+        
+        const rect = element.getBoundingClientRect();
+        const arrows = {
+            right: '→',
+            left: '←',
+            up: '↑',
+            down: '↓'
+        };
+        
+        indicator.textContent = arrows[direction];
+        
+        // Position based on direction
+        switch(direction) {
+            case 'right':
+                indicator.style.left = (rect.right + 10) + 'px';
+                indicator.style.top = (rect.top + rect.height/2 - 20) + 'px';
+                break;
+            case 'left':
+                indicator.style.left = (rect.left - 50) + 'px';
+                indicator.style.top = (rect.top + rect.height/2 - 20) + 'px';
+                break;
+            case 'up':
+                indicator.style.left = (rect.left + rect.width/2 - 20) + 'px';
+                indicator.style.top = (rect.top - 50) + 'px';
+                break;
+            case 'down':
+                indicator.style.left = (rect.left + rect.width/2 - 20) + 'px';
+                indicator.style.top = (rect.bottom + 10) + 'px';
+                break;
+        }
+        
+        document.body.appendChild(indicator);
+        
+        // Add animation style
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes swipeIndicator {
+                0% { opacity: 0; transform: scale(0.5); }
+                50% { opacity: 1; transform: scale(1); }
+                100% { opacity: 0; transform: scale(1.2); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Remove after animation
+        setTimeout(() => {
+            indicator.remove();
+            style.remove();
+        }, 500);
+    }
+    
     // Canvas panning functionality moved to mobile-nav.js
     
     // Context menu
@@ -495,17 +627,67 @@ class ModernTouchManager {
                     action: () => this.startConnectionMode(target)
                 },
                 {
-                    label: 'Nieuw subknooppunt',
+                    label: '➕ Nieuw naar rechts →',
                     action: () => {
                         if (typeof createNode === 'function') {
-                            const angle = Math.random() * Math.PI * 2;
                             const distance = 150;
                             createNode(
                                 'Nieuw idee',
                                 '',
                                 target.color,
-                                target.x + Math.cos(angle) * distance,
-                                target.y + Math.sin(angle) * distance,
+                                target.x + distance,
+                                target.y,
+                                'rounded',
+                                target.id
+                            );
+                        }
+                    }
+                },
+                {
+                    label: '➕ Nieuw naar beneden ↓',
+                    action: () => {
+                        if (typeof createNode === 'function') {
+                            const distance = 150;
+                            createNode(
+                                'Nieuw idee',
+                                '',
+                                target.color,
+                                target.x,
+                                target.y + distance,
+                                'rounded',
+                                target.id
+                            );
+                        }
+                    }
+                },
+                {
+                    label: '➕ Nieuw naar links ←',
+                    action: () => {
+                        if (typeof createNode === 'function') {
+                            const distance = 150;
+                            createNode(
+                                'Nieuw idee',
+                                '',
+                                target.color,
+                                target.x - distance,
+                                target.y,
+                                'rounded',
+                                target.id
+                            );
+                        }
+                    }
+                },
+                {
+                    label: '➕ Nieuw naar boven ↑',
+                    action: () => {
+                        if (typeof createNode === 'function') {
+                            const distance = 150;
+                            createNode(
+                                'Nieuw idee',
+                                '',
+                                target.color,
+                                target.x,
+                                target.y - distance,
                                 'rounded',
                                 target.id
                             );
@@ -601,7 +783,15 @@ class ModernTouchManager {
     
     // Helper methods
     getInteractiveElement(e) {
-        return e.target.closest('.node, .connection, .tool-btn');
+        // Check if we're clicking on an interactive element
+        const interactive = e.target.closest('.node, .connection, .tool-btn, button, .modal, .hamburger-menu');
+        
+        // If clicking on canvas or its direct children (but not nodes/connections), return null
+        if (!interactive && (e.target === canvas || e.target.parentElement === canvas)) {
+            return null;
+        }
+        
+        return interactive;
     }
     
     getCanvasCoordinates(e) {
@@ -975,6 +1165,7 @@ class ModernTouchManager {
         this.state.dragTarget = null;
         this.state.dragStart = null;
         this.state.dragInfo = null;
+        this.state.pendingSwipeAction = null;
         
         // Clear all timers
         Object.keys(this.timers).forEach(timer => this.clearTimer(timer));

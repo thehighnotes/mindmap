@@ -234,6 +234,9 @@ body {
 3. **Move Node**: Long-press node → drag to new position
 4. **Connect Nodes**: Double-tap node → "Verbind met..." → tap target node
 5. **Delete Node**: Double-tap node → "Verwijderen"
+6. **Quick Create Connected Node**: 
+   - **Swipe from node** in any direction (up/down/left/right)
+   - Or double-tap node → select direction (→, ↓, ←, ↑)
 
 #### Mobile-Specific Features
 - **All toolbar functions** available via hamburger menu
@@ -320,13 +323,20 @@ The mobile touch system is **production-ready with modern best practices**:
 - Accessibility compliant
 - Standards-based implementation
 
-### **✅ CRITICAL FIXES (v0.905):**
+### **✅ CRITICAL FIXES (v0.905-v0.907):**
 - **Fixed Pinch Zoom Diagonal Shifting**: Resolved coordinate system mismatch between CSS and JavaScript
   - Set `transform-origin: 0 0` in CSS for correct zoom calculations
   - Synchronized initial `canvasOffset` with CSS transform values
   - Fixed order of operations in pinch zoom to prevent coordinate corruption
 - **Improved Pinch Zoom Stability**: Separated pan and zoom calculations to prevent interference
+- **Fixed Jump on Finger Lift**: Prevents unwanted pan when lifting fingers after pinch
+- **Fixed Canvas Deselection**: Tapping empty canvas now properly deselects nodes
+- **Mobile-Friendly Node Creation**: 
+  - Hidden desktop plus buttons on mobile
+  - Added directional node creation in context menu
+  - Implemented swipe gesture for quick node creation
+- **Prevented Context Menu During Pinch**: No more accidental popups when zooming
 
-**Version**: v1.1 (Pinch Zoom Fix)  
+**Version**: v1.2 (Mobile UX Improvements)  
 **Last Updated**: January 2025  
-**Status**: ✅ **PRODUCTION READY** - Modern implementation with fixed pinch zoom
+**Status**: ✅ **PRODUCTION READY** - Modern implementation with enhanced mobile UX
