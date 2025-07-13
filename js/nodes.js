@@ -1817,3 +1817,52 @@ function dropNodeIntoConnection(nodeId, connectionId, x, y) {
     
     showToast('Knooppunt ingevoegd in verbinding');
 }
+
+// Helper function to find non-overlapping position for new node
+function findNonOverlappingPosition(baseX, baseY, nodeWidth = 150, nodeHeight = 60, maxAttempts = 8) {
+    const minDistance = Math.max(nodeWidth, nodeHeight) + 20; // Add some padding
+    
+    // Check if position overlaps with any existing node
+    function hasOverlap(x, y) {
+        return nodes.some(node => {
+            const dx = Math.abs(node.x - x);
+            const dy = Math.abs(node.y - y);
+            return dx < minDistance && dy < minDistance;
+        });
+    }
+    
+    // If base position is free, use it
+    if (!hasOverlap(baseX, baseY)) {
+        return { x: baseX, y: baseY };
+    }
+    
+    // Try positions in a spiral pattern
+    const spiralOffsets = [
+        { x: minDistance, y: 0 },      // Right
+        { x: 0, y: minDistance },      // Down
+        { x: -minDistance, y: 0 },     // Left
+        { x: 0, y: -minDistance },     // Up
+        { x: minDistance, y: minDistance },   // Down-right
+        { x: -minDistance, y: minDistance },  // Down-left
+        { x: -minDistance, y: -minDistance }, // Up-left
+        { x: minDistance, y: -minDistance }   // Up-right
+    ];
+    
+    // Try each offset
+    for (let i = 0; i < Math.min(spiralOffsets.length, maxAttempts); i++) {
+        const testX = baseX + spiralOffsets[i].x;
+        const testY = baseY + spiralOffsets[i].y;
+        
+        if (!hasOverlap(testX, testY)) {
+            return { x: testX, y: testY };
+        }
+    }
+    
+    // If all positions are taken, offset by a larger amount
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance * 2;
+    return {
+        x: baseX + Math.cos(angle) * distance,
+        y: baseY + Math.sin(angle) * distance
+    };
+}

@@ -208,10 +208,7 @@ class ModernTouchManager {
                 // panning is now handled by mobile-nav.js
             }
             
-            // Check for swipe gesture on nodes
-            if (this.state.mode === 'idle' && this.state.dragTarget) {
-                this.checkForSwipeGesture(e, pointer);
-            }
+            // Removed swipe gesture - using double-tap instead
         }
     }
     
@@ -244,31 +241,6 @@ class ModernTouchManager {
                 this.handleTap(e, element);
             } else if (this.state.mode === 'dragging') {
                 this.endNodeDrag();
-            } else if (this.state.mode === 'idle' && this.state.pendingSwipeAction) {
-                // Execute swipe action
-                const swipe = this.state.pendingSwipeAction;
-                const offsets = {
-                    right: { x: swipe.distance, y: 0 },
-                    left: { x: -swipe.distance, y: 0 },
-                    up: { x: 0, y: -swipe.distance },
-                    down: { x: 0, y: swipe.distance }
-                };
-                
-                const offset = offsets[swipe.direction];
-                if (offset && typeof createNode === 'function') {
-                    createNode(
-                        'Nieuw idee',
-                        '',
-                        swipe.node.color,
-                        swipe.node.x + offset.x,
-                        swipe.node.y + offset.y,
-                        'rounded',
-                        swipe.node.id
-                    );
-                    this.showToast(`Node toegevoegd naar ${swipe.direction === 'right' ? 'rechts' : swipe.direction === 'left' ? 'links' : swipe.direction === 'up' ? 'boven' : 'beneden'}`);
-                }
-                
-                this.state.pendingSwipeAction = null;
             }
         } else if (pointerCount === 2) {
             // Pinch handling is deferred to mobile-nav.js
@@ -291,10 +263,11 @@ class ModernTouchManager {
     // Gesture handlers
     handleTap(e, element) {
         if (!element) {
-            // Tap on canvas - deselect
+            // Tap on canvas - deselect and remove context menu
             if (typeof deselectAll === 'function') {
                 deselectAll();
             }
+            this.removeContextMenu();
             return;
         }
         
@@ -346,14 +319,19 @@ class ModernTouchManager {
     
     handleLongPress(e, element) {
         if (element && element.classList.contains('node')) {
-            // Long press on node - enable drag mode
+            // Long press on node - show context menu
             const node = nodes.find(n => n.id === element.id);
             if (node) {
-                this.enableDragMode(element, node);
-                this.showToast('Sleep om te verplaatsen');
+                this.showContextMenu(e.clientX, e.clientY, 'node', node);
+            }
+        } else if (element && element.classList.contains('connection')) {
+            // Long press on connection - show context menu
+            const connection = connections.find(c => c.id === element.id);
+            if (connection) {
+                this.showContextMenu(e.clientX, e.clientY, 'connection', connection);
             }
         } else {
-            // Long press elsewhere - show context menu
+            // Long press elsewhere - show canvas context menu
             this.showContextMenu(e.clientX, e.clientY, 'canvas', null);
         }
         
@@ -436,120 +414,15 @@ class ModernTouchManager {
         this.state.dragInfo = null;
     }
     
-    enableDragMode(element, node) {
-        // Visual feedback for drag mode
-        element.classList.add('drag-mode');
-        
-        // Store for future drag
-        this.state.dragTarget = element;
-    }
-    
-    // Swipe gesture detection for quick node creation
-    checkForSwipeGesture(e, pointer) {
-        const dx = pointer.currentX - pointer.startX;
-        const dy = pointer.currentY - pointer.startY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Only detect swipe if moved more than drag threshold but not dragging
-        if (distance > this.config.dragThreshold * 3 && distance < 100) {
-            const angle = Math.atan2(dy, dx);
-            const node = nodes.find(n => n.id === this.state.dragTarget.id);
-            
-            if (node) {
-                // Determine swipe direction
-                let direction = '';
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    direction = dx > 0 ? 'right' : 'left';
-                } else {
-                    direction = dy > 0 ? 'down' : 'up';
-                }
-                
-                // Show visual feedback
-                this.showSwipeFeedback(this.state.dragTarget, direction);
-                
-                // Store swipe info for release
-                this.state.pendingSwipeAction = {
-                    node: node,
-                    direction: direction,
-                    distance: 150
-                };
-            }
-        }
-    }
-    
-    showSwipeFeedback(element, direction) {
-        const indicator = document.createElement('div');
-        indicator.className = 'swipe-indicator';
-        indicator.style.cssText = `
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #4CAF50;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 20px;
-            pointer-events: none;
-            z-index: 10000;
-            animation: swipeIndicator 0.5s ease-out;
-        `;
-        
-        const rect = element.getBoundingClientRect();
-        const arrows = {
-            right: '→',
-            left: '←',
-            up: '↑',
-            down: '↓'
-        };
-        
-        indicator.textContent = arrows[direction];
-        
-        // Position based on direction
-        switch(direction) {
-            case 'right':
-                indicator.style.left = (rect.right + 10) + 'px';
-                indicator.style.top = (rect.top + rect.height/2 - 20) + 'px';
-                break;
-            case 'left':
-                indicator.style.left = (rect.left - 50) + 'px';
-                indicator.style.top = (rect.top + rect.height/2 - 20) + 'px';
-                break;
-            case 'up':
-                indicator.style.left = (rect.left + rect.width/2 - 20) + 'px';
-                indicator.style.top = (rect.top - 50) + 'px';
-                break;
-            case 'down':
-                indicator.style.left = (rect.left + rect.width/2 - 20) + 'px';
-                indicator.style.top = (rect.bottom + 10) + 'px';
-                break;
-        }
-        
-        document.body.appendChild(indicator);
-        
-        // Add animation style
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes swipeIndicator {
-                0% { opacity: 0; transform: scale(0.5); }
-                50% { opacity: 1; transform: scale(1); }
-                100% { opacity: 0; transform: scale(1.2); }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        // Remove after animation
-        setTimeout(() => {
-            indicator.remove();
-            style.remove();
-        }, 500);
-    }
+    // Removed enableDragMode and swipe gesture - now using long press for context menu and double-tap for quick node creation
     
     // Canvas panning functionality moved to mobile-nav.js
     
     // Context menu
     showContextMenu(x, y, type, target) {
+        // Remove any existing context menu first
+        this.removeContextMenu();
+        
         const menu = document.createElement('div');
         menu.className = 'touch-context-menu';
         menu.style.cssText = `
@@ -564,6 +437,9 @@ class ModernTouchManager {
             min-width: 180px;
             z-index: 10000;
         `;
+        
+        // Store reference to current menu
+        this.currentContextMenu = menu;
         
         const items = this.getContextMenuItems(type, target);
         
@@ -597,16 +473,27 @@ class ModernTouchManager {
         document.body.appendChild(menu);
         
         // Auto-remove after delay
-        setTimeout(() => menu.remove(), 5000);
+        this.contextMenuTimeout = setTimeout(() => this.removeContextMenu(), 5000);
         
         // Remove on outside click
         const removeOnOutside = (e) => {
-            if (!menu.contains(e.target)) {
-                menu.remove();
+            if (this.currentContextMenu && !this.currentContextMenu.contains(e.target)) {
+                this.removeContextMenu();
                 document.removeEventListener('pointerdown', removeOnOutside);
             }
         };
         setTimeout(() => document.addEventListener('pointerdown', removeOnOutside), 100);
+    }
+    
+    removeContextMenu() {
+        if (this.currentContextMenu) {
+            this.currentContextMenu.remove();
+            this.currentContextMenu = null;
+        }
+        if (this.contextMenuTimeout) {
+            clearTimeout(this.contextMenuTimeout);
+            this.contextMenuTimeout = null;
+        }
     }
     
     getContextMenuItems(type, target) {
@@ -629,14 +516,15 @@ class ModernTouchManager {
                 {
                     label: '➕ Nieuw naar rechts →',
                     action: () => {
-                        if (typeof createNode === 'function') {
+                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
                             const distance = 150;
+                            const pos = findNonOverlappingPosition(target.x + distance, target.y);
                             createNode(
                                 'Nieuw idee',
                                 '',
                                 target.color,
-                                target.x + distance,
-                                target.y,
+                                pos.x,
+                                pos.y,
                                 'rounded',
                                 target.id
                             );
@@ -646,14 +534,15 @@ class ModernTouchManager {
                 {
                     label: '➕ Nieuw naar beneden ↓',
                     action: () => {
-                        if (typeof createNode === 'function') {
+                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
                             const distance = 150;
+                            const pos = findNonOverlappingPosition(target.x, target.y + distance);
                             createNode(
                                 'Nieuw idee',
                                 '',
                                 target.color,
-                                target.x,
-                                target.y + distance,
+                                pos.x,
+                                pos.y,
                                 'rounded',
                                 target.id
                             );
@@ -663,14 +552,15 @@ class ModernTouchManager {
                 {
                     label: '➕ Nieuw naar links ←',
                     action: () => {
-                        if (typeof createNode === 'function') {
+                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
                             const distance = 150;
+                            const pos = findNonOverlappingPosition(target.x - distance, target.y);
                             createNode(
                                 'Nieuw idee',
                                 '',
                                 target.color,
-                                target.x - distance,
-                                target.y,
+                                pos.x,
+                                pos.y,
                                 'rounded',
                                 target.id
                             );
@@ -680,14 +570,15 @@ class ModernTouchManager {
                 {
                     label: '➕ Nieuw naar boven ↑',
                     action: () => {
-                        if (typeof createNode === 'function') {
+                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
                             const distance = 150;
+                            const pos = findNonOverlappingPosition(target.x, target.y - distance);
                             createNode(
                                 'Nieuw idee',
                                 '',
                                 target.color,
-                                target.x,
-                                target.y - distance,
+                                pos.x,
+                                pos.y,
                                 'rounded',
                                 target.id
                             );
@@ -1165,7 +1056,6 @@ class ModernTouchManager {
         this.state.dragTarget = null;
         this.state.dragStart = null;
         this.state.dragInfo = null;
-        this.state.pendingSwipeAction = null;
         
         // Clear all timers
         Object.keys(this.timers).forEach(timer => this.clearTimer(timer));

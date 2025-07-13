@@ -230,13 +230,14 @@ body {
 
 #### Node Operations
 1. **Create Node**: Double-tap empty canvas
-2. **Edit Node**: Double-tap node → context menu → "Bewerken"
-3. **Move Node**: Long-press node → drag to new position
-4. **Connect Nodes**: Double-tap node → "Verbind met..." → tap target node
-5. **Delete Node**: Double-tap node → "Verwijderen"
-6. **Quick Create Connected Node**: 
-   - **Swipe from node** in any direction (up/down/left/right)
-   - Or double-tap node → select direction (→, ↓, ←, ↑)
+2. **Select Node**: Single tap on node
+3. **Edit Node**: Long-press node → context menu → "Bewerken"
+4. **Move Node**: Select node → drag to new position
+5. **Connect Nodes**: Long-press node → "Verbind met..." → tap target node
+6. **Delete Node**: Long-press node → "Verwijderen"
+7. **Quick Create Connected Node**: Double-tap node → select direction (→, ↓, ←, ↑)
+   - Automatically avoids overlapping with existing nodes
+8. **Deselect**: Tap on empty canvas
 
 #### Mobile-Specific Features
 - **All toolbar functions** available via hamburger menu
