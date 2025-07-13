@@ -183,6 +183,9 @@ class MobileNavigationManager {
             e.preventDefault();
         }
         
+        // Store if we were pinching before updating touches
+        const wasPinching = this.state.isPinching;
+        
         // Update touches registry
         this.state.touches = {};
         for (let i = 0; i < e.touches.length; i++) {
@@ -199,6 +202,11 @@ class MobileNavigationManager {
         
         if (e.touches.length === 0) {
             this.endPan();
+        } else if (e.touches.length === 1 && wasPinching) {
+            // If we were pinching and now have 1 finger, don't start panning
+            // This prevents the jump when lifting one finger
+            this.state.isPanning = false;
+            this.state.lastPinchEndTime = Date.now();
         }
     }
     
@@ -339,6 +347,12 @@ class MobileNavigationManager {
     
     startPan(touch) {
         if (this.state.isPinching) return; // Don't pan while pinching
+        
+        // Don't start panning within 100ms of ending a pinch
+        // This prevents accidental panning when lifting fingers
+        if (this.state.lastPinchEndTime && Date.now() - this.state.lastPinchEndTime < 100) {
+            return;
+        }
         
         this.state.isPanning = true;
         this.state.lastX = touch.clientX;

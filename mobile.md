@@ -37,12 +37,13 @@ This document outlines the modern mobile touch support implementation for the Mi
 - **Smooth Dragging**: Grid-snapped movement with real-time connection updates
 - **Touch Feedback**: Material Design-inspired ripple effects
 
-#### 5. Canvas Navigation (✅ OPTIMIZED)
-- **Pinch-to-Zoom**: Smooth center-point zooming with scale limits (0.1x-3x)
+#### 5. Canvas Navigation (✅ FIXED v0.905)
+- **Pinch-to-Zoom**: Fixed diagonal shifting - now zooms correctly around pinch center point
 - **Touch Panning**: Single-finger drag for canvas movement
 - **Momentum Scrolling**: Natural deceleration after pan gestures
 - **Real-time Feedback**: Live zoom indicators during pinch gestures
 - **Performance Optimized**: Hardware-accelerated transforms
+- **Coordinate System**: Fixed transform-origin and coordinate calculations for proper zoom behavior
 
 #### 6. Connection Management (✅ STREAMLINED)
 - **Context Menu Creation**: "Verbind met..." option for touch-friendly connections
@@ -319,6 +320,13 @@ The mobile touch system is **production-ready with modern best practices**:
 - Accessibility compliant
 - Standards-based implementation
 
-**Version**: v1.0 (Modern Standards Implementation)  
+### **✅ CRITICAL FIXES (v0.905):**
+- **Fixed Pinch Zoom Diagonal Shifting**: Resolved coordinate system mismatch between CSS and JavaScript
+  - Set `transform-origin: 0 0` in CSS for correct zoom calculations
+  - Synchronized initial `canvasOffset` with CSS transform values
+  - Fixed order of operations in pinch zoom to prevent coordinate corruption
+- **Improved Pinch Zoom Stability**: Separated pan and zoom calculations to prevent interference
+
+**Version**: v1.1 (Pinch Zoom Fix)  
 **Last Updated**: January 2025  
-**Status**: ✅ **PRODUCTION READY** - Modern implementation following web standards
+**Status**: ✅ **PRODUCTION READY** - Modern implementation with fixed pinch zoom

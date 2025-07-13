@@ -225,8 +225,16 @@ class ModernTouchManager {
             );
             
             if (this.state.mode === 'idle' && distance < this.config.dragThreshold) {
-                // It's a tap
+                // It's a tap - but check if we recently had a pinch
                 this.clearTimer('longPress');
+                
+                // Don't process tap if we recently ended a pinch
+                if (window.mobileNavigationManager && 
+                    window.mobileNavigationManager.state.lastPinchEndTime && 
+                    Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 300) {
+                    return;
+                }
+                
                 const element = this.getInteractiveElement(e);
                 this.handleTap(e, element);
             } else if (this.state.mode === 'dragging') {
@@ -277,6 +285,13 @@ class ModernTouchManager {
     
     handleDoubleTap(e, element) {
         this.clearTimer('doubleTap');
+        
+        // Don't show context menu if we recently ended a pinch zoom
+        if (window.mobileNavigationManager && 
+            window.mobileNavigationManager.state.lastPinchEndTime && 
+            Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 500) {
+            return;
+        }
         
         if (!element) {
             // Double tap on canvas - create node
