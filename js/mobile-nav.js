@@ -267,18 +267,16 @@ class MobileNavigationManager {
         const currentCenterX = (touch1.clientX + touch2.clientX) / 2;
         const currentCenterY = (touch1.clientY + touch2.clientY) / 2;
         
-        // Apply pan during pinch using the same coordinate system
+        // Calculate pan delta but don't apply it yet
+        let panDX = 0;
+        let panDY = 0;
         if (this.state.previousPinchCenter) {
-            const panDX = currentCenterX - this.state.previousPinchCenter.x;
-            const panDY = currentCenterY - this.state.previousPinchCenter.y;
+            panDX = currentCenterX - this.state.previousPinchCenter.x;
+            panDY = currentCenterY - this.state.previousPinchCenter.y;
             
             if (Math.abs(panDX) > 1 || Math.abs(panDY) > 1) {
                 this.updateDebugInfo(`Pan: dx=${panDX.toFixed(1)} dy=${panDY.toFixed(1)}`);
             }
-            
-            // Apply pan first (screen coordinate delta = container coordinate delta)
-            canvasOffset.x += panDX;
-            canvasOffset.y += panDY;
         }
         
         // Calculate new zoom
@@ -308,6 +306,10 @@ class MobileNavigationManager {
         const oldOffsetY = canvasOffset.y;
         canvasOffset.x = containerCenterX - worldX * newZoom;
         canvasOffset.y = containerCenterY - worldY * newZoom;
+        
+        // Now apply the pan on top of the zoom adjustment
+        canvasOffset.x += panDX;
+        canvasOffset.y += panDY;
         
         // Log significant offset changes
         if (Math.abs(canvasOffset.x - oldOffsetX) > 5 || Math.abs(canvasOffset.y - oldOffsetY) > 5) {
