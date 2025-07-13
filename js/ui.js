@@ -789,26 +789,54 @@ function setupEventListeners() {
     canvasContainer.addEventListener('wheel', function(e) {
         e.preventDefault();
         
+        // Add debugging for desktop testing
+        console.log('🖱️ Wheel zoom event:', { deltaY: e.deltaY, zoomLevel });
+        
         // Bereken canvas positie onder cursor
         const rect = canvasContainer.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         
+        console.log('📍 Mouse position:', { 
+            clientX: e.clientX, 
+            clientY: e.clientY, 
+            rectLeft: rect.left, 
+            rectTop: rect.top,
+            mouseX, 
+            mouseY 
+        });
+        
         // Bereken schaal verandering
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         const newZoom = Math.max(0.1, Math.min(3, zoomLevel * delta));
+        
+        console.log('🔍 Zoom change:', { oldZoom: zoomLevel, delta, newZoom });
         
         // Use the same algorithm as mobile-pinch-standalone.md
         // Calculate the world coordinates at the mouse position
         const worldX = (mouseX - canvasOffset.x) / zoomLevel;
         const worldY = (mouseY - canvasOffset.y) / zoomLevel;
         
+        console.log('🌍 World coords:', { 
+            canvasOffsetBefore: { ...canvasOffset },
+            worldX, 
+            worldY 
+        });
+        
         // Update zoom
         setZoomLevel(newZoom);
         
         // Keep the world point fixed at the mouse position
+        const oldOffsetX = canvasOffset.x;
+        const oldOffsetY = canvasOffset.y;
         canvasOffset.x = mouseX - worldX * newZoom;
         canvasOffset.y = mouseY - worldY * newZoom;
+        
+        console.log('📍 Offset change:', {
+            old: { x: oldOffsetX, y: oldOffsetY },
+            new: { x: canvasOffset.x, y: canvasOffset.y },
+            delta: { x: canvasOffset.x - oldOffsetX, y: canvasOffset.y - oldOffsetY }
+        });
         
         // Apply the transform
         updateCanvasTransform();

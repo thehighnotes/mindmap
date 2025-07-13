@@ -18,7 +18,8 @@ let currentSelectedNode = null;
 let currentSelectedConnection = null;
 let canvasDragging = false;
 let canvasDragStart = { x: 0, y: 0 };
-let canvasOffset = { x: 0, y: 0 };
+// Initialize with the same offset as the CSS transform
+let canvasOffset = { x: -2000, y: -2000 };
 let showGrid = true;
 let showMinimap = false;
 let zoomLevel = 1;

@@ -326,7 +326,8 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    transform: translate(-2000px, -2000px);
+    /* Initial transform handled by JS canvasOffset initialization */
+    transform-origin: 0 0; /* Important: scale from top-left corner for correct zoom calculations */
     background-color: #1e1e1e;
     background-image: radial-gradient(#333 1px, transparent 1px);
     background-size: 30px 30px;
