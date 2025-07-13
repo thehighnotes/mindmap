@@ -229,6 +229,11 @@ class MobileNavigationManager {
         
         this.state.isPinching = true;
         
+        // Remove any existing context menus when pinch starts
+        if (window.mobileTouchManager && typeof window.mobileTouchManager.removeContextMenu === 'function') {
+            window.mobileTouchManager.removeContextMenu();
+        }
+        
         // Calculate initial distance
         this.state.pinchStartDistance = this.getDistance(
             touch1.clientX, touch1.clientY,
@@ -481,8 +486,8 @@ class MobileNavigationManager {
     // ===== Debug Overlay Functions =====
     
     setupDebugOverlay() {
-        // Debug enabled flag
-        this.debugEnabled = true;
+        // Debug disabled by default
+        this.debugEnabled = false;
         
         // Create overlay
         this.debugOverlay = document.createElement('div');
@@ -504,36 +509,61 @@ class MobileNavigationManager {
             white-space: pre-wrap;
             word-wrap: break-word;
         `;
+        // Start hidden by default
+        this.debugOverlay.style.display = 'none';
         document.body.appendChild(this.debugOverlay);
         
-        // Create toggle button
-        this.debugToggle = document.createElement('button');
-        this.debugToggle.textContent = 'Hide Debug';
-        this.debugToggle.style.cssText = `
-            position: fixed;
-            top: 220px;
-            right: 10px;
-            background: #333;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            z-index: 10002;
-            cursor: pointer;
-        `;
-        this.debugToggle.addEventListener('click', () => {
-            this.debugEnabled = !this.debugEnabled;
-            this.debugOverlay.style.display = this.debugEnabled ? 'block' : 'none';
-            this.debugToggle.textContent = this.debugEnabled ? 'Hide Debug' : 'Show Debug';
-        });
-        document.body.appendChild(this.debugToggle);
+        // Connect to toolbar button instead of creating separate button
+        this.connectToToolbarButton();
         
-        this.updateDebugInfo('Debug overlay initialized - tap "Hide Debug" to toggle');
+        this.updateDebugInfo('Debug overlay initialized - use toolbar button to toggle');
+    }
+    
+    connectToToolbarButton() {
+        // Wait for toolbar button to be available
+        const checkButton = () => {
+            const debugButton = document.getElementById('toggle-mobile-debug-btn');
+            if (debugButton) {
+                debugButton.addEventListener('click', () => {
+                    this.toggleDebugOverlay();
+                });
+                // Update button appearance based on debug state
+                this.updateDebugButtonAppearance(debugButton);
+            } else {
+                // Retry if button not found yet
+                setTimeout(checkButton, 100);
+            }
+        };
+        checkButton();
+    }
+    
+    toggleDebugOverlay() {
+        this.debugEnabled = !this.debugEnabled;
+        this.debugOverlay.style.display = this.debugEnabled ? 'block' : 'none';
+        
+        // Update button appearance
+        const debugButton = document.getElementById('toggle-mobile-debug-btn');
+        if (debugButton) {
+            this.updateDebugButtonAppearance(debugButton);
+        }
+        
+        if (this.debugEnabled) {
+            this.updateDebugInfo('Debug overlay enabled');
+        }
+    }
+    
+    updateDebugButtonAppearance(button) {
+        if (this.debugEnabled) {
+            button.classList.add('active');
+            button.style.backgroundColor = '#4CAF50';
+        } else {
+            button.classList.remove('active');
+            button.style.backgroundColor = '';
+        }
     }
     
     updateDebugInfo(message) {
-        if (!this.debugOverlay) return;
+        if (!this.debugOverlay || !this.debugEnabled) return;
         
         const timestamp = new Date().toLocaleTimeString();
         const newMessage = `[${timestamp}] ${message}\n`;
@@ -568,10 +598,6 @@ class MobileNavigationManager {
         if (this.debugOverlay) {
             this.debugOverlay.remove();
             this.debugOverlay = null;
-        }
-        if (this.debugToggle) {
-            this.debugToggle.remove();
-            this.debugToggle = null;
         }
         
         // Reset state

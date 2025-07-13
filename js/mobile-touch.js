@@ -262,6 +262,14 @@ class ModernTouchManager {
     
     // Gesture handlers
     handleTap(e, element) {
+        // Don't process tap if we're currently pinching or recently ended a pinch
+        if (window.mobileNavigationManager && 
+            (window.mobileNavigationManager.state.isPinching ||
+             (window.mobileNavigationManager.state.lastPinchEndTime && 
+              Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 300))) {
+            return;
+        }
+        
         if (!element) {
             // Tap on canvas - deselect and remove context menu
             if (typeof deselectAll === 'function') {
@@ -289,10 +297,11 @@ class ModernTouchManager {
     handleDoubleTap(e, element) {
         this.clearTimer('doubleTap');
         
-        // Don't show context menu if we recently ended a pinch zoom
+        // Don't show context menu if we recently ended a pinch zoom OR if we're currently pinching
         if (window.mobileNavigationManager && 
-            window.mobileNavigationManager.state.lastPinchEndTime && 
-            Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 500) {
+            (window.mobileNavigationManager.state.isPinching ||
+             (window.mobileNavigationManager.state.lastPinchEndTime && 
+              Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 500))) {
             return;
         }
         
@@ -318,6 +327,14 @@ class ModernTouchManager {
     }
     
     handleLongPress(e, element) {
+        // Don't show context menu if we're currently pinching or recently ended a pinch
+        if (window.mobileNavigationManager && 
+            (window.mobileNavigationManager.state.isPinching ||
+             (window.mobileNavigationManager.state.lastPinchEndTime && 
+              Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 500))) {
+            return;
+        }
+        
         if (element && element.classList.contains('node')) {
             // Long press on node - show context menu
             const node = nodes.find(n => n.id === element.id);
@@ -420,6 +437,11 @@ class ModernTouchManager {
     
     // Context menu
     showContextMenu(x, y, type, target) {
+        // Don't show context menu during pinch operations
+        if (window.mobileNavigationManager && window.mobileNavigationManager.state.isPinching) {
+            return;
+        }
+        
         // Remove any existing context menu first
         this.removeContextMenu();
         
