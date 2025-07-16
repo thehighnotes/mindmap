@@ -173,10 +173,13 @@ body {
 
 ### Touch Gestures
 - **Single Tap**: Select elements
-- **Double Tap**: Context menus
-- **Long Press**: Enable drag mode
+- **Double Tap on Node**: Create new connected node (v0.910)
+- **Double Tap on Canvas**: Create new node at position
+- **Long Press on Node**: Show quick action menu (v0.910)
+- **Long Press on Canvas**: Create new node at position
 - **Pinch**: Zoom in/out
 - **Pan**: Move canvas
+- **Drag**: Move selected node
 
 ### Visual Feedback
 - **Ripple Effects**: Material Design touch feedback
@@ -229,15 +232,18 @@ body {
 - **Access Menu**: Tap hamburger button (top-left)
 
 #### Node Operations
-1. **Create Node**: Double-tap empty canvas
+1. **Create Node**: Double-tap or long-press empty canvas
 2. **Select Node**: Single tap on node
-3. **Edit Node**: Long-press node → context menu → "Bewerken"
-4. **Move Node**: Select node → drag to new position
-5. **Connect Nodes**: Long-press node → "Verbind met..." → tap target node
-6. **Delete Node**: Long-press node → "Verwijderen"
-7. **Quick Create Connected Node**: Double-tap node → select direction (→, ↓, ←, ↑)
-   - Automatically avoids overlapping with existing nodes
-8. **Deselect**: Tap on empty canvas
+3. **Quick Create Connected Node**: Double-tap on node (v0.910)
+   - Automatically positions to the right, or up/down/left if space not available
+   - Avoids overlapping with existing nodes
+4. **Show Quick Actions**: Long-press on node (v0.910)
+   - Edit (✏️): Open node editor
+   - Connect (🔗): Start connection mode
+   - New (➕): Create connected node
+   - Delete (🗑️): Remove node
+5. **Move Node**: Select node → drag to new position
+6. **Deselect**: Tap on empty canvas
 
 #### Mobile-Specific Features
 - **All toolbar functions** available via hamburger menu
@@ -285,6 +291,21 @@ if (touchManager.state.mode !== 'idle') {
 - [ ] Android Chrome: Performance and gestures
 - [ ] iPad: Large screen touch interactions
 - [ ] Samsung Internet: Compatibility verification
+
+## 🆕 Version 0.910 Updates
+
+### Improved Touch Interactions
+- **Long Press on Node**: Shows quick action menu with intuitive icons (Edit, Connect, New, Delete)
+- **Double Tap on Node**: Automatically creates a new connected node with smart positioning
+  - Prefers right position first, then up, down, and finally left
+  - Automatically avoids overlapping with existing nodes
+  - No auto-edit popup to prevent UI jumping issues
+- **Removed Verbose Context Menu**: The old menu with "Verbind met...", "Nieuw naar beneden", etc. has been removed for a cleaner UX
+
+### Desktop/Mobile Separation
+- Touch interactions (long press, double tap) only work with touch input
+- Mouse double-click does NOT trigger node creation
+- Desktop right-click context menu remains unchanged and fully functional
 
 ## Architecture Benefits
 
@@ -338,6 +359,6 @@ The mobile touch system is **production-ready with modern best practices**:
   - Implemented swipe gesture for quick node creation
 - **Prevented Context Menu During Pinch**: No more accidental popups when zooming
 
-**Version**: v1.2 (Mobile UX Improvements)  
+**Version**: v1.3 (Touch Interaction Improvements)  
 **Last Updated**: January 2025  
-**Status**: ✅ **PRODUCTION READY** - Modern implementation with enhanced mobile UX
+**Status**: ✅ **PRODUCTION READY** - Modern implementation with streamlined touch UX

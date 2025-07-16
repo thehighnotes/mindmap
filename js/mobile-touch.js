@@ -100,7 +100,7 @@ class ModernTouchManager {
         
         // Also prevent legacy context menu on nodes for touch events
         document.addEventListener('contextmenu', (e) => {
-            if (e.target.closest('.node') && (e.pointerType === 'touch' || e.type === 'contextmenu')) {
+            if (e.target.closest('.node') && e.pointerType === 'touch') {
                 e.preventDefault();
                 e.stopPropagation();
             }
@@ -137,7 +137,7 @@ class ModernTouchManager {
         const pointer = this.state.activePointers.get(e.pointerId);
         const element = this.getInteractiveElement(e);
         
-        // Check for double tap
+        // Check for double tap (only for touch events)
         const now = Date.now();
         const tapDelta = now - this.lastTap.time;
         const distance = this.getDistance(
@@ -145,7 +145,8 @@ class ModernTouchManager {
             this.lastTap.x, this.lastTap.y
         );
         
-        if (tapDelta < this.config.doubleTapDelay && 
+        if (e.pointerType === 'touch' &&
+            tapDelta < this.config.doubleTapDelay && 
             distance < 30 && 
             this.lastTap.target === element) {
             this.handleDoubleTap(e, element);
@@ -160,13 +161,15 @@ class ModernTouchManager {
             y: e.clientY
         };
         
-        // Start long press timer
-        this.clearTimer('longPress');
-        this.timers.longPress = setTimeout(() => {
-            if (this.state.mode === 'idle' && this.state.activePointers.has(e.pointerId)) {
-                this.handleLongPress(e, element);
-            }
-        }, this.config.longPressDelay);
+        // Start long press timer (only for touch events)
+        if (e.pointerType === 'touch') {
+            this.clearTimer('longPress');
+            this.timers.longPress = setTimeout(() => {
+                if (this.state.mode === 'idle' && this.state.activePointers.has(e.pointerId)) {
+                    this.handleLongPress(e, element);
+                }
+            }, this.config.longPressDelay);
+        }
         
         // Store potential drag target
         if (element && element.classList.contains('node')) {
@@ -271,6 +274,8 @@ class ModernTouchManager {
     
     // Gesture handlers
     handleTap(e, element) {
+        console.log('handleTap called with element:', element, 'e.target:', e.target);
+        
         // Don't process tap if we're currently pinching or recently ended a pinch
         if (window.mobileNavigationManager && 
             (window.mobileNavigationManager.state.isPinching ||
@@ -280,6 +285,7 @@ class ModernTouchManager {
         }
         
         if (!element) {
+            console.log('Tap on empty canvas - deselecting');
             // Tap on canvas - deselect and remove context menu
             if (typeof deselectAll === 'function') {
                 deselectAll();
@@ -305,30 +311,34 @@ class ModernTouchManager {
     
     handleDoubleTap(e, element) {
         this.clearTimer('doubleTap');
+        console.log('Double tap detected on element:', element, 'target:', e.target);
         
         // Don't show context menu if we recently ended a pinch zoom OR if we're currently pinching
         if (window.mobileNavigationManager && 
             (window.mobileNavigationManager.state.isPinching ||
              (window.mobileNavigationManager.state.lastPinchEndTime && 
               Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 500))) {
+            console.log('Double tap blocked due to recent pinch');
             return;
         }
         
         if (!element) {
             // Double tap on canvas - create node
+            console.log('Double tap on empty canvas detected');
             const coords = this.getCanvasCoordinates(e);
+            console.log('Canvas coordinates:', coords);
             this.createNodeAtPosition(coords.x, coords.y);
         } else if (element.classList.contains('node')) {
-            // Double tap on node - show quick action menu (different from long-press)
+            // Double tap on node - automatically create a new connected node
             const node = nodes.find(n => n.id === element.id);
             if (node) {
-                this.showQuickActionMenu(e.clientX, e.clientY, node);
+                this.createConnectedNode(node);
             }
         } else if (element.classList.contains('connection')) {
-            // Double tap on connection - show context menu
+            // Double tap on connection - show simple connection menu
             const connection = connections.find(c => c.id === element.id);
             if (connection) {
-                this.showContextMenu(e.clientX, e.clientY, 'connection', connection);
+                this.showSimpleConnectionMenu(e.clientX, e.clientY, connection);
             }
         }
         
@@ -336,7 +346,7 @@ class ModernTouchManager {
     }
     
     handleLongPress(e, element) {
-        // Don't show context menu if we're currently pinching or recently ended a pinch
+        // Don't show menu if we're currently pinching or recently ended a pinch
         if (window.mobileNavigationManager && 
             (window.mobileNavigationManager.state.isPinching ||
              (window.mobileNavigationManager.state.lastPinchEndTime && 
@@ -345,20 +355,21 @@ class ModernTouchManager {
         }
         
         if (element && element.classList.contains('node')) {
-            // Long press on node - show context menu
+            // Long press on node - show quick action menu
             const node = nodes.find(n => n.id === element.id);
             if (node) {
-                this.showContextMenu(e.clientX, e.clientY, 'node', node);
+                this.showQuickActionMenu(e.clientX, e.clientY, node);
             }
         } else if (element && element.classList.contains('connection')) {
-            // Long press on connection - show context menu
+            // Long press on connection - show simple connection menu
             const connection = connections.find(c => c.id === element.id);
             if (connection) {
-                this.showContextMenu(e.clientX, e.clientY, 'connection', connection);
+                this.showSimpleConnectionMenu(e.clientX, e.clientY, connection);
             }
         } else {
-            // Long press elsewhere - show canvas context menu
-            this.showContextMenu(e.clientX, e.clientY, 'canvas', null);
+            // Long press on canvas - create new node
+            const coords = this.getCanvasCoordinates(e);
+            this.createNodeAtPosition(coords.x, coords.y);
         }
         
         this.showVisualFeedback(element || canvas, 'long-press');
@@ -440,11 +451,164 @@ class ModernTouchManager {
         this.state.dragInfo = null;
     }
     
-    // Removed enableDragMode and swipe gesture - now using long press for context menu and double-tap for quick node creation
+    // Create connected node with smart positioning
+    createConnectedNode(parentNode) {
+        if (typeof createNode !== 'function' || typeof findNonOverlappingPosition !== 'function') {
+            console.log('Required functions not available');
+            return;
+        }
+        
+        const distance = 150;
+        
+        // Try positions in order: right, up, down, left
+        const positions = [
+            { x: parentNode.x + distance, y: parentNode.y },      // Right
+            { x: parentNode.x, y: parentNode.y - distance },      // Up
+            { x: parentNode.x, y: parentNode.y + distance },      // Down
+            { x: parentNode.x - distance, y: parentNode.y }       // Left
+        ];
+        
+        // Find the first position that doesn't overlap
+        let finalPos = null;
+        for (const pos of positions) {
+            const nonOverlappingPos = findNonOverlappingPosition(pos.x, pos.y);
+            // Check if the position is close to the desired position (no major adjustment needed)
+            const dx = Math.abs(nonOverlappingPos.x - pos.x);
+            const dy = Math.abs(nonOverlappingPos.y - pos.y);
+            if (dx < 50 && dy < 50) {
+                finalPos = nonOverlappingPos;
+                break;
+            }
+        }
+        
+        // If no good position found, use the first position with adjustment
+        if (!finalPos) {
+            finalPos = findNonOverlappingPosition(positions[0].x, positions[0].y);
+        }
+        
+        // Create the new node
+        const newNode = createNode(
+            'Nieuw idee',
+            '',
+            parentNode.color,
+            finalPos.x,
+            finalPos.y,
+            'rounded',
+            parentNode.id
+        );
+        
+        this.showToast('Nieuwe node aangemaakt!');
+        
+        // Don't auto-edit to avoid the issue you mentioned
+    }
     
     // Canvas panning functionality moved to mobile-nav.js
     
-    // Quick action menu for double-tap (more streamlined)
+    // Simple connection menu for connections
+    showSimpleConnectionMenu(x, y, connection) {
+        // Remove any existing menus first
+        this.removeContextMenu();
+        this.removeQuickActionMenu();
+        
+        const menu = document.createElement('div');
+        menu.className = 'touch-quick-action-menu';
+        menu.style.cssText = `
+            position: fixed;
+            left: ${x}px;
+            top: ${y}px;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            padding: 12px;
+            z-index: 10000;
+            display: flex;
+            gap: 8px;
+            animation: quickMenuPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        `;
+        
+        this.currentQuickActionMenu = menu;
+        
+        // Simple actions for connections
+        const actions = [
+            {
+                icon: '✏️',
+                label: 'Bewerken',
+                action: () => {
+                    if (typeof openConnectionEditor === 'function') {
+                        openConnectionEditor(connection);
+                    }
+                }
+            },
+            {
+                icon: '🗑️',
+                label: 'Verwijder',
+                action: () => {
+                    if (typeof deleteConnection === 'function') {
+                        deleteConnection(connection.id);
+                    }
+                }
+            }
+        ];
+        
+        actions.forEach(action => {
+            const button = document.createElement('div');
+            button.className = 'quick-action-button';
+            button.style.cssText = `
+                width: 50px;
+                height: 50px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 20px;
+                color: #333;
+                user-select: none;
+            `;
+            
+            button.innerHTML = `
+                <div style="font-size: 16px; margin-bottom: 2px;">${action.icon}</div>
+                <div style="font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">${action.label}</div>
+            `;
+            
+            button.addEventListener('click', () => {
+                action.action();
+                this.removeQuickActionMenu();
+            });
+            
+            button.addEventListener('pointerenter', () => {
+                button.style.transform = 'scale(1.1)';
+                button.style.background = 'rgba(255, 255, 255, 1)';
+            });
+            
+            button.addEventListener('pointerleave', () => {
+                button.style.transform = 'scale(1)';
+                button.style.background = 'rgba(255, 255, 255, 0.9)';
+            });
+            
+            menu.appendChild(button);
+        });
+        
+        document.body.appendChild(menu);
+        
+        // Auto-remove after delay
+        this.quickActionMenuTimeout = setTimeout(() => this.removeQuickActionMenu(), 4000);
+        
+        // Remove on outside click
+        const removeOnOutside = (e) => {
+            if (this.currentQuickActionMenu && !this.currentQuickActionMenu.contains(e.target)) {
+                this.removeQuickActionMenu();
+                document.removeEventListener('pointerdown', removeOnOutside);
+            }
+        };
+        setTimeout(() => document.addEventListener('pointerdown', removeOnOutside), 100);
+    }
+    
+    // Quick action menu for long-press on nodes (more streamlined)
     showQuickActionMenu(x, y, node) {
         // Don't show if pinching
         if (window.mobileNavigationManager && window.mobileNavigationManager.state.isPinching) {
@@ -589,232 +753,14 @@ class ModernTouchManager {
         }
     }
 
-    // Context menu
-    showContextMenu(x, y, type, target) {
-        // Don't show context menu during pinch operations
-        if (window.mobileNavigationManager && window.mobileNavigationManager.state.isPinching) {
-            return;
-        }
-        
-        // Remove any existing context menu first
-        this.removeContextMenu();
-        
-        const menu = document.createElement('div');
-        menu.className = 'touch-context-menu';
-        menu.style.cssText = `
-            position: fixed;
-            left: ${x}px;
-            top: ${y}px;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            padding: 8px 0;
-            min-width: 180px;
-            z-index: 10000;
-        `;
-        
-        // Store reference to current menu
-        this.currentContextMenu = menu;
-        
-        const items = this.getContextMenuItems(type, target);
-        
-        items.forEach(item => {
-            const menuItem = document.createElement('div');
-            menuItem.className = 'context-menu-item';
-            menuItem.textContent = item.label;
-            menuItem.style.cssText = `
-                padding: 12px 20px;
-                cursor: pointer;
-                font-size: 16px;
-                color: ${item.danger ? '#f44336' : '#333'};
-            `;
-            
-            menuItem.addEventListener('click', () => {
-                item.action();
-                menu.remove();
-            });
-            
-            menuItem.addEventListener('pointerenter', () => {
-                menuItem.style.backgroundColor = '#f5f5f5';
-            });
-            
-            menuItem.addEventListener('pointerleave', () => {
-                menuItem.style.backgroundColor = '';
-            });
-            
-            menu.appendChild(menuItem);
-        });
-        
-        document.body.appendChild(menu);
-        
-        // Auto-remove after delay
-        this.contextMenuTimeout = setTimeout(() => this.removeContextMenu(), 5000);
-        
-        // Remove on outside click
-        const removeOnOutside = (e) => {
-            if (this.currentContextMenu && !this.currentContextMenu.contains(e.target)) {
-                this.removeContextMenu();
-                document.removeEventListener('pointerdown', removeOnOutside);
-            }
-        };
-        setTimeout(() => document.addEventListener('pointerdown', removeOnOutside), 100);
-    }
+    // Removed verbose context menu - now using quick action menu for all interactions
     
     removeContextMenu() {
-        if (this.currentContextMenu) {
-            this.currentContextMenu.remove();
-            this.currentContextMenu = null;
-        }
-        if (this.contextMenuTimeout) {
-            clearTimeout(this.contextMenuTimeout);
-            this.contextMenuTimeout = null;
-        }
-        // Also remove quick action menu when removing context menu
+        // Legacy method for compatibility - just remove quick action menu
         this.removeQuickActionMenu();
     }
     
-    getContextMenuItems(type, target) {
-        const items = [];
-        
-        if (type === 'node' && target) {
-            items.push(
-                {
-                    label: 'Bewerken',
-                    action: () => {
-                        if (typeof openNodeEditor === 'function') {
-                            openNodeEditor(target);
-                        }
-                    }
-                },
-                {
-                    label: 'Verbind met...',
-                    action: () => this.startConnectionMode(target)
-                },
-                {
-                    label: '➕ Nieuw naar rechts →',
-                    action: () => {
-                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
-                            const distance = 150;
-                            const pos = findNonOverlappingPosition(target.x + distance, target.y);
-                            createNode(
-                                'Nieuw idee',
-                                '',
-                                target.color,
-                                pos.x,
-                                pos.y,
-                                'rounded',
-                                target.id
-                            );
-                        }
-                    }
-                },
-                {
-                    label: '➕ Nieuw naar beneden ↓',
-                    action: () => {
-                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
-                            const distance = 150;
-                            const pos = findNonOverlappingPosition(target.x, target.y + distance);
-                            createNode(
-                                'Nieuw idee',
-                                '',
-                                target.color,
-                                pos.x,
-                                pos.y,
-                                'rounded',
-                                target.id
-                            );
-                        }
-                    }
-                },
-                {
-                    label: '➕ Nieuw naar links ←',
-                    action: () => {
-                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
-                            const distance = 150;
-                            const pos = findNonOverlappingPosition(target.x - distance, target.y);
-                            createNode(
-                                'Nieuw idee',
-                                '',
-                                target.color,
-                                pos.x,
-                                pos.y,
-                                'rounded',
-                                target.id
-                            );
-                        }
-                    }
-                },
-                {
-                    label: '➕ Nieuw naar boven ↑',
-                    action: () => {
-                        if (typeof createNode === 'function' && typeof findNonOverlappingPosition === 'function') {
-                            const distance = 150;
-                            const pos = findNonOverlappingPosition(target.x, target.y - distance);
-                            createNode(
-                                'Nieuw idee',
-                                '',
-                                target.color,
-                                pos.x,
-                                pos.y,
-                                'rounded',
-                                target.id
-                            );
-                        }
-                    }
-                },
-                {
-                    label: 'Verwijderen',
-                    danger: true,
-                    action: () => {
-                        if (typeof deleteNode === 'function') {
-                            deleteNode(target.id);
-                        }
-                    }
-                }
-            );
-        } else if (type === 'connection' && target) {
-            items.push(
-                {
-                    label: 'Bewerken',
-                    action: () => {
-                        if (typeof openConnectionEditor === 'function') {
-                            openConnectionEditor(target);
-                        }
-                    }
-                },
-                {
-                    label: 'Verwijderen',
-                    danger: true,
-                    action: () => {
-                        if (typeof deleteConnection === 'function') {
-                            deleteConnection(target.id);
-                        }
-                    }
-                }
-            );
-        } else if (type === 'canvas') {
-            items.push(
-                {
-                    label: 'Nieuwe node',
-                    action: () => {
-                        const coords = this.getCanvasCoordinates({ clientX: x, clientY: y });
-                        this.createNodeAtPosition(coords.x, coords.y);
-                    }
-                },
-                {
-                    label: 'Centreren',
-                    action: () => {
-                        if (typeof centerOnNode === 'function' && typeof rootNodeId !== 'undefined') {
-                            centerOnNode(rootNodeId);
-                        }
-                    }
-                }
-            );
-        }
-        
-        return items;
-    }
+    // Removed getContextMenuItems - no longer needed
     
     startConnectionMode(sourceNode) {
         // Simple connection mode - click another node to connect
@@ -852,14 +798,31 @@ class ModernTouchManager {
     
     // Helper methods
     getInteractiveElement(e) {
-        // Check if we're clicking on an interactive element
-        const interactive = e.target.closest('.node, .connection, .tool-btn, button, .modal, .hamburger-menu');
+        // First check if we clicked directly on a node or its children
+        const clickedElement = e.target;
+        console.log('getInteractiveElement - clicked element:', clickedElement, 'class:', clickedElement.className, 'id:', clickedElement.id);
         
-        // If clicking on canvas or its direct children (but not nodes/connections), return null
-        if (!interactive && (e.target === canvas || e.target.parentElement === canvas)) {
-            return null;
+        // Check if the clicked element is a node or inside a node
+        const node = clickedElement.closest('.node');
+        console.log('Closest node found:', node);
+        
+        if (node) {
+            // Verify this is an actual node click by checking if click is within node bounds
+            const nodeRect = node.getBoundingClientRect();
+            const withinBounds = e.clientX >= nodeRect.left && e.clientX <= nodeRect.right &&
+                                e.clientY >= nodeRect.top && e.clientY <= nodeRect.bottom;
+            console.log('Node bounds check:', withinBounds, 'click:', e.clientX, e.clientY, 'bounds:', nodeRect);
+            
+            if (withinBounds) {
+                return node;
+            }
         }
         
+        // Check for other interactive elements
+        const interactive = clickedElement.closest('.connection, .tool-btn, button, .modal, .hamburger-menu, .touch-context-menu, .touch-quick-action-menu');
+        console.log('Other interactive element:', interactive);
+        
+        // Return the interactive element if found, otherwise null for canvas clicks
         return interactive;
     }
     
@@ -927,11 +890,16 @@ class ModernTouchManager {
     }
     
     createNodeAtPosition(x, y) {
-        if (typeof createNode !== 'function') return;
+        console.log('createNodeAtPosition called with:', x, y);
+        if (typeof createNode !== 'function') {
+            console.log('createNode function not available');
+            return;
+        }
         
         const gridSize = typeof window.gridSize !== 'undefined' ? window.gridSize : 20;
         const snapX = Math.round(x / gridSize) * gridSize;
         const snapY = Math.round(y / gridSize) * gridSize;
+        console.log('Snapped coordinates:', snapX, snapY);
         
         // Store current canvas offset to restore after node creation
         const currentOffset = typeof canvasOffset !== 'undefined' ? { ...canvasOffset } : null;
@@ -1201,6 +1169,7 @@ class ModernTouchManager {
     }
     
     showVisualFeedback(element, type) {
+        console.log('Visual feedback for:', type, 'on element:', element);
         const rect = element.getBoundingClientRect();
         const feedback = document.createElement('div');
         feedback.className = 'touch-feedback';
