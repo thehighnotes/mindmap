@@ -174,9 +174,9 @@ body {
 
 ### Touch Gestures
 - **Single Tap**: Select elements (shows floating edit button on nodes)
-- **Double Tap on Node**: Create new connected node (v0.910)
-- **Double Tap on Canvas**: Create new node at position
-- **Long Press on Node**: Show quick action menu (v0.910)
+- **Double Tap on Node**: Create new connected node (v0.911 - FIXED)
+- **Double Tap on Canvas**: Create new node at exact tap position (v0.911 - FIXED)
+- **Long Press on Node**: Show quick action menu (v0.911)
 - **Long Press on Canvas**: Create new node at position
 - **Pinch**: Zoom in/out
 - **Pan**: Move canvas
@@ -296,7 +296,26 @@ if (touchManager.state.mode !== 'idle') {
 - [ ] iPad: Large screen touch interactions
 - [ ] Samsung Internet: Compatibility verification
 
-## 🆕 Version 0.911 Updates - Enhanced Mobile UX
+## 🆕 Version 0.911 Updates - Enhanced Mobile UX & Double-Tap Node Creation
+
+### Critical Bug Fixes
+- **Fixed Double-Tap Node Creation**: Resolved issue where double-tapping empty canvas for node creation would break subsequent touch interactions
+- **Fixed Coordinate Calculation**: Nodes now appear exactly where you tap, not offset to bottom-right
+- **Fixed Connected Node Creation**: Double-tapping nodes to create connected nodes no longer blocks further interaction
+- **Fixed State Management**: Touch controls remain functional after any node creation operation
+- **Fixed Passive Event Listeners**: Resolved browser warnings about non-passive touchstart events
+
+### Enhanced Double-Tap Functionality
+- **Double-Tap Empty Canvas**: Creates new node at exact tap location with proper coordinate calculation
+- **Double-Tap Node**: Creates connected node with smart positioning (right → up → down → left)
+- **Improved Detection**: Better double-tap timing and distance tolerance for mobile devices
+- **State Preservation**: Touch interactions continue working smoothly after node creation
+
+### Technical Improvements
+- **Coordinate System Fix**: Uses same formula as desktop for accurate positioning
+- **State Reset**: Proper cleanup after node creation to prevent interaction blocking
+- **Event Listener Optimization**: Correctly marked passive/non-passive touchstart events
+- **Debug Logging**: Added comprehensive logging for troubleshooting touch issues
 
 ### Improved Node Text Editing
 - **Floating Edit Button**: Tapping a node now shows a floating ✏️ button for clear text editing

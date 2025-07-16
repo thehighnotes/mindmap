@@ -831,6 +831,9 @@ class ModernTouchManager {
                         const titleElement = nodeElement.querySelector('.node-title');
                         if (titleElement && typeof makeEditable === 'function') {
                             makeEditable(titleElement, node);
+                            // Reset context menu state to prevent future blocking
+                            this.contextMenuActive = false;
+                            this.activeContextMenuNode = null;
                             this.showToast('Tik Enter om op te slaan');
                         }
                     }
@@ -1554,6 +1557,9 @@ class ModernTouchManager {
             if (titleElement && typeof makeEditable === 'function') {
                 makeEditable(titleElement, node);
                 this.removeFloatingEditButton();
+                // Reset context menu state to prevent future blocking
+                this.contextMenuActive = false;
+                this.activeContextMenuNode = null;
                 this.showToast('Tik Enter om op te slaan');
             }
         });
