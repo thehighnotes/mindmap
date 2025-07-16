@@ -39,6 +39,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof updateToolStates === 'function') {
         updateToolStates();
     }
+    
+    // Optimaliseer connection rendering na initialisatie
+    setTimeout(() => {
+        if (typeof optimizeConnectionRendering === 'function') {
+            optimizeConnectionRendering();
+        }
+    }, 100);
     // Verifieer na een korte vertraging dat alle benodigde functies beschikbaar zijn
     setTimeout(() => {
         // Test een paar cruciale functies om te zorgen dat ze werken

@@ -231,6 +231,11 @@ function makeEditable(element, node) {
             // Controleer of er iets is gewijzigd
             if (originalTitle !== newText) {
                 node.title = newText;
+                
+                // Update connections voor deze node vanwege mogelijke tekstlengte verandering
+                if (typeof updateConnectionsForNodeChange === 'function') {
+                    updateConnectionsForNodeChange(node.id);
+                }
             } else {
                 // Als de titel niet is gewijzigd, verwijder de onnodige undo-actie
                 console.log("[DEBUG] Titel niet gewijzigd, undo-actie verwijderen");

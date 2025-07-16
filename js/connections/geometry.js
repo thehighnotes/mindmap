@@ -86,7 +86,7 @@ if (typeof ConnectionModules !== 'undefined') {
             };
         };
 
-        // Bereken middenpunt van knooppunten op basis van hun vorm
+        // Bereken middenpunt van knooppunten op basis van hun vorm en tekst
         window.getNodeCenter = function(node) {
             let width = 120;
             let height = 60;
@@ -98,15 +98,60 @@ if (typeof ConnectionModules !== 'undefined') {
                 width = height = 100;
             }
             
+            // Voor rechthoekige nodes, bereken de werkelijke breedte op basis van tekst
+            if (node.shape === 'rectangle' || node.shape === 'rounded') {
+                const actualWidth = calculateActualNodeWidth(node);
+                width = Math.max(width, actualWidth); // Gebruik minimaal 120px, maar meer als nodig
+            }
+            
             return {
                 x: node.x + width / 2,
                 y: node.y + height / 2
             };
         };
 
+        // Bereken de werkelijke breedte van een node op basis van tekst inhoud
+        window.calculateActualNodeWidth = function(node) {
+            try {
+                // Zoek het DOM element van de node
+                const nodeEl = document.getElementById(node.id);
+                if (!nodeEl) return 120; // Fallback naar standaard breedte
+                
+                // Gebruik de werkelijke breedte van het element
+                const computedStyle = window.getComputedStyle(nodeEl);
+                const actualWidth = nodeEl.offsetWidth;
+                
+                // Retourneer de werkelijke breedte, maar minimaal 120px
+                return Math.max(120, actualWidth);
+            } catch (error) {
+                console.warn('Kon node breedte niet berekenen:', error);
+                return 120; // Fallback
+            }
+        };
+
+        // Bereken visueel middenpunt voor betere connection rendering
+        window.getVisualNodeCenter = function(node) {
+            try {
+                const nodeEl = document.getElementById(node.id);
+                if (!nodeEl) return getNodeCenter(node); // Fallback
+                
+                const rect = nodeEl.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                
+                // Bereken de werkelijke visuele center rekening houdend met zoom
+                return {
+                    x: node.x + (rect.width / zoomLevel) / 2,
+                    y: node.y + (rect.height / zoomLevel) / 2
+                };
+            } catch (error) {
+                console.warn('Kon visueel middenpunt niet berekenen:', error);
+                return getNodeCenter(node); // Fallback
+            }
+        };
+
         // Functie om randpunten te berekenen voor verbindingen met nodes
         window.getNodeEdgePoint = function(node, angle, isSource, controlPoint = null) {
-            const center = getNodeCenter(node);
+            const center = getVisualNodeCenter(node);
             
             // Als we een controlPoint hebben, gebruik dat voor betere hoekberekening
             if (controlPoint) {
@@ -119,7 +164,7 @@ if (typeof ConnectionModules !== 'undefined') {
                 angle = Math.atan2(dy, dx);
             }
             
-            // Bepaal basisafmetingen van de node
+            // Bepaal werkelijke afmetingen van de node
             let width = 120;
             let height = 60;
             
@@ -127,6 +172,9 @@ if (typeof ConnectionModules !== 'undefined') {
                 width = height = 120;
             } else if (node.shape === 'diamond') {
                 width = height = 100;
+            } else if (node.shape === 'rectangle' || node.shape === 'rounded') {
+                // Gebruik werkelijke breedte voor betere edge point berekening
+                width = calculateActualNodeWidth(node);
             }
             
             let radius;
@@ -233,8 +281,8 @@ if (typeof ConnectionModules !== 'undefined') {
             if (!sourceNode || !targetNode) return 0.5; // Fallback
             
             // Bereken de noodzakelijke punten
-            const sourceCenter = getNodeCenter(sourceNode);
-            const targetCenter = getNodeCenter(targetNode);
+            const sourceCenter = getVisualNodeCenter(sourceNode);
+            const targetCenter = getVisualNodeCenter(targetNode);
             
             // Bereken de hoek van de lijn
             const dx = targetCenter.x - sourceCenter.x;
@@ -287,8 +335,8 @@ if (typeof ConnectionModules !== 'undefined') {
             }
             
             // Bereken de noodzakelijke punten
-            const sourceCenter = getNodeCenter(sourceNode);
-            const targetCenter = getNodeCenter(targetNode);
+            const sourceCenter = getVisualNodeCenter(sourceNode);
+            const targetCenter = getVisualNodeCenter(targetNode);
             
             // Bereken de hoek van de lijn
             const dx = targetCenter.x - sourceCenter.x;
@@ -355,7 +403,7 @@ if (typeof ConnectionModules !== 'undefined') {
                 startPoint = connection.branchPointPosition;
                 
                 if (targetNode) {
-                    const targetCenter = getNodeCenter(targetNode);
+                    const targetCenter = getVisualNodeCenter(targetNode);
                     const dx = targetCenter.x - startPoint.x;
                     const dy = targetCenter.y - startPoint.y;
                     const angle = Math.atan2(dy, dx);
@@ -367,8 +415,8 @@ if (typeof ConnectionModules !== 'undefined') {
                 // Voor normale verbindingen
                 if (!sourceNode || !targetNode) return;
                 
-                const sourceCenter = getNodeCenter(sourceNode);
-                const targetCenter = getNodeCenter(targetNode);
+                const sourceCenter = getVisualNodeCenter(sourceNode);
+                const targetCenter = getVisualNodeCenter(targetNode);
                 
                 // Bereken hoek tussen nodes
                 const dx = targetCenter.x - sourceCenter.x;
@@ -445,6 +493,61 @@ if (typeof ConnectionModules !== 'undefined') {
                     x: midX + Math.cos(perpAngle) * curveParams.perpDistance,
                     y: midY + Math.sin(perpAngle) * curveParams.perpDistance
                 };
+            }
+        };
+        
+        // Optimaliseer connection rendering voor betere leesbaarheid
+        window.optimizeConnectionRendering = function() {
+            // Herbereken alle verbindingen met verbeterde centering
+            connections.forEach(connection => {
+                recalculateControlPoint(connection, false);
+            });
+            
+            // Trigger een refresh van alle connections
+            if (typeof refreshConnections === 'function') {
+                refreshConnections();
+            }
+        };
+
+        // Hulpfunctie om node wijzigingen te detecteren en connections te updaten
+        window.updateConnectionsForNodeChange = function(nodeId) {
+            // Vind alle verbindingen die deze node bevatten
+            const affectedConnections = connections.filter(conn => 
+                conn.source === nodeId || conn.target === nodeId
+            );
+            
+            // Herbereken control points voor getroffen verbindingen
+            affectedConnections.forEach(connection => {
+                recalculateControlPoint(connection, false);
+            });
+            
+            // Trigger refresh alleen voor getroffen verbindingen
+            if (typeof refreshConnections === 'function') {
+                refreshConnections();
+            }
+        };
+
+        // Verbeterde connection point berekening met fallback
+        window.getOptimalConnectionPoint = function(node, targetNode, isSource = true) {
+            try {
+                // Bereken visuele centers
+                const nodeCenter = getVisualNodeCenter(node);
+                const targetCenter = getVisualNodeCenter(targetNode);
+                
+                // Bereken hoek tussen nodes
+                const dx = targetCenter.x - nodeCenter.x;
+                const dy = targetCenter.y - nodeCenter.y;
+                const angle = Math.atan2(dy, dx);
+                
+                // Gebruik source/target parameter om richting te bepalen
+                const connectionAngle = isSource ? angle : angle + Math.PI;
+                
+                // Bereken het edge point
+                return getNodeEdgePoint(node, connectionAngle, isSource);
+            } catch (error) {
+                console.warn('Fout bij berekenen optimaal connection point:', error);
+                // Fallback naar standaard center
+                return getNodeCenter(node);
             }
         };
         
