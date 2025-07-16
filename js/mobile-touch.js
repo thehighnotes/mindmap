@@ -116,6 +116,11 @@ class ModernTouchManager {
     }
     
     handlePointerDown(e) {
+        // Only handle touch events, not mouse events (to avoid interfering with desktop Ctrl+click)
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+        
         // Store pointer info
         this.state.activePointers.set(e.pointerId, {
             id: e.pointerId,
@@ -233,6 +238,11 @@ class ModernTouchManager {
     }
     
     handlePointerMove(e) {
+        // Only handle touch events, not mouse events
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+        
         const pointer = this.state.activePointers.get(e.pointerId);
         if (!pointer) return;
         
@@ -280,6 +290,11 @@ class ModernTouchManager {
     }
     
     handlePointerUp(e) {
+        // Only handle touch events, not mouse events
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+        
         const pointer = this.state.activePointers.get(e.pointerId);
         if (!pointer) return;
         
@@ -331,6 +346,11 @@ class ModernTouchManager {
     }
     
     handlePointerCancel(e) {
+        // Only handle touch events, not mouse events
+        if (e.pointerType !== 'touch') {
+            return;
+        }
+        
         this.handlePointerUp(e);
     }
     
