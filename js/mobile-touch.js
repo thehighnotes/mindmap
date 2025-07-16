@@ -29,7 +29,8 @@ class ModernTouchManager {
         this.timers = {
             doubleTap: null,
             longPress: null,
-            momentum: null
+            momentum: null,
+            editTooltip: null
         };
         
         // Last tap info for double tap detection
@@ -291,6 +292,12 @@ class ModernTouchManager {
                 deselectAll();
             }
             this.removeContextMenu();
+            this.removeFloatingEditButton();
+            // Hide edit tooltips when deselecting
+            document.querySelectorAll('.node.show-edit-tooltip').forEach(node => {
+                node.classList.remove('show-edit-tooltip');
+            });
+            this.clearTimer('editTooltip');
             return;
         }
         
@@ -298,6 +305,22 @@ class ModernTouchManager {
             const nodeId = element.id;
             if (typeof selectNode === 'function') {
                 selectNode(nodeId);
+                // Show floating edit button on mobile after short delay
+                if (e.pointerType === 'touch') {
+                    // Remove any existing floating edit button first
+                    this.removeFloatingEditButton();
+                    // Show floating edit button after a brief delay
+                    setTimeout(() => {
+                        this.showFloatingEditButton(element);
+                    }, 150);
+                    // Show temporary edit tooltip
+                    this.showEditTooltip(element);
+                    // Show help hint on first selection
+                    if (!this.hasShownEditHint) {
+                        this.showToast('Tik op ✏️ of houd lang ingedrukt voor opties');
+                        this.hasShownEditHint = true;
+                    }
+                }
             }
             this.showVisualFeedback(element, 'tap');
         } else if (element.classList.contains('connection')) {
@@ -329,9 +352,10 @@ class ModernTouchManager {
             console.log('Canvas coordinates:', coords);
             this.createNodeAtPosition(coords.x, coords.y);
         } else if (element.classList.contains('node')) {
-            // Double tap on node - automatically create a new connected node
             const node = nodes.find(n => n.id === element.id);
             if (node) {
+                // Double tap on any part of node - create connected node
+                console.log('Double tap on node - creating connected node');
                 this.createConnectedNode(node);
             }
         } else if (element.classList.contains('connection')) {
@@ -358,6 +382,8 @@ class ModernTouchManager {
             // Long press on node - show quick action menu
             const node = nodes.find(n => n.id === element.id);
             if (node) {
+                // Store reference to the node with active context menu
+                this.activeContextMenuNode = element;
                 this.showQuickActionMenu(e.clientX, e.clientY, node);
             }
         } else if (element && element.classList.contains('connection')) {
@@ -383,6 +409,11 @@ class ModernTouchManager {
         if (!node) return;
         
         this.state.mode = 'dragging';
+        
+        // Ensure the node is selected when dragging starts
+        if (typeof selectNode === 'function') {
+            selectNode(node.id);
+        }
         
         // Save state for undo
         if (typeof saveStateForUndo === 'function') {
@@ -440,12 +471,21 @@ class ModernTouchManager {
     endNodeDrag() {
         if (!this.state.dragInfo) return;
         
+        const element = this.state.dragInfo.element;
+        
         // Remove visual feedback
-        this.state.dragInfo.element.classList.remove('dragging');
+        element.classList.remove('dragging');
         
         // Final connection update
         if (typeof refreshConnections === 'function') {
             refreshConnections();
+        }
+        
+        // Show floating edit button after drag ends on touch devices
+        if ('ontouchstart' in window) {
+            setTimeout(() => {
+                this.showFloatingEditButton(element);
+            }, 300); // Shorter delay after drag for better responsiveness
         }
         
         this.state.dragInfo = null;
@@ -506,9 +546,15 @@ class ModernTouchManager {
     
     // Simple connection menu for connections
     showSimpleConnectionMenu(x, y, connection) {
-        // Remove any existing menus first
+        // Remove any existing menus and floating elements first
         this.removeContextMenu();
         this.removeQuickActionMenu();
+        this.removeFloatingEditButton();
+        // Hide edit tooltips when showing context menu
+        document.querySelectorAll('.node.show-edit-tooltip').forEach(node => {
+            node.classList.remove('show-edit-tooltip');
+        });
+        this.clearTimer('editTooltip');
         
         const menu = document.createElement('div');
         menu.className = 'touch-quick-action-menu';
@@ -615,9 +661,15 @@ class ModernTouchManager {
             return;
         }
         
-        // Remove any existing menus first
+        // Remove any existing menus and floating elements first
         this.removeContextMenu();
         this.removeQuickActionMenu();
+        this.removeFloatingEditButton();
+        // Hide edit tooltips when showing context menu
+        document.querySelectorAll('.node.show-edit-tooltip').forEach(node => {
+            node.classList.remove('show-edit-tooltip');
+        });
+        this.clearTimer('editTooltip');
         
         const menu = document.createElement('div');
         menu.className = 'touch-quick-action-menu';
@@ -639,14 +691,20 @@ class ModernTouchManager {
         // Store reference
         this.currentQuickActionMenu = menu;
         
-        // Quick action buttons
+        // Quick action buttons - Edit is now more prominent for mobile
         const actions = [
             {
                 icon: '✏️',
                 label: 'Bewerken',
                 action: () => {
-                    if (typeof openNodeEditor === 'function') {
-                        openNodeEditor(node);
+                    // For quick edit, directly edit the title instead of opening modal
+                    const nodeElement = document.getElementById(node.id);
+                    if (nodeElement) {
+                        const titleElement = nodeElement.querySelector('.node-title');
+                        if (titleElement && typeof makeEditable === 'function') {
+                            makeEditable(titleElement, node);
+                            this.showToast('Tik Enter om op te slaan');
+                        }
                     }
                 }
             },
@@ -750,6 +808,16 @@ class ModernTouchManager {
         if (this.quickActionMenuTimeout) {
             clearTimeout(this.quickActionMenuTimeout);
             this.quickActionMenuTimeout = null;
+        }
+        // Clear active context menu node reference and restore floating edit button
+        if (this.activeContextMenuNode) {
+            // Re-show floating edit button if the node is still selected
+            if (this.activeContextMenuNode.classList.contains('selected')) {
+                setTimeout(() => {
+                    this.showFloatingEditButton(this.activeContextMenuNode);
+                }, 100);
+            }
+            this.activeContextMenuNode = null;
         }
     }
 
@@ -923,40 +991,9 @@ class ModernTouchManager {
             }
         }
         
-        // Auto-edit new node with a longer delay to prevent jumping
-        setTimeout(() => {
-            const element = document.getElementById(node.id);
-            if (element) {
-                // Ensure the node is visible before editing
-                const rect = element.getBoundingClientRect();
-                const isVisible = rect.top >= 0 && rect.left >= 0 && 
-                                rect.bottom <= window.innerHeight && 
-                                rect.right <= window.innerWidth;
-                
-                if (isVisible) {
-                    const title = element.querySelector('.node-title');
-                    if (title && typeof makeEditable === 'function') {
-                        // Prevent scrolling when focusing
-                        const preventScroll = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                        };
-                        
-                        // Temporarily block scroll events
-                        window.addEventListener('scroll', preventScroll, { capture: true });
-                        canvas.addEventListener('scroll', preventScroll, { capture: true });
-                        
-                        makeEditable(title, node);
-                        
-                        // Remove scroll block after a short delay
-                        setTimeout(() => {
-                            window.removeEventListener('scroll', preventScroll, { capture: true });
-                            canvas.removeEventListener('scroll', preventScroll, { capture: true });
-                        }, 300);
-                    }
-                }
-            }
-        }, 150);
+        // On mobile, don't auto-edit to avoid UI jumping and confusion
+        // Users can tap the floating edit button or use long-press menu to edit
+        this.showToast('Tik op het bewerkingsicoontje om te bewerken');
     }
     
     // Visual feedback
@@ -1006,6 +1043,70 @@ class ModernTouchManager {
                 animation: pulse 2s infinite;
             }
             
+            /* Mobile-specific: show editable hint on selected nodes */
+            @media (pointer: coarse) {
+                .node.selected {
+                    position: relative;
+                }
+                
+                /* More prominent edit indicator - temporary tooltip */
+                .node.selected.show-edit-tooltip::before {
+                    content: 'Tik op ✏️ om te bewerken';
+                    position: absolute;
+                    bottom: -35px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 20px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    z-index: 1000;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    animation: editTooltipFadeInOut 3s ease-in-out forwards;
+                }
+                
+                /* Highlight the title area specifically */
+                .node.selected .node-title {
+                    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+                    border: 2px dashed rgba(102, 126, 234, 0.5);
+                    border-radius: 8px;
+                    padding: 8px 12px;
+                    margin: -8px -12px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    animation: titlePulse 2s ease-in-out infinite;
+                }
+                
+                @keyframes editTooltipFadeInOut {
+                    0% { 
+                        opacity: 0;
+                        transform: translateX(-50%) scale(0.8);
+                    }
+                    15%, 85% { 
+                        opacity: 1;
+                        transform: translateX(-50%) scale(1);
+                    }
+                    100% { 
+                        opacity: 0;
+                        transform: translateX(-50%) scale(0.8);
+                    }
+                }
+                
+                @keyframes titlePulse {
+                    0%, 100% { 
+                        border-color: rgba(102, 126, 234, 0.5);
+                        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+                    }
+                    50% { 
+                        border-color: rgba(102, 126, 234, 0.8);
+                        background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+                    }
+                }
+            }
+            
             @keyframes pulse {
                 0%, 100% { opacity: 1; }
                 50% { opacity: 0.8; }
@@ -1025,6 +1126,16 @@ class ModernTouchManager {
                     transform: scale(4);
                     opacity: 0;
                 }
+            }
+            
+            /* Edit mode visual feedback */
+            .node-title[contenteditable="true"] {
+                background-color: rgba(255, 255, 255, 0.95);
+                outline: 2px solid #2196F3;
+                outline-offset: 2px;
+                border-radius: 4px;
+                padding: 4px 8px;
+                margin: -4px -8px;
             }
             
             /* Context menu */
@@ -1088,6 +1199,21 @@ class ModernTouchManager {
                 }
                 100% {
                     transform: translate(-50%, -50%) scale(1);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes editButtonPop {
+                0% {
+                    transform: scale(0.3) rotate(-180deg);
+                    opacity: 0;
+                }
+                50% {
+                    transform: scale(1.2) rotate(0deg);
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(1) rotate(0deg);
                     opacity: 1;
                 }
             }
@@ -1190,7 +1316,142 @@ class ModernTouchManager {
     
     // Zoom indicator functionality moved to mobile-nav.js
     
+    showFloatingEditButton(nodeElement) {
+        // Remove any existing floating edit button
+        this.removeFloatingEditButton();
+        
+        const node = nodes.find(n => n.id === nodeElement.id);
+        if (!node) return;
+        
+        // Don't show if this node has an active context menu
+        if (this.activeContextMenuNode === nodeElement) {
+            return;
+        }
+        
+        // Check if element is still in DOM and visible
+        if (!nodeElement.isConnected || !nodeElement.offsetParent) {
+            return;
+        }
+        
+        const rect = nodeElement.getBoundingClientRect();
+        
+        // Don't show if node is off-screen
+        if (rect.right < 0 || rect.left > window.innerWidth || 
+            rect.bottom < 0 || rect.top > window.innerHeight) {
+            return;
+        }
+        
+        const button = document.createElement('div');
+        button.className = 'floating-edit-button';
+        button.style.cssText = `
+            position: fixed;
+            left: ${Math.max(10, Math.min(window.innerWidth - 54, rect.right - 15))}px;
+            top: ${Math.max(10, Math.min(window.innerHeight - 54, rect.top - 15))}px;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            cursor: pointer;
+            z-index: 10001;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: editButtonPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        `;
+        
+        button.innerHTML = '✏️';
+        button.title = 'Bewerk titel';
+        
+        // Store reference
+        this.currentFloatingEditButton = button;
+        
+        // Add click handler
+        button.addEventListener('click', () => {
+            const titleElement = nodeElement.querySelector('.node-title');
+            if (titleElement && typeof makeEditable === 'function') {
+                makeEditable(titleElement, node);
+                this.removeFloatingEditButton();
+                this.showToast('Tik Enter om op te slaan');
+            }
+        });
+        
+        // Add hover effects
+        button.addEventListener('pointerenter', () => {
+            button.style.transform = 'scale(1.2)';
+            button.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)';
+        });
+        
+        button.addEventListener('pointerleave', () => {
+            button.style.transform = 'scale(1)';
+            button.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+        });
+        
+        document.body.appendChild(button);
+        
+        // Auto-remove after 4 seconds (shorter than quick action menu)
+        this.floatingEditButtonTimeout = setTimeout(() => {
+            this.removeFloatingEditButton();
+        }, 4000);
+        
+        // Remove when clicking elsewhere
+        const removeOnOutside = (e) => {
+            if (this.currentFloatingEditButton && 
+                !this.currentFloatingEditButton.contains(e.target) && 
+                !nodeElement.contains(e.target)) {
+                this.removeFloatingEditButton();
+                document.removeEventListener('pointerdown', removeOnOutside);
+            }
+        };
+        setTimeout(() => document.addEventListener('pointerdown', removeOnOutside), 100);
+    }
+    
+    removeFloatingEditButton() {
+        if (this.currentFloatingEditButton) {
+            this.currentFloatingEditButton.remove();
+            this.currentFloatingEditButton = null;
+        }
+        if (this.floatingEditButtonTimeout) {
+            clearTimeout(this.floatingEditButtonTimeout);
+            this.floatingEditButtonTimeout = null;
+        }
+        // Also hide edit tooltips when removing floating button
+        document.querySelectorAll('.node.show-edit-tooltip').forEach(node => {
+            node.classList.remove('show-edit-tooltip');
+        });
+        this.clearTimer('editTooltip');
+    }
+    
+    showEditTooltip(nodeElement) {
+        // Remove tooltip from any previously selected nodes
+        document.querySelectorAll('.node.show-edit-tooltip').forEach(node => {
+            node.classList.remove('show-edit-tooltip');
+        });
+        
+        // Clear any existing tooltip timer
+        this.clearTimer('editTooltip');
+        
+        // Add tooltip class to current node
+        nodeElement.classList.add('show-edit-tooltip');
+        
+        // Set timer to remove tooltip after animation completes
+        this.timers.editTooltip = setTimeout(() => {
+            nodeElement.classList.remove('show-edit-tooltip');
+        }, 3000); // Matches the animation duration
+    }
+    
     showToast(message) {
+        // Remove any existing toast first
+        const existingToast = document.querySelector('.touch-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
         const toast = document.createElement('div');
         toast.className = 'touch-toast';
         toast.textContent = message;
@@ -1214,13 +1475,14 @@ class ModernTouchManager {
         this.state.dragTarget = null;
         this.state.dragStart = null;
         this.state.dragInfo = null;
+        this.activeContextMenuNode = null;
         
         // Clear all timers
         Object.keys(this.timers).forEach(timer => this.clearTimer(timer));
         
         // Reset visual states
-        document.querySelectorAll('.dragging, .drag-mode, .connection-source').forEach(el => {
-            el.classList.remove('dragging', 'drag-mode', 'connection-source');
+        document.querySelectorAll('.dragging, .drag-mode, .connection-source, .show-edit-tooltip').forEach(el => {
+            el.classList.remove('dragging', 'drag-mode', 'connection-source', 'show-edit-tooltip');
         });
         
         canvas.style.cursor = '';
@@ -1231,9 +1493,10 @@ class ModernTouchManager {
         this.resetState();
         this.state.activePointers.clear();
         
-        // Remove context menus
+        // Remove context menus and floating elements
         this.removeContextMenu();
         this.removeQuickActionMenu();
+        this.removeFloatingEditButton();
         
         // Remove event listeners
         canvas.removeEventListener('pointerdown', this.handlePointerDown);

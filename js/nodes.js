@@ -126,12 +126,14 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
             // Maak nieuw knooppunt
             const childNode = createNode('Nieuw idee', '', newNode.color, newX, newY, 'rounded', newNode.id);
             
-            // Focus op titel voor directe bewerking
-            const childEl = document.getElementById(childNode.id);
-            if (childEl) {
-                const titleEl = childEl.querySelector('.node-title');
-                if (titleEl) {
-                    makeEditable(titleEl, childNode);
+            // Focus op titel voor directe bewerking (alleen op desktop)
+            if (!('ontouchstart' in window)) {
+                const childEl = document.getElementById(childNode.id);
+                if (childEl) {
+                    const titleEl = childEl.querySelector('.node-title');
+                    if (titleEl) {
+                        makeEditable(titleEl, childNode);
+                    }
                 }
             }
         });
@@ -145,7 +147,12 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
     });
     
     nodeEl.addEventListener('dblclick', function(e) {
-        // Als de klik in de titel was, maak direct bewerkbaar
+        // Skip double-click handling for touch events (handled by mobile-touch.js)
+        if (e.pointerType === 'touch' || 'ontouchstart' in window) {
+            return;
+        }
+        
+        // Desktop behavior: Als de klik in de titel was, maak direct bewerkbaar
         if (e.target.classList.contains('node-title')) {
             makeEditable(e.target, newNode);
         } else {
@@ -628,6 +635,16 @@ function showContextMenu(e, node) {
     
     // Sluit verbindingen contextmenu als dat open is
     connectionContextMenu.style.display = 'none';
+    
+    // Hide floating edit button if it exists (for mobile)
+    if (window.mobileTouchManager && window.mobileTouchManager.removeFloatingEditButton) {
+        window.mobileTouchManager.removeFloatingEditButton();
+        // Mark this node as having an active context menu
+        const nodeElement = document.getElementById(node.id);
+        if (nodeElement) {
+            window.mobileTouchManager.activeContextMenuNode = nodeElement;
+        }
+    }
     
     // Stel positie in
     contextMenu.style.left = e.pageX + 'px';

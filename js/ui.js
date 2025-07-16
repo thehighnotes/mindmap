@@ -2416,6 +2416,18 @@ function closeAllContextMenus() {
     contextMenu.style.display = 'none';
     connectionContextMenu.style.display = 'none';
     
+    // Restore floating edit button if mobile touch manager exists
+    if (window.mobileTouchManager && window.mobileTouchManager.activeContextMenuNode) {
+        const activeNode = window.mobileTouchManager.activeContextMenuNode;
+        // Re-show floating edit button if the node is still selected
+        if (activeNode.classList.contains('selected')) {
+            setTimeout(() => {
+                window.mobileTouchManager.showFloatingEditButton(activeNode);
+            }, 100);
+        }
+        window.mobileTouchManager.activeContextMenuNode = null;
+    }
+    
     // Close dynamically created canvas context menus
     document.querySelectorAll('.context-menu').forEach(menu => {
         if (menu !== contextMenu && menu !== connectionContextMenu) {

@@ -30,11 +30,12 @@ This document outlines the modern mobile touch support implementation for the Mi
 - **Mobile-Optimized Controls**: Properly sized zoom and navigation controls
 - **Compact Layouts**: Efficient use of limited screen space
 
-#### 4. Node Touch Interactions (✅ MODERNIZED)
-- **Tap to Select**: Single tap selects nodes with visual feedback
-- **Double-Tap Context Menu**: Opens context menu with all node options
-- **Long-Press Drag Mode**: Enables dragging with visual indicator
-- **Smooth Dragging**: Grid-snapped movement with real-time connection updates
+#### 4. Node Touch Interactions (✅ MODERNIZED v0.911)
+- **Tap to Select**: Single tap selects nodes with visual feedback and floating edit button
+- **Floating Edit Button**: ✏️ icon appears 150ms after selection for clear text editing
+- **Smart Context Integration**: Edit button disappears when context menus are visible
+- **Long-Press Quick Menu**: Shows action menu with Edit, Connect, New, Delete options
+- **Smooth Dragging**: Grid-snapped movement with real-time connection updates and selection
 - **Touch Feedback**: Material Design-inspired ripple effects
 
 #### 5. Canvas Navigation (✅ FIXED v0.905)
@@ -172,20 +173,22 @@ body {
 ## Mobile UX Patterns
 
 ### Touch Gestures
-- **Single Tap**: Select elements
+- **Single Tap**: Select elements (shows floating edit button on nodes)
 - **Double Tap on Node**: Create new connected node (v0.910)
 - **Double Tap on Canvas**: Create new node at position
 - **Long Press on Node**: Show quick action menu (v0.910)
 - **Long Press on Canvas**: Create new node at position
 - **Pinch**: Zoom in/out
 - **Pan**: Move canvas
-- **Drag**: Move selected node
+- **Drag**: Move selected node (triggers selection UI)
 
 ### Visual Feedback
 - **Ripple Effects**: Material Design touch feedback
+- **Floating Edit Button**: ✏️ icon with smooth pop animation
 - **Glow Animations**: Mode indicators (drag/connect)
-- **Toast Messages**: Action confirmations
+- **Toast Messages**: Action confirmations and helpful hints
 - **Zoom Indicators**: Real-time zoom percentage
+- **Selection Indicators**: Visual highlights and tooltip for selected nodes
 
 ### Context Menus
 - **Node Menu**: Bewerken, Verbind met..., Nieuw subknooppunt, Verwijderen
@@ -233,17 +236,18 @@ body {
 
 #### Node Operations
 1. **Create Node**: Double-tap or long-press empty canvas
-2. **Select Node**: Single tap on node
-3. **Quick Create Connected Node**: Double-tap on node (v0.910)
+2. **Select Node**: Single tap on node (shows floating ✏️ edit button)
+3. **Edit Node Text**: Tap the floating ✏️ button that appears after selection
+4. **Quick Create Connected Node**: Double-tap on node (v0.910)
    - Automatically positions to the right, or up/down/left if space not available
    - Avoids overlapping with existing nodes
-4. **Show Quick Actions**: Long-press on node (v0.910)
-   - Edit (✏️): Open node editor
+5. **Show Quick Actions**: Long-press on node (v0.910)
+   - Edit (✏️): Direct title editing
    - Connect (🔗): Start connection mode
    - New (➕): Create connected node
    - Delete (🗑️): Remove node
-5. **Move Node**: Select node → drag to new position
-6. **Deselect**: Tap on empty canvas
+6. **Move Node**: Select node → drag to new position (maintains selection UI)
+7. **Deselect**: Tap on empty canvas
 
 #### Mobile-Specific Features
 - **All toolbar functions** available via hamburger menu
@@ -292,20 +296,34 @@ if (touchManager.state.mode !== 'idle') {
 - [ ] iPad: Large screen touch interactions
 - [ ] Samsung Internet: Compatibility verification
 
-## 🆕 Version 0.910 Updates
+## 🆕 Version 0.911 Updates - Enhanced Mobile UX
 
-### Improved Touch Interactions
+### Improved Node Text Editing
+- **Floating Edit Button**: Tapping a node now shows a floating ✏️ button for clear text editing
+- **Eliminated Accidental Editing**: Single taps no longer accidentally trigger text editing
+- **Responsive Edit Icon**: Appears 150ms after node selection for immediate feedback
+- **Smart Context Menu Integration**: Edit button disappears when context menus are visible
+- **Drag Selection Support**: Dragging a node also triggers selection UI and edit button
+
+### Enhanced Touch Interactions
 - **Long Press on Node**: Shows quick action menu with intuitive icons (Edit, Connect, New, Delete)
 - **Double Tap on Node**: Automatically creates a new connected node with smart positioning
   - Prefers right position first, then up, down, and finally left
   - Automatically avoids overlapping with existing nodes
   - No auto-edit popup to prevent UI jumping issues
-- **Removed Verbose Context Menu**: The old menu with "Verbind met...", "Nieuw naar beneden", etc. has been removed for a cleaner UX
+- **Removed Double-Tap Title Editing**: Simplified to use only the floating edit button
+- **Better Visual Feedback**: Clear selection indicators and edit hints
+
+### Mobile-Specific Welcome Experience
+- **Touch-Specific Onboarding**: Mobile devices now show touch-optimized welcome tips
+- **Gesture-Based Instructions**: Tips focus on tap, double-tap, long-press, and pinch gestures
+- **Clear Edit Instructions**: Emphasizes the ✏️ floating button for text editing
 
 ### Desktop/Mobile Separation
 - Touch interactions (long press, double tap) only work with touch input
-- Mouse double-click does NOT trigger node creation
+- Mouse double-click does NOT trigger node creation on mobile
 - Desktop right-click context menu remains unchanged and fully functional
+- Floating edit button only appears on touch devices
 
 ## Architecture Benefits
 
@@ -359,6 +377,6 @@ The mobile touch system is **production-ready with modern best practices**:
   - Implemented swipe gesture for quick node creation
 - **Prevented Context Menu During Pinch**: No more accidental popups when zooming
 
-**Version**: v1.3 (Touch Interaction Improvements)  
+**Version**: v1.4 (Enhanced Mobile UX)  
 **Last Updated**: January 2025  
-**Status**: ✅ **PRODUCTION READY** - Modern implementation with streamlined touch UX
+**Status**: ✅ **PRODUCTION READY** - Modern implementation with streamlined touch UX and floating edit button

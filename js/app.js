@@ -72,40 +72,81 @@ function showFirstTimeOverlay(forceShow = false) {
     // Check of gebruiker de overlay al heeft gezien (tenzij forceShow true is)
     if (!forceShow && localStorage.getItem('mindmap-overlay-gezien')) return;
     
+    // Detect if on mobile device
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
     // Maak overlay element
     const overlay = document.createElement('div');
     overlay.className = 'first-time-overlay';
+    
+    // Different content for mobile vs desktop
+    const tipCards = isMobile ? `
+        <div class="tip-cards">
+            <div class="tip-card">
+                <div class="tip-icon">👆</div>
+                <h3>Nieuwe knooppunten</h3>
+                <p><strong>Dubbeltik</strong> op een lege plek om een nieuw knooppunt te maken</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">✏️</div>
+                <h3>Tekst bewerken</h3>
+                <p>Tik op een knooppunt en tik op het <strong>✏️ icoon</strong> om de tekst te bewerken</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">📱</div>
+                <h3>Lang indrukken</h3>
+                <p><strong>Houd lang ingedrukt</strong> op knooppunten voor opties menu</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">🔗</div>
+                <h3>Verbindingen maken</h3>
+                <p><strong>Dubbeltik</strong> op een knooppunt om automatisch een verbonden knooppunt te maken</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">🤏</div>
+                <h3>Navigatie</h3>
+                <p><strong>Knijp</strong> om te zoomen, <strong>sleep</strong> met één vinger om rond te bewegen</p>
+            </div>
+        </div>
+    ` : `
+        <div class="tip-cards">
+            <div class="tip-card">
+                <div class="tip-icon">🖱️</div>
+                <h3>Nieuwe knooppunten</h3>
+                <p><strong>Dubbelklik</strong> op een lege plek om een nieuw knooppunt te maken</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">➕</div>
+                <h3>Snel toevoegen</h3>
+                <p>Beweeg over een knooppunt om <strong>+ knoppen</strong> te zien voor snelle toevoegingen</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">🔗</div>
+                <h3>Verbindingen maken</h3>
+                <p>Houd <strong>Ctrl</strong> ingedrukt en klik op twee knooppunten om ze te verbinden</p>
+            </div>
+            
+            <div class="tip-card">
+                <div class="tip-icon">🎨</div>
+                <h3>Aanpassen</h3>
+                <p><strong>Rechtsklik</strong> op elementen voor kleuren, vormen en meer opties</p>
+            </div>
+        </div>
+    `;
+    
     overlay.innerHTML = `
         <div class="overlay-content">
             <button class="overlay-close" aria-label="Sluit tips">×</button>
             <h2>Welkom bij de Mindmap Tool! 👋</h2>
-            <p class="overlay-subtitle">Hier zijn een paar tips om je op weg te helpen:</p>
+            <p class="overlay-subtitle">${isMobile ? 'Hier zijn tips voor touch-bediening:' : 'Hier zijn een paar tips om je op weg te helpen:'}</p>
             
-            <div class="tip-cards">
-                <div class="tip-card">
-                    <div class="tip-icon">🖱️</div>
-                    <h3>Nieuwe knooppunten</h3>
-                    <p><strong>Dubbelklik</strong> op een lege plek om een nieuw knooppunt te maken</p>
-                </div>
-                
-                <div class="tip-card">
-                    <div class="tip-icon">➕</div>
-                    <h3>Snel toevoegen</h3>
-                    <p>Beweeg over een knooppunt om <strong>+ knoppen</strong> te zien voor snelle toevoegingen</p>
-                </div>
-                
-                <div class="tip-card">
-                    <div class="tip-icon">🔗</div>
-                    <h3>Verbindingen maken</h3>
-                    <p>Houd <strong>Ctrl</strong> ingedrukt en klik op twee knooppunten om ze te verbinden</p>
-                </div>
-                
-                <div class="tip-card">
-                    <div class="tip-icon">🎨</div>
-                    <h3>Aanpassen</h3>
-                    <p><strong>Rechtsklik</strong> op elementen voor kleuren, vormen en meer opties</p>
-                </div>
-            </div>
+            ${tipCards}
             
             <div class="overlay-footer">
                 <label class="dont-show-label">
