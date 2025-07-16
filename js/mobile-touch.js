@@ -430,6 +430,8 @@ class ModernTouchManager {
             const coords = this.getCanvasCoordinates(e);
             console.log('🎯 Canvas coordinates:', coords);
             this.createNodeAtPosition(coords.x, coords.y);
+            // Show feedback at tap coordinates for canvas double-tap
+            this.showVisualFeedback(canvas, 'double-tap', { x: e.clientX, y: e.clientY });
         } else if (isNode) {
             const node = nodes.find(n => n.id === element.id);
             if (node) {
@@ -437,15 +439,15 @@ class ModernTouchManager {
                 console.log('🎯 Double tap on node - creating connected node');
                 this.createConnectedNode(node);
             }
+            this.showVisualFeedback(element, 'double-tap');
         } else if (isConnection) {
             // Double tap on connection - show simple connection menu
             const connection = connections.find(c => c.id === element.id);
             if (connection) {
                 this.showSimpleConnectionMenu(e.clientX, e.clientY, connection);
             }
+            this.showVisualFeedback(element, 'double-tap');
         }
-        
-        this.showVisualFeedback(element || canvas, 'double-tap');
     }
     
     handleLongPress(e, element) {
@@ -1467,9 +1469,8 @@ class ModernTouchManager {
         window.addEventListener('orientationchange', fixIOSViewport);
     }
     
-    showVisualFeedback(element, type) {
-        console.log('Visual feedback for:', type, 'on element:', element);
-        const rect = element.getBoundingClientRect();
+    showVisualFeedback(element, type, customCoords = null) {
+        console.log('Visual feedback for:', type, 'on element:', element, 'customCoords:', customCoords);
         const feedback = document.createElement('div');
         feedback.className = 'touch-feedback';
         
@@ -1477,9 +1478,18 @@ class ModernTouchManager {
         const size = 40;
         feedback.style.width = size + 'px';
         feedback.style.height = size + 'px';
-        feedback.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
-        feedback.style.top = (rect.top + rect.height / 2 - size / 2) + 'px';
         feedback.style.position = 'fixed';
+        
+        if (customCoords) {
+            // Use custom coordinates (for canvas double-tap)
+            feedback.style.left = (customCoords.x - size / 2) + 'px';
+            feedback.style.top = (customCoords.y - size / 2) + 'px';
+        } else {
+            // Use element's center position
+            const rect = element.getBoundingClientRect();
+            feedback.style.left = (rect.left + rect.width / 2 - size / 2) + 'px';
+            feedback.style.top = (rect.top + rect.height / 2 - size / 2) + 'px';
+        }
         
         document.body.appendChild(feedback);
         
