@@ -361,8 +361,8 @@ if (typeof ConnectionModules !== 'undefined') {
                     // Mousedown handler als backup
                     addPoint.addEventListener('mousedown', handleAddPointClick);
                     
-                    // Aanraakscherm support
-                    addPoint.addEventListener('touchstart', handleAddPointClick);
+                    // Aanraakscherm support - explicitly non-passive since we need preventDefault
+                    addPoint.addEventListener('touchstart', handleAddPointClick, { passive: false });
                     
                     // Functie die de klik afhandelt
                     function handleAddPointClick(e) {

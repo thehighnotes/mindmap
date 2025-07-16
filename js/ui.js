@@ -2203,7 +2203,7 @@ function setupTouchModalOptimizations() {
                 // Close modal on background touch
                 modal.style.display = 'none';
             }
-        });
+        }, { passive: true });
     });
 }
 

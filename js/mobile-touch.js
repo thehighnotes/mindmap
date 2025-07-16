@@ -17,10 +17,14 @@ class ModernTouchManager {
             dragStart: null
         };
         
+        // Context menu state
+        this.contextMenuActive = false;
+        this.activeContextMenuNode = null;
+        
         // Configuration
         this.config = {
             dragThreshold: 10, // Standard threshold for drag detection
-            doubleTapDelay: 300,
+            doubleTapDelay: 500, // Increased from 300 to 500 for better mobile tolerance
             longPressDelay: 500,
             momentumFriction: 0.92
         };
@@ -40,6 +44,9 @@ class ModernTouchManager {
             x: 0,
             y: 0
         };
+        
+        // Flag to track if we just handled a double-tap
+        this.justHandledDoubleTap = false;
         
         // Momentum tracking
         this.momentum = {
@@ -146,15 +153,62 @@ class ModernTouchManager {
             this.lastTap.x, this.lastTap.y
         );
         
-        if (e.pointerType === 'touch' &&
-            tapDelta < this.config.doubleTapDelay && 
-            distance < 30 && 
-            this.lastTap.target === element) {
+        console.log('🔍 DOUBLE TAP DEBUG - Tap detected:', {
+            pointerType: e.pointerType,
+            tapDelta,
+            distance,
+            lastTarget: this.lastTap.target,
+            currentElement: element,
+            doubleTapDelay: this.config.doubleTapDelay,
+            lastTapTime: this.lastTap.time,
+            currentTime: now,
+            lastTapPos: { x: this.lastTap.x, y: this.lastTap.y },
+            currentPos: { x: e.clientX, y: e.clientY }
+        });
+        
+        // Check each condition individually for debugging
+        const isTouchEvent = e.pointerType === 'touch' || e.pointerType === 'pen';
+        const isWithinTimeLimit = tapDelta < this.config.doubleTapDelay && tapDelta > 0;
+        const isWithinDistance = distance < 50; // Increased from 30 to 50 for better mobile tolerance
+        const targetsMatch = this.lastTap.target === element;
+        
+        console.log('🔍 DOUBLE TAP CONDITIONS:', {
+            isTouchEvent,
+            isWithinTimeLimit,
+            isWithinDistance,
+            targetsMatch,
+            allConditionsMet: isTouchEvent && isWithinTimeLimit && isWithinDistance && targetsMatch
+        });
+        
+        if (isTouchEvent && isWithinTimeLimit && isWithinDistance && targetsMatch) {
+            console.log('✅ DOUBLE TAP DETECTED - Calling handleDoubleTap');
+            this.justHandledDoubleTap = true;
+            
+            // Reset the flag after a short delay to prevent interference
+            setTimeout(() => {
+                this.justHandledDoubleTap = false;
+            }, 100);
+            
+            // Reset last tap info to prevent triple-tap issues
+            this.lastTap = {
+                time: 0,
+                target: null,
+                x: 0,
+                y: 0
+            };
+            
             this.handleDoubleTap(e, element);
             return;
         }
         
         // Update last tap info
+        console.log('📝 Updating last tap info:', {
+            time: now,
+            target: element,
+            x: e.clientX,
+            y: e.clientY
+        });
+        
         this.lastTap = {
             time: now,
             target: element,
@@ -243,6 +297,13 @@ class ModernTouchManager {
                 // It's a tap - but check if we recently had a pinch
                 this.clearTimer('longPress');
                 
+                // Don't process tap if we just handled a double-tap
+                if (this.justHandledDoubleTap) {
+                    console.log('Skipping tap handling - just handled double-tap');
+                    this.justHandledDoubleTap = false;
+                    return;
+                }
+                
                 // Don't process tap if we recently ended a pinch
                 if (window.mobileNavigationManager && 
                     window.mobileNavigationManager.state.lastPinchEndTime && 
@@ -311,7 +372,13 @@ class ModernTouchManager {
                     this.removeFloatingEditButton();
                     // Show floating edit button after a brief delay
                     setTimeout(() => {
-                        this.showFloatingEditButton(element);
+                        // Only show if there's no active context menu on this node
+                        if (this.activeContextMenuNode !== element) {
+                            console.log('Showing floating edit button for node', element.id);
+                            this.showFloatingEditButton(element);
+                        } else {
+                            console.log('Not showing floating edit button - active context menu on node', element.id);
+                        }
                     }, 150);
                     // Show temporary edit tooltip
                     this.showEditTooltip(element);
@@ -334,31 +401,43 @@ class ModernTouchManager {
     
     handleDoubleTap(e, element) {
         this.clearTimer('doubleTap');
-        console.log('Double tap detected on element:', element, 'target:', e.target);
+        console.log('🎯 DOUBLE TAP HANDLER CALLED on element:', element, 'target:', e.target);
         
         // Don't show context menu if we recently ended a pinch zoom OR if we're currently pinching
         if (window.mobileNavigationManager && 
             (window.mobileNavigationManager.state.isPinching ||
              (window.mobileNavigationManager.state.lastPinchEndTime && 
               Date.now() - window.mobileNavigationManager.state.lastPinchEndTime < 500))) {
-            console.log('Double tap blocked due to recent pinch');
+            console.log('🎯 Double tap blocked due to recent pinch');
             return;
         }
         
-        if (!element) {
-            // Double tap on canvas - create node
-            console.log('Double tap on empty canvas detected');
+        // Check if element is actually a node or connection that should be handled specially
+        const isNode = element && element.classList.contains('node');
+        const isConnection = element && element.classList.contains('connection');
+        
+        console.log('🎯 Element analysis:', {
+            element,
+            isNode,
+            isConnection,
+            isNull: element === null,
+            isEmpty: !element
+        });
+        
+        if (!element || (!isNode && !isConnection)) {
+            // Double tap on canvas (empty space) - create node
+            console.log('🎯 Double tap on empty canvas detected - creating new node');
             const coords = this.getCanvasCoordinates(e);
-            console.log('Canvas coordinates:', coords);
+            console.log('🎯 Canvas coordinates:', coords);
             this.createNodeAtPosition(coords.x, coords.y);
-        } else if (element.classList.contains('node')) {
+        } else if (isNode) {
             const node = nodes.find(n => n.id === element.id);
             if (node) {
                 // Double tap on any part of node - create connected node
-                console.log('Double tap on node - creating connected node');
+                console.log('🎯 Double tap on node - creating connected node');
                 this.createConnectedNode(node);
             }
-        } else if (element.classList.contains('connection')) {
+        } else if (isConnection) {
             // Double tap on connection - show simple connection menu
             const connection = connections.find(c => c.id === element.id);
             if (connection) {
@@ -382,8 +461,9 @@ class ModernTouchManager {
             // Long press on node - show quick action menu
             const node = nodes.find(n => n.id === element.id);
             if (node) {
-                // Store reference to the node with active context menu
+                // Store reference to the node with active context menu BEFORE showing menu
                 this.activeContextMenuNode = element;
+                console.log('Long press: setting activeContextMenuNode to', element.id);
                 this.showQuickActionMenu(e.clientX, e.clientY, node);
             }
         } else if (element && element.classList.contains('connection')) {
@@ -484,7 +564,10 @@ class ModernTouchManager {
         // Show floating edit button after drag ends on touch devices
         if ('ontouchstart' in window) {
             setTimeout(() => {
-                this.showFloatingEditButton(element);
+                // Only show if there's no active context menu on this node
+                if (this.activeContextMenuNode !== element) {
+                    this.showFloatingEditButton(element);
+                }
             }, 300); // Shorter delay after drag for better responsiveness
         }
         
@@ -493,8 +576,9 @@ class ModernTouchManager {
     
     // Create connected node with smart positioning
     createConnectedNode(parentNode) {
+        console.log('🎯 createConnectedNode called for parent:', parentNode.id);
         if (typeof createNode !== 'function' || typeof findNonOverlappingPosition !== 'function') {
-            console.log('Required functions not available');
+            console.log('🎯 ERROR: Required functions not available');
             return;
         }
         
@@ -526,6 +610,11 @@ class ModernTouchManager {
             finalPos = findNonOverlappingPosition(positions[0].x, positions[0].y);
         }
         
+        console.log('🎯 Creating connected node at position:', finalPos);
+        
+        // Reset any potentially corrupted state before creating node
+        this.resetState();
+        
         // Create the new node
         const newNode = createNode(
             'Nieuw idee',
@@ -537,7 +626,25 @@ class ModernTouchManager {
             parentNode.id
         );
         
-        this.showToast('Nieuwe node aangemaakt!');
+        console.log('🎯 Connected node created:', newNode);
+        
+        // Ensure the touch manager is still working properly after node creation
+        if (newNode && newNode.id) {
+            const nodeElement = document.getElementById(newNode.id);
+            if (nodeElement) {
+                // Make sure the new node doesn't interfere with touch events
+                nodeElement.style.pointerEvents = 'auto';
+                nodeElement.style.touchAction = 'none';
+                
+                // Add a brief delay to ensure DOM is ready, then reset our state
+                setTimeout(() => {
+                    this.resetState();
+                    console.log('🎯 Touch manager state reset after connected node creation');
+                }, 50);
+            }
+        }
+        
+        this.showToast('Nieuwe verbonden node aangemaakt!');
         
         // Don't auto-edit to avoid the issue you mentioned
     }
@@ -664,12 +771,32 @@ class ModernTouchManager {
         // Remove any existing menus and floating elements first
         this.removeContextMenu();
         this.removeQuickActionMenu();
-        this.removeFloatingEditButton();
+        
+        // Force remove any floating edit button
+        if (this.currentFloatingEditButton) {
+            this.currentFloatingEditButton.remove();
+            this.currentFloatingEditButton = null;
+        }
+        // Also remove by class in case it exists
+        const existingEditButton = document.querySelector('.floating-edit-button');
+        if (existingEditButton) {
+            existingEditButton.remove();
+        }
+        
+        console.log('showQuickActionMenu: forcefully removed floating edit button');
+        
         // Hide edit tooltips when showing context menu
         document.querySelectorAll('.node.show-edit-tooltip').forEach(node => {
             node.classList.remove('show-edit-tooltip');
         });
         this.clearTimer('editTooltip');
+        
+        // Set the active context menu node to prevent edit button from showing
+        const nodeElement = document.getElementById(node.id);
+        if (nodeElement) {
+            console.log('showQuickActionMenu: confirming activeContextMenuNode is', nodeElement.id);
+            this.activeContextMenuNode = nodeElement;
+        }
         
         const menu = document.createElement('div');
         menu.className = 'touch-quick-action-menu';
@@ -690,6 +817,7 @@ class ModernTouchManager {
         
         // Store reference
         this.currentQuickActionMenu = menu;
+        this.contextMenuActive = true; // Flag to block edit button
         
         // Quick action buttons - Edit is now more prominent for mobile
         const actions = [
@@ -809,8 +937,13 @@ class ModernTouchManager {
             clearTimeout(this.quickActionMenuTimeout);
             this.quickActionMenuTimeout = null;
         }
+        
+        // Clear context menu flag
+        this.contextMenuActive = false;
+        
         // Clear active context menu node reference and restore floating edit button
         if (this.activeContextMenuNode) {
+            console.log('removeQuickActionMenu: clearing activeContextMenuNode for', this.activeContextMenuNode.id);
             // Re-show floating edit button if the node is still selected
             if (this.activeContextMenuNode.classList.contains('selected')) {
                 setTimeout(() => {
@@ -868,41 +1001,61 @@ class ModernTouchManager {
     getInteractiveElement(e) {
         // First check if we clicked directly on a node or its children
         const clickedElement = e.target;
-        console.log('getInteractiveElement - clicked element:', clickedElement, 'class:', clickedElement.className, 'id:', clickedElement.id);
+        console.log('🎯 getInteractiveElement - clicked element:', clickedElement, 'class:', clickedElement.className, 'id:', clickedElement.id);
         
         // Check if the clicked element is a node or inside a node
         const node = clickedElement.closest('.node');
-        console.log('Closest node found:', node);
+        console.log('🎯 Closest node found:', node);
         
         if (node) {
             // Verify this is an actual node click by checking if click is within node bounds
             const nodeRect = node.getBoundingClientRect();
             const withinBounds = e.clientX >= nodeRect.left && e.clientX <= nodeRect.right &&
                                 e.clientY >= nodeRect.top && e.clientY <= nodeRect.bottom;
-            console.log('Node bounds check:', withinBounds, 'click:', e.clientX, e.clientY, 'bounds:', nodeRect);
+            console.log('🎯 Node bounds check:', withinBounds, 'click:', e.clientX, e.clientY, 'bounds:', nodeRect);
             
             if (withinBounds) {
+                console.log('🎯 Returning node:', node.id);
                 return node;
             }
         }
         
-        // Check for other interactive elements
+        // Check for other interactive elements, but exclude canvas itself
         const interactive = clickedElement.closest('.connection, .tool-btn, button, .modal, .hamburger-menu, .touch-context-menu, .touch-quick-action-menu');
-        console.log('Other interactive element:', interactive);
+        console.log('🎯 Other interactive element:', interactive);
+        
+        // If we found an interactive element, make sure it's not the canvas itself
+        if (interactive && interactive.id === 'canvas') {
+            console.log('🎯 Ignoring canvas as interactive element - treating as empty canvas');
+            return null;
+        }
         
         // Return the interactive element if found, otherwise null for canvas clicks
-        return interactive;
+        const result = interactive;
+        console.log('🎯 Final result:', result);
+        return result;
     }
     
     getCanvasCoordinates(e) {
         const rect = canvas.getBoundingClientRect();
         const zoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
-        const offset = typeof canvasOffset !== 'undefined' ? canvasOffset : { x: 0, y: 0 };
         
-        return {
-            x: (e.clientX - rect.left - offset.x) / zoom,
-            y: (e.clientY - rect.top - offset.y) / zoom
-        };
+        // Use the same formula as desktop (from ui.js)
+        // Don't subtract canvasOffset here as it's already applied in CSS transform
+        const x = (e.clientX - rect.left) / zoom;
+        const y = (e.clientY - rect.top) / zoom;
+        
+        console.log('🎯 getCanvasCoordinates DEBUG (using desktop formula):', {
+            clientX: e.clientX,
+            clientY: e.clientY,
+            rectLeft: rect.left,
+            rectTop: rect.top,
+            zoom,
+            calculatedX: x,
+            calculatedY: y
+        });
+        
+        return { x, y };
     }
     
     getDistance(x1, y1, x2, y2) {
@@ -958,20 +1111,28 @@ class ModernTouchManager {
     }
     
     createNodeAtPosition(x, y) {
-        console.log('createNodeAtPosition called with:', x, y);
+        console.log('🎯 createNodeAtPosition called with:', x, y);
         if (typeof createNode !== 'function') {
-            console.log('createNode function not available');
+            console.log('🎯 ERROR: createNode function not available');
             return;
         }
         
         const gridSize = typeof window.gridSize !== 'undefined' ? window.gridSize : 20;
         const snapX = Math.round(x / gridSize) * gridSize;
         const snapY = Math.round(y / gridSize) * gridSize;
-        console.log('Snapped coordinates:', snapX, snapY);
+        console.log('🎯 Snapped coordinates:', snapX, snapY);
         
-        // Store current canvas offset to restore after node creation
-        const currentOffset = typeof canvasOffset !== 'undefined' ? { ...canvasOffset } : null;
-        const currentZoom = typeof zoomLevel !== 'undefined' ? zoomLevel : 1;
+        console.log('🎯 Creating node with parameters:', {
+            title: 'Nieuw idee',
+            content: '',
+            color: '#4CAF50',
+            x: snapX,
+            y: snapY,
+            shape: 'rounded'
+        });
+        
+        // Reset any potentially corrupted state before creating node
+        this.resetState();
         
         const node = createNode(
             'Nieuw idee',
@@ -982,18 +1143,27 @@ class ModernTouchManager {
             'rounded'
         );
         
-        // Restore canvas position if it changed
-        if (currentOffset && typeof canvasOffset !== 'undefined') {
-            canvasOffset.x = currentOffset.x;
-            canvasOffset.y = currentOffset.y;
-            if (typeof updateCanvasTransform === 'function') {
-                updateCanvasTransform();
+        console.log('🎯 Node created:', node);
+        
+        // Ensure the touch manager is still working properly after node creation
+        if (node && node.id) {
+            const nodeElement = document.getElementById(node.id);
+            if (nodeElement) {
+                // Make sure the new node doesn't interfere with touch events
+                nodeElement.style.pointerEvents = 'auto';
+                nodeElement.style.touchAction = 'none';
+                
+                // Add a brief delay to ensure DOM is ready, then reset our state
+                setTimeout(() => {
+                    this.resetState();
+                    console.log('🎯 Touch manager state reset after node creation');
+                }, 50);
             }
         }
         
         // On mobile, don't auto-edit to avoid UI jumping and confusion
         // Users can tap the floating edit button or use long-press menu to edit
-        this.showToast('Tik op het bewerkingsicoontje om te bewerken');
+        this.showToast('Nieuwe node aangemaakt! Tik op het bewerkingsicoontje om te bewerken');
     }
     
     // Visual feedback
@@ -1323,8 +1493,15 @@ class ModernTouchManager {
         const node = nodes.find(n => n.id === nodeElement.id);
         if (!node) return;
         
+        // Don't show if context menu is active
+        if (this.contextMenuActive) {
+            console.log('Floating edit button blocked: context menu is active');
+            return;
+        }
+        
         // Don't show if this node has an active context menu
         if (this.activeContextMenuNode === nodeElement) {
+            console.log('Floating edit button blocked: active context menu on node', nodeElement.id);
             return;
         }
         
@@ -1476,6 +1653,8 @@ class ModernTouchManager {
         this.state.dragStart = null;
         this.state.dragInfo = null;
         this.activeContextMenuNode = null;
+        this.contextMenuActive = false;
+        this.justHandledDoubleTap = false;
         
         // Clear all timers
         Object.keys(this.timers).forEach(timer => this.clearTimer(timer));
