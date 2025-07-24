@@ -135,7 +135,7 @@ function importFromMermaid() {
     
     // Verwijder alle bestaande knooppunten en verbindingen
     if (confirm('Dit zal de huidige mindmap wissen. Doorgaan?')) {
-        clearMindmap();
+        clearMindmap(false); // Don't clear version history when loading project
     } else {
         return;
     }
@@ -718,6 +718,22 @@ function importLegacyEnhancedProject(projectData) {
                 window.VersionControl.saveCurrentStateSnapshot();
             }
             
+            // Store project data with all versions in localStorage (missing from original implementation)
+            try {
+                const projectDataJson = window.StorageUtils ? 
+                    window.StorageUtils.stringifyJSON(projectData) : 
+                    JSON.stringify(projectData);
+                    
+                if (window.StorageUtils) {
+                    window.StorageUtils.setItem('mindmap_current_project_data', projectDataJson);
+                } else {
+                    localStorage.setItem('mindmap_current_project_data', projectDataJson);
+                }
+            } catch (e) {
+                console.warn('Could not save legacy project data to localStorage:', e);
+                // Don't block import if localStorage fails
+            }
+            
             showToast(`Legacy mindmap geladen (${projectData.versions.length} versies beschikbaar)`);
         } else {
             showToast('Fout bij het laden van legacy project', true);
@@ -873,7 +889,7 @@ function loadVersionFromProject(projectData, versionIndex = -1) {
     }
     
     // Clear current mindmap
-    clearMindmap();
+    clearMindmap(false); // Don't clear version history when loading project
     
     // Load the version data
     loadMindmapData(version.data);
@@ -888,6 +904,24 @@ function loadVersionFromProject(projectData, versionIndex = -1) {
         window.VersionControl.updateLastModifiedIndicator(projectData);
     }
     
+    // Update the project data's currentVersion to reflect the loaded version
+    projectData.currentVersion = version.version;
+    
+    // Update localStorage with new current version
+    try {
+        const projectDataJson = window.StorageUtils ? 
+            window.StorageUtils.stringifyJSON(projectData) : 
+            JSON.stringify(projectData);
+            
+        if (window.StorageUtils) {
+            window.StorageUtils.setItem('mindmap_current_project_data', projectDataJson);
+        } else {
+            localStorage.setItem('mindmap_current_project_data', projectDataJson);
+        }
+    } catch (e) {
+        console.warn('Could not update project data in localStorage:', e);
+    }
+    
     showToast(`Versie ${version.version} geladen door ${version.author}`);
 }
 
@@ -895,7 +929,7 @@ function loadVersionFromProject(projectData, versionIndex = -1) {
 function loadMindmapData(data) {
     try {
         // Verwijder huidige mindmap
-        clearMindmap();
+        clearMindmap(false); // Don't clear version history when loading project
         
         // Maak de container voor verbindingen opnieuw aan
         const connectionsContainer = document.createElement('div');

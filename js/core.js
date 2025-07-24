@@ -192,7 +192,22 @@ function initCanvas() {
 }
 
 // Initialiseer de mindmap met een centraal knooppunt
-function initMindmap() {
+function initMindmap(clearVersionHistory = true) {
+    // Always clear version history for fresh mindmap unless explicitly told not to
+    if (clearVersionHistory) {
+        if (window.StorageUtils) {
+            window.StorageUtils.removeItem('mindmap_current_project_data');
+            window.StorageUtils.removeItem('mindmap_current_draft');
+        } else {
+            try {
+                localStorage.removeItem('mindmap_current_project_data');
+                localStorage.removeItem('mindmap_current_draft');
+            } catch (e) {
+                console.warn('Could not clear localStorage project data:', e);
+            }
+        }
+    }
+    
     // Maak het centrale knooppunt
     const rootNode = createNode(
         'Hoofdidee', 
@@ -494,7 +509,7 @@ function updateMinimapViewport() {
 }
 
 // Wis de mindmap
-function clearMindmap() {
+function clearMindmap(clearVersionHistory = true) {
     // Sla huidige staat op voordat we wissen voor undo
     saveStateForUndo();
     
@@ -517,6 +532,21 @@ function clearMindmap() {
     sourceNode = null;
     currentSelectedNode = null;
     currentSelectedConnection = null;
+    
+    // Clear version control data only when starting a completely new project
+    if (clearVersionHistory) {
+        if (window.StorageUtils) {
+            window.StorageUtils.removeItem('mindmap_current_project_data');
+            window.StorageUtils.removeItem('mindmap_current_draft');
+        } else {
+            try {
+                localStorage.removeItem('mindmap_current_project_data');
+                localStorage.removeItem('mindmap_current_draft');
+            } catch (e) {
+                console.warn('Could not clear localStorage version data:', e);
+            }
+        }
+    }
     
     // Reset minimap
     updateMinimap();

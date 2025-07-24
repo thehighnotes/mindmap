@@ -901,7 +901,7 @@ const VersionControl = {
      */
     recoverFromDraft(draft) {
         // Clear current mindmap
-        clearMindmap();
+        clearMindmap(false); // Don't clear version history during draft recovery
         
         // Restore project info
         currentProjectName = draft.projectName;

@@ -1109,7 +1109,7 @@ function setupEventListeners() {
     // Wissen knop
     clearBtn.addEventListener('click', function() {
         if (confirm('Weet je zeker dat je de mindmap wilt wissen?')) {
-            clearMindmap();
+            clearMindmap(true); // Clear version history when explicitly clearing
         }
     });
     
@@ -2702,7 +2702,7 @@ function setupHamburgerMenu() {
     if (menuClearBtn) {
         menuClearBtn.addEventListener('click', () => {
             if (confirm('Weet je zeker dat je de mindmap wilt wissen?')) {
-                clearMindmap();
+                clearMindmap(true); // Clear version history when explicitly clearing
             }
             closeHamburgerMenu();
         });

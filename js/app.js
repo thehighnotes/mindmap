@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Only initialize new mindmap if no draft was recovered
         if (!draftRecovered && typeof initMindmap === 'function') {
             console.log('🧠 Initializing new mindmap...');
-            initMindmap();
+            initMindmap(true); // Clear version history for completely fresh start
         }
         
         // Update initial tool states

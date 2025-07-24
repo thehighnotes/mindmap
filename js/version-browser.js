@@ -164,7 +164,10 @@ const VersionBrowser = {
             versionListHTML += `
                 <div class="version-item ${isCurrent ? 'current' : ''}" data-version-index="${realIndex}">
                     <div class="version-header">
-                        <span class="version-number">v${version.version}${isLatest ? ' (Latest)' : ''}</span>
+                        <span class="version-number">
+                            ${isCurrent ? '★ ' : ''}v${version.version}${isLatest ? ' (Latest)' : ''}
+                            ${isCurrent ? ' <span style="color: #4CAF50; font-size: 12px;">(Currently Loaded)</span>' : ''}
+                        </span>
                         <span class="version-date">${date} ${time}</span>
                     </div>
                     <div class="version-author">By ${version.author}</div>
@@ -198,14 +201,31 @@ const VersionBrowser = {
     },
     
     /**
-     * Attach click handlers to version items
+     * Attach click and hover handlers to version items
      */
     attachVersionClickHandlers() {
         const versionItems = document.querySelectorAll('.version-item');
         versionItems.forEach(item => {
+            // Click handler
             item.addEventListener('click', (e) => {
                 const versionIndex = parseInt(e.currentTarget.dataset.versionIndex);
                 this.selectVersion(versionIndex);
+            });
+            
+            // Mouse hover handlers for visual feedback
+            item.addEventListener('mouseenter', (e) => {
+                // Don't override current version highlighting
+                if (!e.currentTarget.classList.contains('current')) {
+                    e.currentTarget.classList.add('browser-selected');
+                }
+            });
+            
+            item.addEventListener('mouseleave', (e) => {
+                // Only remove browser-selected if it's not the actually selected version
+                const versionIndex = parseInt(e.currentTarget.dataset.versionIndex);
+                if (selectedVersionIndex !== versionIndex) {
+                    e.currentTarget.classList.remove('browser-selected');
+                }
             });
         });
     },
@@ -218,14 +238,15 @@ const VersionBrowser = {
         
         selectedVersionIndex = versionIndex;
         
-        // Update UI selection
+        // Update UI selection - clear previous selections
         document.querySelectorAll('.version-item').forEach(item => {
-            item.classList.remove('selected');
+            item.classList.remove('browser-selected');
         });
         
+        // Add browser-selected class to clicked version
         const selectedItem = document.querySelector(`[data-version-index="${versionIndex}"]`);
         if (selectedItem) {
-            selectedItem.classList.add('selected');
+            selectedItem.classList.add('browser-selected');
         }
         
         // Show version preview
@@ -321,9 +342,9 @@ const VersionBrowser = {
         }
         
         try {
-            // Use existing loadSelectedVersion function from export.js
-            if (typeof loadSelectedVersion === 'function') {
-                loadSelectedVersion(currentProjectData, selectedVersionIndex);
+            // Use existing loadVersionFromProject function from export.js
+            if (typeof loadVersionFromProject === 'function') {
+                loadVersionFromProject(currentProjectData, selectedVersionIndex);
             } else {
                 // Fallback implementation
                 this.loadVersionData(version, currentProjectData);
@@ -343,7 +364,7 @@ const VersionBrowser = {
     loadVersionData(version, projectData) {
         // Clear current mindmap
         if (typeof clearMindmap === 'function') {
-            clearMindmap();
+            clearMindmap(false); // Don't clear version history when loading project
         }
         
         // Load the version data
@@ -358,6 +379,12 @@ const VersionBrowser = {
             window.VersionControl.saveCurrentStateSnapshot();
             window.VersionControl.updateLastModifiedIndicator(projectData);
         }
+        
+        // Update the project data's currentVersion to reflect the loaded version
+        projectData.currentVersion = version.version;
+        
+        // Refresh the version list to update highlighting
+        this.displayVersionHistory(projectData);
     },
     
     /**
