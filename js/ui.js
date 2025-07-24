@@ -1057,6 +1057,8 @@ function setupEventListeners() {
     // Hulp tonen
     helpBtn.addEventListener('click', function() {
         helpModal.style.display = 'flex';
+        // Reset help modal to first tab when opened
+        resetHelpModalToFirstTab();
     });
     closeHelp.addEventListener('click', function() {
         helpModal.style.display = 'none';
@@ -1072,6 +1074,9 @@ function setupEventListeners() {
             }
         });
     }
+    
+    // Initialize modern help system
+    initializeHelpSystem();
     
     // Connection editor
     cancelConnectionEdit.addEventListener('click', function() {
@@ -2712,6 +2717,8 @@ function setupHamburgerMenu() {
         menuHelpBtn.addEventListener('click', () => {
             helpModal.style.display = 'flex';
             closeHamburgerMenu();
+            // Reset help modal to first tab when opened
+            resetHelpModalToFirstTab();
         });
     }
 }
@@ -2764,4 +2771,195 @@ function closeHamburgerMenu() {
     
     // Restore body scroll
     document.body.style.overflow = '';
+}
+
+/**
+ * Initialize modern help system with tabs and search functionality
+ */
+function initializeHelpSystem() {
+    const helpTabs = document.querySelectorAll('.help-tab');
+    const helpTabContents = document.querySelectorAll('.help-tab-content');
+    const helpSearchInput = document.getElementById('help-search');
+    
+    // Tab navigation
+    helpTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetTab = this.getAttribute('data-tab');
+            
+            // Remove active class from all tabs and contents
+            helpTabs.forEach(t => t.classList.remove('active'));
+            helpTabContents.forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            this.classList.add('active');
+            const targetContent = document.getElementById(targetTab);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    });
+    
+    // Search functionality
+    if (helpSearchInput) {
+        let searchTimeout;
+        helpSearchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performHelpSearch(this.value.toLowerCase().trim());
+            }, 300); // Debounce search
+        });
+        
+        // Clear search on escape
+        helpSearchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                this.value = '';
+                performHelpSearch('');
+            }
+        });
+    }
+}
+
+/**
+ * Perform search within help content
+ */
+function performHelpSearch(searchTerm) {
+    const helpTabContents = document.querySelectorAll('.help-tab-content');
+    const helpTabs = document.querySelectorAll('.help-tab');
+    
+    if (!searchTerm) {
+        // Clear search - show all content and reset tabs
+        helpTabContents.forEach(content => {
+            content.style.display = '';
+            const items = content.querySelectorAll('.help-feature-item, .help-shortcut-item');
+            items.forEach(item => {
+                item.style.display = '';
+                // Remove search highlights
+                item.innerHTML = item.innerHTML.replace(/<mark class="help-search-highlight">([^<]*)<\/mark>/gi, '$1');
+            });
+        });
+        
+        // Reset to first tab
+        helpTabs.forEach(tab => tab.classList.remove('active'));
+        helpTabContents.forEach(content => content.classList.remove('active'));
+        if (helpTabs[0]) helpTabs[0].classList.add('active');
+        if (helpTabContents[0]) helpTabContents[0].classList.add('active');
+        
+        return;
+    }
+    
+    let hasResults = false;
+    let firstResultTab = null;
+    
+    helpTabContents.forEach((content, index) => {
+        const items = content.querySelectorAll('.help-feature-item, .help-shortcut-item');
+        let tabHasResults = false;
+        
+        items.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            
+            if (text.includes(searchTerm)) {
+                item.style.display = '';
+                tabHasResults = true;
+                hasResults = true;
+                
+                // Highlight search term
+                const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+                item.innerHTML = item.innerHTML.replace(/<mark class="help-search-highlight">([^<]*)<\/mark>/gi, '$1');
+                item.innerHTML = item.innerHTML.replace(regex, '<mark class="help-search-highlight">$1</mark>');
+                
+                if (!firstResultTab) {
+                    firstResultTab = index;
+                }
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Show/hide entire sections based on results
+        const sections = content.querySelectorAll('.help-feature-group');
+        sections.forEach(section => {
+            const visibleItems = section.querySelectorAll('.help-feature-item:not([style*="display: none"]), .help-shortcut-item:not([style*="display: none"])');
+            section.style.display = visibleItems.length > 0 ? '' : 'none';
+        });
+    });
+    
+    // Switch to first tab with results
+    if (hasResults && firstResultTab !== null) {
+        helpTabs.forEach(tab => tab.classList.remove('active'));
+        helpTabContents.forEach(content => content.classList.remove('active'));
+        
+        if (helpTabs[firstResultTab]) helpTabs[firstResultTab].classList.add('active');
+        if (helpTabContents[firstResultTab]) helpTabContents[firstResultTab].classList.add('active');
+    }
+    
+    // Show no results message if needed
+    if (!hasResults) {
+        showNoSearchResults();
+    } else {
+        hideNoSearchResults();
+    }
+}
+
+/**
+ * Escape special regex characters for search
+ */
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Show no search results message
+ */
+function showNoSearchResults() {
+    let noResultsDiv = document.querySelector('.help-no-results');
+    if (!noResultsDiv) {
+        noResultsDiv = document.createElement('div');
+        noResultsDiv.className = 'help-no-results';
+        noResultsDiv.innerHTML = `
+            <div class="help-no-results-icon">🔍</div>
+            <div>Geen resultaten gevonden</div>
+            <div style="font-size: 0.9em; margin-top: 8px; color: #999;">Probeer andere zoektermen</div>
+        `;
+        
+        const helpContent = document.querySelector('.help-content');
+        if (helpContent) {
+            helpContent.appendChild(noResultsDiv);
+        }
+    }
+    noResultsDiv.style.display = 'flex';
+}
+
+/**
+ * Hide no search results message
+ */
+function hideNoSearchResults() {
+    const noResultsDiv = document.querySelector('.help-no-results');
+    if (noResultsDiv) {
+        noResultsDiv.style.display = 'none';
+    }
+}
+
+/**
+ * Reset help modal to first tab and clear search
+ */
+function resetHelpModalToFirstTab() {
+    const helpTabs = document.querySelectorAll('.help-tab');
+    const helpTabContents = document.querySelectorAll('.help-tab-content');
+    const helpSearchInput = document.getElementById('help-search');
+    
+    // Clear search
+    if (helpSearchInput) {
+        helpSearchInput.value = '';
+        performHelpSearch('');
+    }
+    
+    // Reset to first tab
+    helpTabs.forEach(tab => tab.classList.remove('active'));
+    helpTabContents.forEach(content => content.classList.remove('active'));
+    
+    if (helpTabs[0]) helpTabs[0].classList.add('active');
+    if (helpTabContents[0]) helpTabContents[0].classList.add('active');
+    
+    // Hide no results message
+    hideNoSearchResults();
 }

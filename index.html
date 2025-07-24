@@ -265,96 +265,530 @@
     
     <!-- Help modal -->
     <div class="modal" id="help-modal">
-        <div class="modal-content">
+        <div class="modal-content help-modal-content">
             <div class="modal-header">
-                <div class="modal-title">Help</div>
+                <div class="modal-title">
+                    <span class="help-icon">❓</span>
+                    Mindmap Help & Gebruiksaanwijzing
+                </div>
                 <button class="close-modal">&times;</button>
             </div>
-            <div class="modal-body">
-                <h3>Mindmap Brainstorm Tool Gebruiksaanwijzing</h3>
-                
-                <h4>Basisgereedschappen:</h4>
-                <ul>
-                    <li><strong>Navigatie:</strong> Klik en sleep met de muis om knooppunten te verplaatsen.</li>
-                    <li><strong>Nieuw knooppunt:</strong> Dubbelklik op een lege plaats in het canvas om een nieuw knooppunt toe te voegen.</li>
-                    <li><strong>Knooppunt toevoegen vanaf bestaand knooppunt:</strong> Gebruik de plus (+) knoppen die verschijnen wanneer je over een bestaand knooppunt gaat.</li>
-                    <li><strong>Rechtsklik menu:</strong> Toegang tot verschillende opties zoals hernoemen, bewerken, Y-vertakkingen maken, etc.</li>
-                </ul>
-                
-                <h4>Directe interactie:</h4>
-                <ul>
-                    <li><strong>Titel bewerken:</strong> Dubbelklik op de titel van een knooppunt om deze direct te bewerken.</li>
-                    <li><strong>Verbindingen:</strong> Rechtsklik op een knooppunt en kies "Y-vertakking maken" om het te verbinden met andere knooppunten.</li>
-                    <li><strong>Verbindingen bewerken:</strong> Rechtsklik op een verbinding om opties te zien zoals vertakking maken of verwijderen.</li>
-                    <li><strong>Verbindingslabels:</strong> Dubbelklik op een verbinding om een label toe te voegen.</li>
-                    <li><strong>Snelle vertakking:</strong> Klik op het punt dat verschijnt wanneer je over een verbinding gaat om een Y-vertakking te maken.</li>
-                    <li><strong>Verbindingen aanpassen:</strong> Sleep aan het oranje controlepunt om de vorm van een verbinding aan te passen.</li>
-                    <li><strong>Tussennode toevoegen:</strong> Klik op het groene plusje op een verbindingslijn om een tussennode te maken.</li>
-                </ul>
-                
-                <h4>Canvas Navigatie:</h4>
-                <ul>
-                    <li><strong>Pannen:</strong> Houd de spatiebalk of middelste muisknop ingedrukt en sleep om het canvas te verplaatsen.</li>
-                    <li><strong>Zoomen:</strong> Gebruik het muiswiel of de zoom-knoppen linksonder om in/uit te zoomen.</li>
-                    <li><strong>Centreren:</strong> Klik op de "Centreren" knop om de mindmap te centreren.</li>
-                    <li><strong>Raster Aan/Uit (G):</strong> Schakel het achtergrond raster aan of uit.</li>
-                    <li><strong>Minimap Aan/Uit (M):</strong> Toon of verberg de minimap rechtsonder.</li>
-                    <li><strong>Auto-Layout:</strong> Gebruik de "Auto-Layout" knop om de mindmap automatisch te organiseren.</li>
-                </ul>
-                
-                <h4>Sneltoetsen:</h4>
-                <ul>
-                    <li><strong>S:</strong> Selecteer tool</li>
-                    <li><strong>A:</strong> Voeg knooppunt toe tool</li>
-                    <li><strong>C:</strong> Verbind tool</li>
-                    <li><strong>D:</strong> Verwijder tool</li>
-                    <li><strong>G:</strong> Raster aan/uit</li>
-                    <li><strong>M:</strong> Minimap aan/uit</li>
-                    <li><strong>Spatiebalk (houden):</strong> Tijdelijke pan modus</li>
-                    <li><strong>Delete/Backspace:</strong> Verwijder geselecteerd element</li>
-                    <li><strong>Ctrl+Z:</strong> Ongedaan maken</li>
-                    <li><strong>Ctrl+C:</strong> Kopieer geselecteerde node</li>
-                    <li><strong>Ctrl+V:</strong> Plak gekopieerde node</li>
-                    <li><strong>Ctrl+F:</strong> Zoom naar selectie</li>
-                    <li><strong>Tab:</strong> Voeg snel child node toe</li>
-                    <li><strong>Ctrl+S:</strong> Opslaan</li>
-                    <li><strong>Ctrl+O:</strong> Laden</li>
-                    <li><strong>Ctrl+E:</strong> Exporteren naar Mermaid</li>
-                    <li><strong>Ctrl+I:</strong> Importeren van Mermaid</li>
-                    <li><strong>Ctrl+klik op knooppunt:</strong> Verbind met geselecteerd knooppunt</li>
-                    <li><strong>Ctrl+klik (houden):</strong> Selecteer meerdere knooppunten om te verbinden</li>
-                </ul>
-                
-                <h4>Export & Import:</h4>
-                <ul>
-                    <li>Gebruik "Exporteer naar Mermaid" om de mindmap te exporteren naar Mermaid-syntax voor gebruik in de Mermaid Live Editor.</li>
-                    <li>Gebruik "Importeer van Mermaid" om Mermaid code te importeren en om te zetten naar een mindmap.</li>
-                    <li>Gebruik "Als Afbeelding" om de mindmap als PNG-bestand op te slaan.</li>
-                    <li>Gebruik "Opslaan" om het volledige mindmap-project als JSON-bestand op te slaan voor later gebruik.</li>
-                </ul>
-                
-                <h4>Nieuwe Features:</h4>
-                <ul>
-                    <li><strong>Copy/Paste:</strong> Kopieer en plak knooppunten inclusief verbindingen</li>
-                    <li><strong>Uitgebreide Templates:</strong> Nieuwe templates zoals Kanban Board, Mindfulness Map en Weekplanning</li>
-                    <li><strong>Slimme Bulk Positionering:</strong> Nieuwe child nodes worden automatisch in vrije ruimte geplaatst</li>
-                    <li><strong>Zoom naar Selectie:</strong> Focus snel op geselecteerde elementen</li>
-                    <li><strong>Verbindingslabels Roteren:</strong> Labels volgen automatisch de hoek van verbindingen</li>
-                </ul>
-                
-                <h4>Tips & Trucs:</h4>
-                <ul>
-                    <li><strong>Eerste gebruik tips:</strong> Bij het eerste gebruik zie je automatisch handige tips. Deze kun je altijd opnieuw bekijken met onderstaande knop.</li>
-                    <li><strong>Tips uitgeschakeld?</strong> Als je de tips per ongeluk hebt uitgeschakeld, klik dan op "Toon Beginners Tips" hieronder.</li>
-                    <li><strong>Snel werken:</strong> Gebruik de + knoppen op knooppunten voor het snel toevoegen van nieuwe ideeën.</li>
-                    <li><strong>Organiseren:</strong> Sleep knooppunten om je mindmap overzichtelijk te houden.</li>
-                    <li><strong>Kopiëren:</strong> Gebruik Ctrl+C/V om knooppunten te dupliceren</li>
-                    <li><strong>Snelle child nodes:</strong> Druk Tab terwijl een node geselecteerd is</li>
-                </ul>
+            
+            <!-- Search bar -->
+            <div class="help-search-container">
+                <input type="text" id="help-search" class="help-search-input" placeholder="🔍 Zoek in help..." />
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="show-tips-btn">Toon Beginners Tips</button>
-                <button class="btn" id="close-help">Sluiten</button>
+            
+            <div class="modal-body help-modal-body">
+                <!-- Tab navigation -->
+                <div class="help-tabs">
+                    <button class="help-tab active" data-tab="getting-started">
+                        <span class="tab-icon">🚀</span>
+                        <span class="tab-text">Beginnen</span>
+                    </button>
+                    <button class="help-tab" data-tab="tools-features">
+                        <span class="tab-icon">🛠️</span>
+                        <span class="tab-text">Tools & Features</span>
+                    </button>
+                    <button class="help-tab" data-tab="shortcuts">
+                        <span class="tab-icon">⌨️</span>
+                        <span class="tab-text">Sneltoetsen</span>
+                    </button>
+                    <button class="help-tab" data-tab="collaboration">
+                        <span class="tab-icon">👥</span>
+                        <span class="tab-text">Versie Control</span>
+                    </button>
+                    <button class="help-tab" data-tab="export-import">
+                        <span class="tab-icon">📤</span>
+                        <span class="tab-text">Export & Import</span>
+                    </button>
+                </div>
+                
+                <!-- Tab content -->
+                <div class="help-content">
+                    <!-- Getting Started Tab -->
+                    <div class="help-tab-content active" id="getting-started">
+                        <div class="help-section">
+                            <h2 class="help-section-title">🚀 Welkom bij de Mindmap Tool</h2>
+                            <p class="help-intro">Een krachtige tool voor visuele brainstorming en ideeënorganisatie.</p>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">📍 Basisnavigatie</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🖱️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Canvas navigatie:</strong> Houd <kbd>Spatiebalk</kbd> ingedrukt en sleep om te pannen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔍</div>
+                                        <div class="help-feature-content">
+                                            <strong>Zoomen:</strong> Gebruik het muiswiel of de zoom-knoppen linksonder
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎯</div>
+                                        <div class="help-feature-content">
+                                            <strong>Centreren:</strong> Klik op "Centreren" om de mindmap te centreren
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">➕ Je eerste knooppunt maken</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">✨</div>
+                                        <div class="help-feature-content">
+                                            <strong>Nieuw knooppunt:</strong> Dubbelklik op een lege plaats in het canvas
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">➕</div>
+                                        <div class="help-feature-content">
+                                            <strong>Child knooppunt:</strong> Hover over een knooppunt en klik op de <span class="help-highlight">+</span> knop
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">✏️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Tekst bewerken:</strong> Dubbelklik op een knooppunt om de titel te bewerken
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔗 Verbindingen maken</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔗</div>
+                                        <div class="help-feature-content">
+                                            <strong>Aftakking maken:</strong> Sleep vanuit het oranje bolletje op een verbindingslijn naar een bestaande node
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚡</div>
+                                        <div class="help-feature-content">
+                                            <strong>Snelle verbinding:</strong> Houd <kbd>Ctrl</kbd> ingedrukt en klik op twee knooppunten
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎨</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verbindingslabel:</strong> Dubbelklik op een verbindingslijn om een label toe te voegen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tools & Features Tab -->
+                    <div class="help-tab-content" id="tools-features">
+                        <div class="help-section">
+                            <h2 class="help-section-title">🛠️ Tools & Features</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🎨 Knooppunt bewerking</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔄</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verplaatsen:</strong> Sleep knooppunten om ze te verplaatsen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎭</div>
+                                        <div class="help-feature-content">
+                                            <strong>Vorm wijzigen:</strong> Rechtsklik → "Bewerken" voor verschillende vormen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎨</div>
+                                        <div class="help-feature-content">
+                                            <strong>Kleuren:</strong> Pas achtergrondkleur aan via het bewerkingsmenu
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🗑️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verwijderen:</strong> Selecteer en druk <kbd>Delete</kbd> of gebruik de verwijder tool
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔗 Geavanceerde verbindingen</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📐</div>
+                                        <div class="help-feature-content">
+                                            <strong>Curve aanpassen:</strong> Sleep het oranje controlepunt om de verbindingsboog te wijzigen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">➕</div>
+                                        <div class="help-feature-content">
+                                            <strong>Tussennode:</strong> Klik op het groene plusje op een verbindingslijn
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🌿</div>
+                                        <div class="help-feature-content">
+                                            <strong>Aftakking naar bestaande node:</strong> Sleep vanuit het oranje bolletje op een verbindingslijn direct naar een andere node
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">⚡ Productiviteitstools</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📝</div>
+                                        <div class="help-feature-content">
+                                            <strong>Batch tekst:</strong> Gebruik de batch tekst tool om meerdere knooppunten in één keer toe te voegen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📋</div>
+                                        <div class="help-feature-content">
+                                            <strong>Templates:</strong> SWOT analyse, Kanban board, mindfulness map, en meer
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎯</div>
+                                        <div class="help-feature-content">
+                                            <strong>Auto-layout:</strong> Automatische organisatie van je mindmap
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">👁️ Weergave opties</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚏</div>
+                                        <div class="help-feature-content">
+                                            <strong>Raster:</strong> Druk <kbd>G</kbd> om het achtergrond raster aan/uit te zetten
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🗺️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Minimap:</strong> Druk <kbd>M</kbd> om de minimap rechtsonder te tonen/verbergen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Keyboard Shortcuts Tab -->
+                    <div class="help-tab-content" id="shortcuts">
+                        <div class="help-section">
+                            <h2 class="help-section-title">⌨️ Sneltoetsen</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">📁 Bestand operaties</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+                                        <div class="help-shortcut-desc">Opslaan</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>O</kbd></div>
+                                        <div class="help-shortcut-desc">Laden</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>E</kbd></div>
+                                        <div class="help-shortcut-desc">Exporteer naar Mermaid</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>I</kbd></div>
+                                        <div class="help-shortcut-desc">Importeer van Mermaid (tijdelijk onbeschikbaar)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">✂️ Bewerken</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Z</kbd></div>
+                                        <div class="help-shortcut-desc">Ongedaan maken</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+                                        <div class="help-shortcut-desc">Kopiëren</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>V</kbd></div>
+                                        <div class="help-shortcut-desc">Plakken</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Delete</kbd> / <kbd>Backspace</kbd></div>
+                                        <div class="help-shortcut-desc">Verwijderen</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🧭 Navigatie</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Spatiebalk</kbd></div>
+                                        <div class="help-shortcut-desc">Pan modus (houden)</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>F</kbd></div>
+                                        <div class="help-shortcut-desc">Zoom naar selectie</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>G</kbd></div>
+                                        <div class="help-shortcut-desc">Raster aan/uit</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>M</kbd></div>
+                                        <div class="help-shortcut-desc">Minimap aan/uit</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔗 Knooppunten & Verbindingen</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Tab</kbd></div>
+                                        <div class="help-shortcut-desc">Snel child knooppunt toevoegen</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Klik</kbd></div>
+                                        <div class="help-shortcut-desc">Knooppunten verbinden</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Escape</kbd></div>
+                                        <div class="help-shortcut-desc">Actie annuleren</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Version Control & Collaboration Tab -->
+                    <div class="help-tab-content" id="collaboration">
+                        <div class="help-section">
+                            <h2 class="help-section-title">👥 Versie Control & Samenwerking</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">💾 Smart Save Systeem</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚡</div>
+                                        <div class="help-feature-content">
+                                            <strong>Auto-save:</strong> Je werk wordt elke 30 seconden automatisch opgeslagen als draft
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎯</div>
+                                        <div class="help-feature-content">
+                                            <strong>Slimme versie suggesties:</strong> Het systeem stelt automatisch de juiste versie nummering voor
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📝</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verandering tracking:</strong> Alle wijzigingen worden bijgehouden met timestamps
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">📚 Versie Browser</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⭐</div>
+                                        <div class="help-feature-content">
+                                            <strong>Huidige versie:</strong> Gemarkeerd met een ster (★) en groene tekst
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🖱️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Versie selectie:</strong> Klik op versies om een preview te zien, groene highlighting toont selectie
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">👤</div>
+                                        <div class="help-feature-content">
+                                            <strong>Auteur informatie:</strong> Zie wie welke wijzigingen heeft gemaakt en wanneer
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🤝 Team Samenwerking</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📄</div>
+                                        <div class="help-feature-content">
+                                            <strong>Bestand delen:</strong> Deel .mindmap bestanden via email of cloud storage
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚠️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Conflict detectie:</strong> Waarschuwingen wanneer nieuwere versies beschikbaar zijn
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📊</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verandering statistieken:</strong> Overzicht van toegevoegde/gewijzigde/verwijderde elementen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔄 Versie Beheer</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔢</div>
+                                        <div class="help-feature-content">
+                                            <strong>Automatische nummering:</strong> Patch (0.0.X), Minor (0.X.0), Major (X.0.0) versies
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🕰️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Volledige geschiedenis:</strong> Alle versies worden bewaard in het projectbestand
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">↪️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Versie laden:</strong> Ga terug naar elke eerdere versie met één klik
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export & Import Tab -->
+                    <div class="help-tab-content" id="export-import">
+                        <div class="help-section">
+                            <h2 class="help-section-title">📤 Export & Import</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">💾 Bestand formaten</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📋</div>
+                                        <div class="help-feature-content">
+                                            <strong>.mindmap bestanden:</strong> Volledig project met versie geschiedenis en metadata
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📄</div>
+                                        <div class="help-feature-content">
+                                            <strong>.json bestanden:</strong> Basis mindmap data (legacy ondersteuning)
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🖼️</div>
+                                        <div class="help-feature-content">
+                                            <strong>PNG afbeelding:</strong> Visuele export voor presentaties en documentatie
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔄 Mermaid integratie</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📊</div>
+                                        <div class="help-feature-content">
+                                            <strong>Export naar Mermaid:</strong> Converteer je mindmap naar Mermaid flowchart syntax
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📥</div>
+                                        <div class="help-feature-content">
+                                            <strong>Import van Mermaid:</strong> Tijdelijk onbeschikbaar - wordt binnenkort hersteld
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🌐</div>
+                                        <div class="help-feature-content">
+                                            <strong>Mermaid Live Editor:</strong> Gebruik geëxporteerde code direct in online editors
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔒 Bestandscompatibiliteit</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⬆️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Automatische upgrade:</strong> Oude bestanden worden automatisch geconverteerd
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔄</div>
+                                        <div class="help-feature-content">
+                                            <strong>Backwards compatibility:</strong> Ondersteuning voor alle eerdere bestandsformaten
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🛡️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Data integriteit:</strong> Veilige import/export met fout herstel
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">⚡ Snelle acties</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+                                        <div class="help-shortcut-desc">Smart Save Dialog</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>O</kbd></div>
+                                        <div class="help-shortcut-desc">Bestand laden</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>E</kbd></div>
+                                        <div class="help-shortcut-desc">Mermaid export</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>I</kbd></div>
+                                        <div class="help-shortcut-desc">Mermaid import (tijdelijk onbeschikbaar)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer help-modal-footer">
+                <button class="btn btn-secondary" id="show-tips-btn">💡 Toon Beginners Tips</button>
+                <button class="btn" id="close-help">✅ Sluiten</button>
             </div>
         </div>
     </div>
