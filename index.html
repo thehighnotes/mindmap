@@ -591,7 +591,7 @@
                                     <div class="help-feature-item">
                                         <div class="help-feature-icon">⚡</div>
                                         <div class="help-feature-content">
-                                            <strong>Auto-save:</strong> Je werk wordt elke 30 seconden automatisch opgeslagen als draft
+                                            <strong>Auto-save:</strong> Je werk wordt elke 30 seconden automatisch tijdelijk bewaard in de browser
                                         </div>
                                     </div>
                                     <div class="help-feature-item">
@@ -604,6 +604,12 @@
                                         <div class="help-feature-icon">📝</div>
                                         <div class="help-feature-content">
                                             <strong>Verandering tracking:</strong> Alle wijzigingen worden bijgehouden met timestamps
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">💾</div>
+                                        <div class="help-feature-content">
+                                            <strong>Echte versies:</strong> Klik "Opslaan" (Ctrl+S) om een permanente versie aan te maken die daadwerkelijk wordt opgeslagen
                                         </div>
                                     </div>
                                 </div>
@@ -850,36 +856,36 @@
             <div class="modal-body">
                 <div class="version-browser-layout">
                     <div class="project-info">
-                        <div class="current-project-name" id="current-project-name">Current Project</div>
-                        <div class="project-stats" id="project-stats">No version history available</div>
+                        <div class="current-project-name" id="current-project-name">Huidig Project</div>
+                        <div class="project-stats" id="project-stats">Geen versiegeschiedenis beschikbaar</div>
                     </div>
                     
                     <div class="version-list-container">
                         <div class="version-list-header">
-                            <h4>Available Versions</h4>
-                            <button class="btn btn-small" id="refresh-versions">🔄 Refresh</button>
+                            <h4>Beschikbare Versies</h4>
+                            <button class="btn btn-small" id="refresh-versions">🔄 Vernieuwen</button>
                         </div>
                         <div class="version-list" id="version-list">
                             <div class="no-versions-message">
-                                <p>No version history found.</p>
-                                <p>Save your mindmap to create version history.</p>
+                                <p>Geen versiegeschiedenis gevonden.</p>
+                                <p>Sla je mindmap op om versiegeschiedenis te maken.</p>
                             </div>
                         </div>
                     </div>
                     
                     <div class="version-preview" id="version-preview">
                         <div class="preview-header">
-                            <h4>Version Details</h4>
+                            <h4>Versiedetails</h4>
                         </div>
                         <div class="preview-content">
-                            <p>Select a version to see details</p>
+                            <p>Selecteer een versie om details te zien</p>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn" id="close-version-browser">Close</button>
-                <button class="btn btn-warning" id="load-selected-version" disabled>Load Selected Version</button>
+                <button class="btn" id="close-version-browser">Sluiten</button>
+                <button class="btn btn-warning" id="load-selected-version" disabled>Geselecteerde Versie Laden</button>
             </div>
         </div>
     </div>

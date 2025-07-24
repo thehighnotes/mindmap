@@ -112,24 +112,24 @@ const VersionBrowser = {
         const projectStatsEl = document.getElementById('project-stats');
         
         if (!currentProjectData) {
-            if (projectNameEl) projectNameEl.textContent = 'No Project Loaded';
-            if (projectStatsEl) projectStatsEl.textContent = 'No version history available';
+            if (projectNameEl) projectNameEl.textContent = 'Geen Project Geladen';
+            if (projectStatsEl) projectStatsEl.textContent = 'Geen versiegeschiedenis beschikbaar';
             return;
         }
         
         if (projectNameEl) {
-            projectNameEl.textContent = currentProjectData.projectName || 'Unnamed Project';
+            projectNameEl.textContent = currentProjectData.projectName || 'Naamloos Project';
         }
         
         if (projectStatsEl) {
             const versionCount = currentProjectData.versions ? currentProjectData.versions.length : 0;
             const lastModified = currentProjectData.lastModified ? 
-                new Date(currentProjectData.lastModified).toLocaleDateString('nl-NL') : 'Unknown';
-            const lastAuthor = currentProjectData.lastModifiedBy || 'Unknown';
+                new Date(currentProjectData.lastModified).toLocaleDateString('nl-NL') : 'Onbekend';
+            const lastAuthor = currentProjectData.lastModifiedBy || 'Onbekend';
             
             projectStatsEl.innerHTML = `
                 ${versionCount} version${versionCount !== 1 ? 's' : ''} • 
-                Last modified: ${lastModified} by ${lastAuthor}
+                Laatst gewijzigd: ${lastModified} door ${lastAuthor}
             `;
         }
     },
@@ -144,8 +144,8 @@ const VersionBrowser = {
         if (!currentProjectData || !currentProjectData.versions || currentProjectData.versions.length === 0) {
             versionListEl.innerHTML = `
                 <div class="no-versions-message">
-                    <p>No version history found.</p>
-                    <p>Save your mindmap to create version history.</p>
+                    <p>Geen versiegeschiedenis gevonden.</p>
+                    <p>Sla je mindmap op om versiegeschiedenis te maken.</p>
                 </div>
             `;
             return;
@@ -165,13 +165,13 @@ const VersionBrowser = {
                 <div class="version-item ${isCurrent ? 'current' : ''}" data-version-index="${realIndex}">
                     <div class="version-header">
                         <span class="version-number">
-                            ${isCurrent ? '★ ' : ''}v${version.version}${isLatest ? ' (Latest)' : ''}
-                            ${isCurrent ? ' <span style="color: #4CAF50; font-size: 12px;">(Currently Loaded)</span>' : ''}
+                            ${isCurrent ? '★ ' : ''}v${version.version}${isLatest ? ' (Nieuwste)' : ''}
+                            ${isCurrent ? ' <span style="color: #4CAF50; font-size: 12px;">(Momenteel Geladen)</span>' : ''}
                         </span>
                         <span class="version-date">${date} ${time}</span>
                     </div>
-                    <div class="version-author">By ${version.author}</div>
-                    <div class="version-summary">${version.summary || 'No description'}</div>
+                    <div class="version-author">Door ${version.author}</div>
+                    <div class="version-summary">${version.summary || 'Geen beschrijving'}</div>
                 </div>
             `;
         });
@@ -189,12 +189,12 @@ const VersionBrowser = {
         const versionListEl = document.getElementById('version-list');
         
         if (projectNameEl) projectNameEl.textContent = projectName;
-        if (projectStatsEl) projectStatsEl.textContent = 'No version history available';
+        if (projectStatsEl) projectStatsEl.textContent = 'Geen versiegeschiedenis beschikbaar';
         if (versionListEl) {
             versionListEl.innerHTML = `
                 <div class="no-versions-message">
-                    <p>No version history found.</p>
-                    <p>Save your mindmap to create version history.</p>
+                    <p>Geen versiegeschiedenis gevonden.</p>
+                    <p>Sla je mindmap op om versiegeschiedenis te maken.</p>
                 </div>
             `;
         }
@@ -273,38 +273,38 @@ const VersionBrowser = {
         
         previewContent.innerHTML = `
             <div class="preview-detail">
-                <strong>Version:</strong>
+                <strong>Versie:</strong>
                 v${version.version}
             </div>
             
             <div class="preview-detail">
-                <strong>Author:</strong>
+                <strong>Auteur:</strong>
                 ${version.author}
             </div>
             
             <div class="preview-detail">
-                <strong>Date:</strong>
+                <strong>Datum:</strong>
                 ${date.toLocaleDateString('nl-NL')} ${date.toLocaleTimeString('nl-NL')}
             </div>
             
             <div class="preview-detail">
-                <strong>Summary:</strong>
-                ${version.summary || 'No description provided'}
+                <strong>Samenvatting:</strong>
+                ${version.summary || 'Geen beschrijving beschikbaar'}
             </div>
             
             <div class="preview-detail">
-                <strong>Content:</strong>
+                <strong>Inhoud:</strong>
                 <div class="preview-changes">
-                    <div class="change-badge added">${nodeCount} nodes</div>
-                    <div class="change-badge modified">${connectionCount} connections</div>
-                    ${isCompressed ? '<div class="change-badge removed">Compressed</div>' : ''}
+                    <div class="change-badge added">${nodeCount} knooppunten</div>
+                    <div class="change-badge modified">${connectionCount} verbindingen</div>
+                    ${isCompressed ? '<div class="change-badge removed">Gecomprimeerd</div>' : ''}
                 </div>
-                ${isCompressed ? '<p style="color: #888; font-size: 12px; margin-top: 10px;">This version has been compressed to save space. Only basic information is available.</p>' : ''}
+                ${isCompressed ? '<p style="color: #888; font-size: 12px; margin-top: 10px;">Deze versie is gecomprimeerd om ruimte te besparen. Alleen basisinformatie is beschikbaar.</p>' : ''}
             </div>
             
             ${version.parentVersion ? `
                 <div class="preview-detail">
-                    <strong>Parent Version:</strong>
+                    <strong>Hoofdversie:</strong>
                     v${version.parentVersion}
                 </div>
             ` : ''}
@@ -316,18 +316,18 @@ const VersionBrowser = {
      */
     loadSelectedVersion() {
         if (selectedVersionIndex === null || !currentProjectData) {
-            showToast('No version selected', true);
+            showToast('Geen versie geselecteerd', true);
             return;
         }
         
         const version = currentProjectData.versions[selectedVersionIndex];
         if (!version) {
-            showToast('Selected version not found', true);
+            showToast('Geselecteerde versie niet gevonden', true);
             return;
         }
         
         if (version.compressed || !version.data) {
-            showToast('This version is compressed and cannot be loaded', true);
+            showToast('Deze versie is gecomprimeerd en kan niet worden geladen', true);
             return;
         }
         
@@ -335,7 +335,7 @@ const VersionBrowser = {
         if (window.VersionControl) {
             const currentProject = window.VersionControl.getCurrentProject();
             if (currentProject.hasUnsavedChanges) {
-                if (!confirm('You have unsaved changes that will be lost. Continue?')) {
+                if (!confirm('Je hebt niet-opgeslagen wijzigingen die verloren gaan. Doorgaan?')) {
                     return;
                 }
             }
@@ -351,10 +351,10 @@ const VersionBrowser = {
             }
             
             this.hide();
-            showToast(`Loaded version ${version.version} by ${version.author}`);
+            showToast(`Versie ${version.version} geladen door ${version.author}`);
         } catch (e) {
             console.error('Error loading version:', e);
-            showToast('Error loading version', true);
+            showToast('Fout bij laden van versie', true);
         }
     },
     
@@ -397,7 +397,7 @@ const VersionBrowser = {
         // Clear preview
         const previewContent = document.querySelector('#version-preview .preview-content');
         if (previewContent) {
-            previewContent.innerHTML = '<p>Select a version to see details</p>';
+            previewContent.innerHTML = '<p>Selecteer een versie om details te zien</p>';
         }
         
         // Disable load button
@@ -406,7 +406,7 @@ const VersionBrowser = {
             loadBtn.disabled = true;
         }
         
-        showToast('Version list refreshed');
+        showToast('Versielijst vernieuwd');
     },
     
     /**
