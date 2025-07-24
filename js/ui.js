@@ -239,41 +239,60 @@ function updateRelatedConnections(nodeId, isForDrag = true) {
         isProcessingConnectionQueue = true;
         
         requestAnimationFrame(() => {
-            // Process alle queued updates
-            while (connectionUpdateQueue.length > 0) {
-                const { nodeId, isForDrag } = connectionUpdateQueue.shift();
-                
-                // Bouw de cache op als die nog niet bestaat voor deze node
-                if (!nodeConnectionsCache[nodeId]) {
-                    nodeConnectionsCache[nodeId] = connections.filter(conn => 
-                        conn.source === nodeId || conn.target === nodeId ||
-                        (conn.isTrueBranch && conn.branchNodeId === nodeId)
-                    );
+            try {
+                // Process alle queued updates
+                while (connectionUpdateQueue.length > 0) {
+                    const { nodeId, isForDrag } = connectionUpdateQueue.shift();
+                    
+                    try {
+                        // Bouw de cache op als die nog niet bestaat voor deze node
+                        if (!nodeConnectionsCache[nodeId]) {
+                            nodeConnectionsCache[nodeId] = connections.filter(conn => 
+                                conn.source === nodeId || conn.target === nodeId ||
+                                (conn.isTrueBranch && conn.branchNodeId === nodeId)
+                            );
+                        }
+                        
+                        // Cache van de update zodat alleen de relevante verbindingen worden bijgewerkt
+                        const relatedConnections = nodeConnectionsCache[nodeId];
+                        
+                        // Optimalisatie: Als er geen verbindingen zijn voor deze node, ga naar volgende
+                        if (relatedConnections.length === 0) continue;
+                        
+                        // Bereken eerst alle controlepunten opnieuw bij een sleepactie
+                        if (isForDrag) {
+                            relatedConnections.forEach(conn => {
+                                try {
+                                    recalculateControlPoint(conn, true);
+                                } catch (e) {
+                                    console.error('Error in recalculateControlPoint:', e, conn);
+                                }
+                            });
+                        }
+                        
+                        // Teken alle verbindingen opnieuw
+                        relatedConnections.forEach(conn => {
+                            try {
+                                drawConnection(conn);
+                            } catch (e) {
+                                console.error('Error in drawConnection:', e, conn);
+                            }
+                        });
+                        
+                        // Update ook alle aftakkingspunten die aan deze node gerelateerd zijn
+                        try {
+                            updateBranchStartPointsForNode(nodeId);
+                        } catch (e) {
+                            console.error('Error in updateBranchStartPointsForNode:', e, nodeId);
+                        }
+                    } catch (e) {
+                        console.error('Error processing connection update for node:', nodeId, e);
+                    }
                 }
-                
-                // Cache van de update zodat alleen de relevante verbindingen worden bijgewerkt
-                const relatedConnections = nodeConnectionsCache[nodeId];
-                
-                // Optimalisatie: Als er geen verbindingen zijn voor deze node, ga naar volgende
-                if (relatedConnections.length === 0) continue;
-                
-                // Bereken eerst alle controlepunten opnieuw bij een sleepactie
-                if (isForDrag) {
-                    relatedConnections.forEach(conn => {
-                        recalculateControlPoint(conn, true);
-                    });
-                }
-                
-                // Teken alle verbindingen opnieuw
-                relatedConnections.forEach(conn => {
-                    drawConnection(conn);
-                });
-                
-                // Update ook alle aftakkingspunten die aan deze node gerelateerd zijn
-                updateBranchStartPointsForNode(nodeId);
+            } finally {
+                // CRITICAL: Always reset the flag, even if an error occurred
+                isProcessingConnectionQueue = false;
             }
-            
-            isProcessingConnectionQueue = false;
         });
     }
 }
@@ -776,10 +795,51 @@ function setupConnectionContextMenuActions() {
     }
 }
 
+// Setup title editing functionality
+function setupTitleEditing() {
+    if (!mindmapTitleEl) return;
+    
+    // Update hint on focus/blur
+    const hintEl = document.querySelector('.edit-title-hint');
+    
+    mindmapTitleEl.addEventListener('focus', function() {
+        if (hintEl) hintEl.style.display = 'none';
+        this.select(); // Select all text on focus
+    });
+    
+    mindmapTitleEl.addEventListener('blur', function() {
+        if (hintEl) hintEl.style.display = '';
+        updateTitleFromInput();
+    });
+    
+    mindmapTitleEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.blur();
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            this.value = getMindmapTitle();
+            this.blur();
+        }
+    });
+    
+    // Update title on input change
+    mindmapTitleEl.addEventListener('input', function() {
+        // Limit title length
+        if (this.value.length > 100) {
+            this.value = this.value.substring(0, 100);
+        }
+    });
+}
+
 // Stel alle event listeners in
 function setupEventListeners() {
     // Hamburger menu setup
     setupHamburgerMenu();
+    
+    // Title editing functionality
+    setupTitleEditing();
     
     // Canvas navigatie
     canvas.addEventListener('mousemove', handleMouseMove);
@@ -930,10 +990,30 @@ function setupEventListeners() {
     });
     
     // Opslag operaties
-    saveBtn.addEventListener('click', exportToJson);
+    saveBtn.addEventListener('click', function() {
+        if (typeof showSmartSaveDialog === 'function') {
+            showSmartSaveDialog();
+        } else if (typeof exportToJson === 'function') {
+            exportToJson();
+        } else {
+            showToast('Save functie niet beschikbaar', true);
+        }
+    });
     loadBtn.addEventListener('click', function() {
         fileInput.click();
     });
+    
+    // Version browser button
+    const versionBrowserBtn = document.getElementById('version-browser-btn');
+    if (versionBrowserBtn) {
+        versionBrowserBtn.addEventListener('click', function() {
+            if (window.VersionBrowser) {
+                window.VersionBrowser.show();
+            } else {
+                showToast('Version browser niet beschikbaar', true);
+            }
+        });
+    }
     
     // Bestandsinvoer
     fileInput.addEventListener('change', function(e) {
@@ -1200,7 +1280,13 @@ function setupEventListeners() {
         // Bestandsoperaties
         if (e.ctrlKey && e.code === 'KeyS') {
             e.preventDefault();
-            exportToJson();
+            if (typeof showSmartSaveDialog === 'function') {
+                showSmartSaveDialog();
+            } else if (typeof exportToJson === 'function') {
+                exportToJson();
+            } else {
+                showToast('Save functie niet beschikbaar', true);
+            }
         } else if (e.ctrlKey && e.code === 'KeyO') {
             e.preventDefault();
             fileInput.click();
@@ -2562,7 +2648,13 @@ function setupHamburgerMenu() {
     
     if (menuSaveBtn) {
         menuSaveBtn.addEventListener('click', () => {
-            exportToJson();
+            if (typeof showSmartSaveDialog === 'function') {
+                showSmartSaveDialog();
+            } else if (typeof exportToJson === 'function') {
+                exportToJson();
+            } else {
+                showToast('Save functie niet beschikbaar', true);
+            }
             closeHamburgerMenu();
         });
     }
@@ -2570,6 +2662,18 @@ function setupHamburgerMenu() {
     if (menuLoadBtn) {
         menuLoadBtn.addEventListener('click', () => {
             document.getElementById('file-input').click();
+            closeHamburgerMenu();
+        });
+    }
+    
+    const menuVersionBrowserBtn = document.getElementById('menu-version-browser-btn');
+    if (menuVersionBrowserBtn) {
+        menuVersionBrowserBtn.addEventListener('click', () => {
+            if (window.VersionBrowser) {
+                window.VersionBrowser.show();
+            } else {
+                showToast('Version browser niet beschikbaar', true);
+            }
             closeHamburgerMenu();
         });
     }

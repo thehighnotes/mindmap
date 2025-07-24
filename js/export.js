@@ -290,13 +290,59 @@ function importFromMermaid() {
     showToast('Mermaid diagram geïmporteerd');
 }
 
-// Exporteer als JSON
+// Exporteer als JSON (legacy format for backward compatibility)
 function exportToJson() {
+    // Get current project info for metadata
+    const projectInfo = window.VersionControl ? window.VersionControl.getCurrentProject() : {
+        name: getMindmapTitle ? getMindmapTitle() : 'Mindmap Project',
+        version: '1.0.0',
+        author: 'Anonymous'
+    };
+    
+    // Get current author from storage
+    let currentAuthor = 'Anonymous';
+    try {
+        if (window.StorageUtils) {
+            currentAuthor = window.StorageUtils.getItem('mindmap_author') || 'Anonymous';
+        } else {
+            currentAuthor = localStorage.getItem('mindmap_author') || 'Anonymous';
+        }
+    } catch (e) {
+        console.warn('Could not get author for export:', e);
+    }
+    
+    const now = new Date().toISOString();
+    
     const data = {
+        // Core mindmap data
+        title: getMindmapTitle ? getMindmapTitle() : 'Mindmap Project',
         nodes: nodes,
         connections: connections,
         nextNodeId: nextNodeId,
-        rootNodeId: rootNodeId
+        rootNodeId: rootNodeId,
+        
+        // Enhanced metadata
+        metadata: {
+            version: projectInfo.version || '1.0.0',
+            author: currentAuthor,
+            created: now,
+            lastModified: now,
+            nodeCount: nodes.length,
+            connectionCount: connections.length,
+            formatVersion: '2.0' // New enhanced format
+        },
+        
+        // Version history (will be populated by version control system)
+        versionHistory: [
+            {
+                version: projectInfo.version || '1.0.0',
+                timestamp: now,
+                author: currentAuthor,
+                changes: 'Initial export',
+                nodeCount: nodes.length,
+                connectionCount: connections.length
+            }
+        ]
     };
     
     const dataStr = JSON.stringify(data, null, 2);
@@ -314,7 +360,258 @@ function exportToJson() {
     showToast('Mindmap opgeslagen');
 }
 
-// Importeer van JSON
+// Enhanced export with version control
+function exportWithVersionControl(versionInfo) {
+    // Get current project info
+    const projectInfo = window.VersionControl ? window.VersionControl.getCurrentProject() : {
+        name: 'Mindmap Project',
+        version: '1.0.0',
+        author: 'Anonymous'
+    };
+    
+    // Create version entry
+    const versionEntry = {
+        version: versionInfo.version || projectInfo.suggestedVersion || '1.0.0',
+        author: versionInfo.author || projectInfo.author || 'Anonymous',
+        timestamp: new Date().toISOString(),
+        summary: versionInfo.summary || projectInfo.changeSummary || 'Initial version',
+        parentVersion: versionInfo.parentVersion || projectInfo.version,
+        data: {
+            title: getMindmapTitle ? getMindmapTitle() : 'Mindmap Project',
+            nodes: JSON.parse(JSON.stringify(nodes)),
+            connections: JSON.parse(JSON.stringify(connections)),
+            nextNodeId: nextNodeId,
+            rootNodeId: rootNodeId
+        }
+    };
+    
+    // Try to load existing project file structure
+    let projectData;
+    
+    try {
+        // Check if we have existing project data in localStorage
+        let existingProject = null;
+        if (window.StorageUtils) {
+            existingProject = window.StorageUtils.getItem('mindmap_current_project_data');
+        } else {
+            existingProject = localStorage.getItem('mindmap_current_project_data');
+        }
+        
+        if (existingProject) {
+            projectData = window.StorageUtils ? 
+                window.StorageUtils.parseJSON(existingProject, null) : 
+                JSON.parse(existingProject);
+        }
+    } catch (e) {
+        console.warn('Could not load existing project data:', e);
+    }
+    
+    // Create or update project structure
+    if (!projectData || projectData.projectName !== projectInfo.name) {
+        projectData = {
+            formatVersion: '2.0',
+            projectName: projectInfo.name,
+            currentVersion: versionEntry.version,
+            created: new Date().toISOString(),
+            lastModified: new Date().toISOString(),
+            lastModifiedBy: versionEntry.author,
+            versions: []
+        };
+    }
+    
+    // Add new version
+    projectData.versions.push(versionEntry);
+    projectData.currentVersion = versionEntry.version;
+    projectData.lastModified = new Date().toISOString();
+    projectData.lastModifiedBy = versionEntry.author;
+    
+    // Keep only last 20 versions to manage file size
+    if (projectData.versions.length > 20) {
+        projectData.versions = projectData.versions.slice(-20);
+    }
+    
+    // Compress older versions (keep only essential data for versions older than 10)
+    if (projectData.versions.length > 10) {
+        for (let i = 0; i < projectData.versions.length - 10; i++) {
+            const version = projectData.versions[i];
+            if (version.data && !version.compressed) {
+                // Keep only basic info for old versions
+                version.compressed = true;
+                version.nodeCount = version.data.nodes.length;
+                version.connectionCount = version.data.connections.length;
+                // Remove detailed data to save space
+                delete version.data;
+            }
+        }
+    }
+    
+    // Save to localStorage for next time
+    try {
+        const projectDataJson = window.StorageUtils ? 
+            window.StorageUtils.stringifyJSON(projectData) : 
+            JSON.stringify(projectData);
+            
+        if (window.StorageUtils) {
+            window.StorageUtils.setItem('mindmap_current_project_data', projectDataJson);
+        } else {
+            localStorage.setItem('mindmap_current_project_data', projectDataJson);
+        }
+    } catch (e) {
+        console.warn('Could not save project data to localStorage:', e);
+    }
+    
+    return projectData;
+}
+
+// Generate smart filename
+function generateSmartFilename(projectName, version, author, summary) {
+    // Clean project name
+    const cleanProjectName = projectName.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // Extract keyword from summary
+    const keyword = extractKeywordFromSummary(summary);
+    
+    // Generate timestamp
+    const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Build filename
+    let filename = `${cleanProjectName}_v${version}`;
+    
+    if (author && author !== 'Anonymous') {
+        const cleanAuthor = author.replace(/[^a-zA-Z0-9]/g, '_');
+        filename += `_${cleanAuthor}`;
+    }
+    
+    if (keyword) {
+        filename += `_${keyword}`;
+    }
+    
+    filename += '.mindmap';
+    
+    return filename;
+}
+
+// Extract keyword from change summary
+function extractKeywordFromSummary(summary) {
+    if (!summary || summary === 'Initial version') return null;
+    
+    // Common keywords to extract
+    const keywords = {
+        'added': 'Added',
+        'created': 'New',
+        'updated': 'Updated',
+        'modified': 'Modified',
+        'deleted': 'Removed',
+        'fixed': 'Fixed',
+        'improved': 'Improved',
+        'refactored': 'Refactor',
+        'analysis': 'Analysis',
+        'planning': 'Planning',
+        'meeting': 'Meeting',
+        'brainstorm': 'Brainstorm',
+        'template': 'Template'
+    };
+    
+    const lowerSummary = summary.toLowerCase();
+    
+    for (const [key, label] of Object.entries(keywords)) {
+        if (lowerSummary.includes(key)) {
+            return label;
+        }
+    }
+    
+    // Try to extract first meaningful word
+    const words = summary.split(' ').filter(w => w.length > 3);
+    if (words.length > 0) {
+        return words[0].replace(/[^a-zA-Z0-9]/g, '');
+    }
+    
+    return null;
+}
+
+// Save with file picker (enhanced)
+function saveWithFilePicker(projectData, suggestedFilename) {
+    // Check if the File System Access API is supported
+    if ('showSaveFilePicker' in window) {
+        savWithFileSystemAPI(projectData, suggestedFilename);
+    } else {
+        // Fallback to traditional download
+        saveWithTraditionalDownload(projectData, suggestedFilename);
+    }
+}
+
+// Save using File System Access API
+async function savWithFileSystemAPI(projectData, suggestedFilename) {
+    try {
+        const fileHandle = await window.showSaveFilePicker({
+            suggestedName: suggestedFilename,
+            types: [
+                {
+                    description: 'Mindmap project files',
+                    accept: {
+                        'application/json': ['.mindmap', '.json']
+                    }
+                }
+            ]
+        });
+        
+        const writable = await fileHandle.createWritable();
+        const dataStr = JSON.stringify(projectData, null, 2);
+        await writable.write(dataStr);
+        await writable.close();
+        
+        // Remember the file handle for future saves
+        if (window.VersionControl) {
+            try {
+                if (window.StorageUtils) {
+                    window.StorageUtils.setItem('mindmap_last_file_handle', fileHandle.name);
+                } else {
+                    localStorage.setItem('mindmap_last_file_handle', fileHandle.name);
+                }
+            } catch (e) {
+                console.warn('Could not save file handle preference:', e);
+                // Don't block the save operation if this fails
+            }
+        }
+        
+        showToast(`Project opgeslagen als ${fileHandle.name}`);
+        
+        // Update version control state
+        if (window.VersionControl) {
+            window.VersionControl.saveCurrentStateSnapshot();
+        }
+        
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error('Error saving file:', err);
+            showToast('Fout bij het opslaan van het bestand', true);
+        }
+    }
+}
+
+// Save using traditional download
+function saveWithTraditionalDownload(projectData, suggestedFilename) {
+    const dataStr = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = suggestedFilename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast(`Project opgeslagen als ${suggestedFilename}`);
+    
+    // Update version control state
+    if (window.VersionControl) {
+        window.VersionControl.saveCurrentStateSnapshot();
+    }
+}
+
+// Enhanced import with version support
 function importFromJson(file) {
     const reader = new FileReader();
     
@@ -322,27 +619,307 @@ function importFromJson(file) {
         try {
             const data = JSON.parse(e.target.result);
             
-            // Verwijder huidige mindmap
-            clearMindmap();
+            // Check if this is an enhanced project file or legacy format
+            if (data.metadata && data.metadata.formatVersion === '2.0' && data.versionHistory) {
+                // New enhanced format with embedded version history
+                importEnhancedProject(data);
+            } else if (data.formatVersion && data.versions) {
+                // Old enhanced format (legacy)
+                importLegacyEnhancedProject(data);
+            } else {
+                // Legacy format - import directly
+                importLegacyFormat(data);
+            }
             
-            // Maak de container voor verbindingen opnieuw aan
-            const connectionsContainer = document.createElement('div');
+        } catch (error) {
+            console.error('Fout bij het laden van mindmap:', error);
+            showToast('Fout bij het laden van de mindmap', true);
+        }
+    };
+    
+    reader.readAsText(file);
+}
+
+// Import enhanced project with version selection (new format)
+function importEnhancedProject(projectData) {
+    // Clear current mindmap with confirmation
+    if (nodes.length > 0 && !confirm('Dit zal de huidige mindmap wissen. Doorgaan?')) {
+        return;
+    }
+    
+    // Load the current version from the enhanced format
+    loadMindmapData({
+        title: projectData.title,
+        nodes: projectData.nodes,
+        connections: projectData.connections,
+        nextNodeId: projectData.nextNodeId,
+        rootNodeId: projectData.rootNodeId
+    });
+    
+    // Update version control with metadata
+    if (window.VersionControl && projectData.metadata) {
+        window.VersionControl.setProject(
+            projectData.title || 'Imported Project', 
+            projectData.metadata.version || '1.0.0'
+        );
+        
+        // Set author if available
+        if (projectData.metadata.author) {
+            window.VersionControl.setAuthor(projectData.metadata.author);
+        }
+        
+        window.VersionControl.saveCurrentStateSnapshot();
+    }
+    
+    // Store project data temporarily (for version browser if needed)
+    try {
+        const projectDataJson = window.StorageUtils ? 
+            window.StorageUtils.stringifyJSON(projectData) : 
+            JSON.stringify(projectData);
+            
+        if (window.StorageUtils) {
+            window.StorageUtils.setItem('mindmap_current_project_data', projectDataJson);
+        } else {
+            localStorage.setItem('mindmap_current_project_data', projectDataJson);
+        }
+    } catch (e) {
+        console.warn('Could not save project data to localStorage:', e);
+        // Don't block import if localStorage fails
+    }
+    
+    // Show success message with version info
+    const versionInfo = projectData.metadata ? 
+        ` (v${projectData.metadata.version} by ${projectData.metadata.author})` : '';
+    showToast(`Enhanced mindmap geladen${versionInfo}`);
+    
+    // Show version history summary if available
+    if (projectData.versionHistory && projectData.versionHistory.length > 1) {
+        console.log(`Project has ${projectData.versionHistory.length} versions in history`);
+        showToast(`Project bevat ${projectData.versionHistory.length} versies in geschiedenis`, false, 3000);
+    }
+}
+
+// Import legacy enhanced project (old format compatibility)
+function importLegacyEnhancedProject(projectData) {
+    console.log('Loading legacy enhanced format...');
+    
+    // Convert old format to new format handling
+    if (projectData.formatVersion && projectData.versions) {
+        // Load the latest version from old format
+        const latestVersion = projectData.versions[projectData.versions.length - 1];
+        
+        if (latestVersion && latestVersion.data) {
+            loadMindmapData(latestVersion.data);
+            
+            // Update version control
+            if (window.VersionControl) {
+                const projectName = latestVersion.data.title || 'Legacy Project';
+                window.VersionControl.setProject(projectName, latestVersion.version || '1.0.0');
+                window.VersionControl.saveCurrentStateSnapshot();
+            }
+            
+            showToast(`Legacy mindmap geladen (${projectData.versions.length} versies beschikbaar)`);
+        } else {
+            showToast('Fout bij het laden van legacy project', true);
+        }
+    }
+}
+
+// Check for version conflicts
+function checkForVersionConflicts(projectData) {
+    if (!window.VersionControl) return false;
+    
+    const currentProject = window.VersionControl.getCurrentProject();
+    
+    // Check if this is the same project
+    if (projectData.projectName !== currentProject.name) {
+        return false; // Different project, no conflict
+    }
+    
+    // Check if there are unsaved changes
+    if (currentProject.hasUnsavedChanges) {
+        return true; // User has unsaved changes
+    }
+    
+    // Check if file was modified after our last save
+    try {
+        let lastSavedData = 'null';
+        if (window.StorageUtils) {
+            lastSavedData = window.StorageUtils.getItem('mindmap_current_project_data') || 'null';
+        } else {
+            lastSavedData = localStorage.getItem('mindmap_current_project_data') || 'null';
+        }
+        
+        const lastSavedProject = window.StorageUtils ? 
+            window.StorageUtils.parseJSON(lastSavedData, null) : 
+            JSON.parse(lastSavedData);
+            
+        if (lastSavedProject && projectData.lastModified > lastSavedProject.lastModified) {
+            return true; // File has newer changes
+        }
+    } catch (e) {
+        console.warn('Could not check for conflicts:', e);
+    }
+    
+    return false;
+}
+
+// Show conflict warning dialog
+function showConflictWarning(projectData) {
+    const modal = document.createElement('div');
+    modal.className = 'modal conflict-warning-modal';
+    modal.style.display = 'flex';
+    
+    const currentProject = window.VersionControl ? window.VersionControl.getCurrentProject() : {};
+    const lastVersion = projectData.versions[projectData.versions.length - 1];
+    const conflictType = currentProject.hasUnsavedChanges ? 'unsaved_changes' : 'newer_version';
+    
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">⚠️ Conflict Detected</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${conflictType === 'unsaved_changes' ? `
+                    <p><strong>You have unsaved changes that will be lost!</strong></p>
+                    <p>Project: <strong>${currentProject.name}</strong></p>
+                    <p>Your changes: ${currentProject.changeSummary}</p>
+                    <p>Suggested version: ${currentProject.suggestedVersion}</p>
+                ` : `
+                    <p><strong>This file has newer changes than your current version!</strong></p>
+                    <p>File version: <strong>${projectData.currentVersion}</strong></p>
+                    <p>Last modified by: <strong>${lastVersion.author}</strong></p>
+                    <p>Modified: ${new Date(projectData.lastModified).toLocaleDateString('nl-NL')}</p>
+                `}
+                <hr>
+                <p>What would you like to do?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="conflict-cancel">Cancel</button>
+                ${conflictType === 'unsaved_changes' ? 
+                    '<button class="btn btn-save" id="conflict-save-first">Save My Changes First</button>' : ''
+                }
+                <button class="btn btn-warning" id="conflict-proceed">Load Anyway</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Set up event listeners
+    modal.querySelector('.close-modal').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    modal.querySelector('#conflict-cancel').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    const saveFirstBtn = modal.querySelector('#conflict-save-first');
+    if (saveFirstBtn) {
+        saveFirstBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+            // Open save dialog first
+            if (typeof showSmartSaveDialog === 'function') {
+                showSmartSaveDialog();
+            }
+        });
+    }
+    
+    modal.querySelector('#conflict-proceed').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        // Proceed with version selection
+        showVersionSelectionDialog(projectData);
+    });
+}
+
+// Import legacy format
+function importLegacyFormat(data) {
+    // Clear current mindmap with confirmation
+    if (nodes.length > 0 && !confirm('Dit zal de huidige mindmap wissen. Doorgaan?')) {
+        return;
+    }
+    
+    loadMindmapData(data);
+    
+    // Update version control
+    if (window.VersionControl) {
+        const projectName = data.title || (rootNodeId && nodes.find(n => n.id === rootNodeId)?.title) || 'Imported Project';
+        window.VersionControl.setProject(projectName, '1.0.0');
+        window.VersionControl.saveCurrentStateSnapshot();
+    }
+    
+    showToast('Mindmap geladen');
+}
+
+// Load specific version from project data
+function loadVersionFromProject(projectData, versionIndex = -1) {
+    if (!projectData.versions || projectData.versions.length === 0) {
+        showToast('Geen versies gevonden in project', true);
+        return;
+    }
+    
+    // Default to latest version
+    if (versionIndex < 0) {
+        versionIndex = projectData.versions.length - 1;
+    }
+    
+    const version = projectData.versions[versionIndex];
+    
+    if (!version.data) {
+        showToast('Versie data niet beschikbaar (mogelijk gecomprimeerd)', true);
+        return;
+    }
+    
+    // Clear current mindmap
+    clearMindmap();
+    
+    // Load the version data
+    loadMindmapData(version.data);
+    
+    // Update version control
+    if (window.VersionControl) {
+        window.VersionControl.setProject(projectData.projectName, version.version);
+        window.VersionControl.setAuthor(version.author);
+        window.VersionControl.saveCurrentStateSnapshot();
+        
+        // Update last modified indicator
+        window.VersionControl.updateLastModifiedIndicator(projectData);
+    }
+    
+    showToast(`Versie ${version.version} geladen door ${version.author}`);
+}
+
+// Load mindmap data into current state
+function loadMindmapData(data) {
+    try {
+        // Verwijder huidige mindmap
+        clearMindmap();
+        
+        // Maak de container voor verbindingen opnieuw aan
+        const connectionsContainer = document.createElement('div');
             connectionsContainer.id = 'connections-container';
-            connectionsContainer.style.position = 'absolute';
-            connectionsContainer.style.top = '0';
-            connectionsContainer.style.left = '0';
-            connectionsContainer.style.width = '100%';
-            connectionsContainer.style.height = '100%';
-            connectionsContainer.style.pointerEvents = 'none';
-            connectionsContainer.style.zIndex = '1';
-            canvas.appendChild(connectionsContainer);
-            
-            // Laad de gegevens
-            nextNodeId = data.nextNodeId || 1;
-            rootNodeId = data.rootNodeId || null;
-            
-            // Maak eerst alle knooppunten
-            data.nodes.forEach(node => {
+        connectionsContainer.style.position = 'absolute';
+        connectionsContainer.style.top = '0';
+        connectionsContainer.style.left = '0';
+        connectionsContainer.style.width = '100%';
+        connectionsContainer.style.height = '100%';
+        connectionsContainer.style.pointerEvents = 'none';
+        connectionsContainer.style.zIndex = '1';
+        canvas.appendChild(connectionsContainer);
+        
+        // Laad de gegevens
+        nextNodeId = data.nextNodeId || 1;
+        rootNodeId = data.rootNodeId || null;
+        
+        // Load title if available
+        if (data.title && setMindmapTitle) {
+            setMindmapTitle(data.title);
+        }
+        
+        // Maak eerst alle knooppunten
+        data.nodes.forEach(node => {
                 const nodeEl = document.createElement('div');
                 nodeEl.id = node.id;
                 nodeEl.className = 'node';
@@ -506,9 +1083,6 @@ function importFromJson(file) {
             console.error('Fout bij het laden van mindmap:', error);
             showToast('Fout bij het laden van de mindmap', true);
         }
-    };
-    
-    reader.readAsText(file);
 }
 
 // Exporteer als afbeelding
@@ -833,3 +1407,197 @@ function exportAsImage() {
         showToast('Fout bij het exporteren als afbeelding', true);
     }
 }
+
+// Show version selection dialog
+function showVersionSelectionDialog(projectData) {
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.className = 'modal version-selection-modal';
+    modal.style.display = 'flex';
+    
+    const versions = projectData.versions.slice().reverse(); // Latest first
+    
+    let versionListHTML = '';
+    versions.forEach((version, index) => {
+        const realIndex = projectData.versions.length - 1 - index; // Convert back to original index
+        const isLatest = index === 0;
+        const isCompressed = version.compressed;
+        const nodeInfo = version.data ? `${version.data.nodes.length} nodes, ${version.data.connections.length} connections` :
+                        `${version.nodeCount || 0} nodes, ${version.connectionCount || 0} connections (compressed)`;
+        
+        const timeAgo = getTimeAgo(new Date(version.timestamp));
+        
+        versionListHTML += `
+            <div class="version-item ${isLatest ? 'latest' : ''} ${isCompressed ? 'compressed' : ''}" 
+                 data-version-index="${realIndex}" 
+                 ${isCompressed ? 'title="Deze versie is gecomprimeerd en kan niet geladen worden"' : ''}>
+                <div class="version-header">
+                    <span class="version-number">v${version.version}</span>
+                    ${isLatest ? '<span class="latest-badge">Nieuwste</span>' : ''}
+                    ${isCompressed ? '<span class="compressed-badge">Gecomprimeerd</span>' : ''}
+                </div>
+                <div class="version-info">
+                    <div class="version-author">👤 ${version.author}</div>
+                    <div class="version-time">🕒 ${timeAgo}</div>
+                    <div class="version-stats">📊 ${nodeInfo}</div>
+                </div>
+                <div class="version-summary">${version.summary}</div>
+                ${!isCompressed ? '<button class="btn btn-small load-version-btn">Laden</button>' : ''}
+            </div>
+        `;
+    });
+    
+    modal.innerHTML = `
+        <div class="modal-content version-selection-content">
+            <div class="modal-header">
+                <div class="modal-title">📁 ${projectData.projectName} - Versie Selecteren</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="project-info">
+                    <p><strong>Project:</strong> ${projectData.projectName}</p>
+                    <p><strong>Huidige versie:</strong> v${projectData.currentVersion}</p>
+                    <p><strong>Totaal versies:</strong> ${projectData.versions.length}</p>
+                    <p><strong>Laatst gewijzigd:</strong> ${new Date(projectData.lastModified).toLocaleString('nl-NL')}</p>
+                </div>
+                <div class="version-list">
+                    ${versionListHTML}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancel-version-selection">Annuleren</button>
+                <button class="btn btn-save" id="load-latest-version">Nieuwste Versie Laden</button>
+            </div>
+        </div>
+    `;
+    
+    // Add to page
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    modal.querySelector('.close-modal').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    modal.querySelector('#cancel-version-selection').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    modal.querySelector('#load-latest-version').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        loadVersionFromProject(projectData, -1); // Load latest
+    });
+    
+    // Load version buttons
+    modal.querySelectorAll('.load-version-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const versionIndex = parseInt(e.target.closest('.version-item').dataset.versionIndex);
+            document.body.removeChild(modal);
+            loadVersionFromProject(projectData, versionIndex);
+        });
+    });
+    
+    // Click on version item (except compressed ones)
+    modal.querySelectorAll('.version-item:not(.compressed)').forEach(item => {
+        item.addEventListener('click', () => {
+            const versionIndex = parseInt(item.dataset.versionIndex);
+            document.body.removeChild(modal);
+            loadVersionFromProject(projectData, versionIndex);
+        });
+    });
+}
+
+// Get time ago string
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMinutes < 1) return 'Net nu';
+    if (diffMinutes < 60) return `${diffMinutes} min geleden`;
+    if (diffHours < 24) return `${diffHours} uur geleden`;
+    if (diffDays < 7) return `${diffDays} dag${diffDays > 1 ? 'en' : ''} geleden`;
+    
+    return date.toLocaleDateString('nl-NL');
+}
+
+// Version comparison utility
+function compareVersions(versionA, versionB) {
+    if (!versionA.data || !versionB.data) return null;
+    
+    const differences = {
+        nodes: {
+            added: [],
+            removed: [],
+            modified: []
+        },
+        connections: {
+            added: [],
+            removed: [],
+            modified: []
+        }
+    };
+    
+    // Compare nodes
+    const aNodeIds = new Set(versionA.data.nodes.map(n => n.id));
+    const bNodeIds = new Set(versionB.data.nodes.map(n => n.id));
+    
+    // Find added nodes
+    versionB.data.nodes.forEach(node => {
+        if (!aNodeIds.has(node.id)) {
+            differences.nodes.added.push(node);
+        }
+    });
+    
+    // Find removed nodes
+    versionA.data.nodes.forEach(node => {
+        if (!bNodeIds.has(node.id)) {
+            differences.nodes.removed.push(node);
+        }
+    });
+    
+    // Find modified nodes
+    versionB.data.nodes.forEach(bNode => {
+        if (aNodeIds.has(bNode.id)) {
+            const aNode = versionA.data.nodes.find(n => n.id === bNode.id);
+            if (aNode && (aNode.title !== bNode.title || 
+                         aNode.content !== bNode.content || 
+                         aNode.color !== bNode.color ||
+                         Math.abs(aNode.x - bNode.x) > 5 ||
+                         Math.abs(aNode.y - bNode.y) > 5)) {
+                differences.nodes.modified.push({
+                    old: aNode,
+                    new: bNode
+                });
+            }
+        }
+    });
+    
+    // Similar comparison for connections
+    const aConnIds = new Set(versionA.data.connections.map(c => c.id));
+    const bConnIds = new Set(versionB.data.connections.map(c => c.id));
+    
+    versionB.data.connections.forEach(conn => {
+        if (!aConnIds.has(conn.id)) {
+            differences.connections.added.push(conn);
+        }
+    });
+    
+    versionA.data.connections.forEach(conn => {
+        if (!bConnIds.has(conn.id)) {
+            differences.connections.removed.push(conn);
+        }
+    });
+    
+    return differences;
+}
+
+// Expose functions to global scope for use in other modules
+window.exportToJson = exportToJson;
+window.importFromJson = importFromJson;
+window.exportToMermaid = exportToMermaid;
+window.importFromMermaid = importFromMermaid;
+window.exportAsImage = exportAsImage;

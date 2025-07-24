@@ -8,6 +8,7 @@ let nodes = [];
 let connections = [];
 let nextNodeId = 1;
 let rootNodeId = null;
+let mindmapTitle = 'Mindmap Project'; // Titel van de mindmap
 let draggedNode = null;
 let dragOffset = { x: 0, y: 0 };
 let mouseStartPos = { x: 0, y: 0 }; // Startpositie van de muis bij drag
@@ -99,6 +100,7 @@ let miniMapContent;
 let miniMapViewport;
 let autoLayoutBtn;
 let undoBtn; // Referentie naar de ongedaan maken knop
+let mindmapTitleEl; // Titel input element
 
 // Functie om DOM referenties te initialiseren
 function initializeReferences() {
@@ -158,6 +160,7 @@ function initializeReferences() {
     miniMapContent = document.getElementById('mini-map-content');
     miniMapViewport = document.getElementById('mini-map-viewport');
     autoLayoutBtn = document.getElementById('auto-layout-btn');
+    mindmapTitleEl = document.getElementById('mindmap-title');
 }
 
 // Canvas en weergave initialiseren
@@ -1077,9 +1080,12 @@ const errorHandler = {
     handle(error, context = 'unknown', showUser = false) {
         if (!this.isEnabled) return;
         
+        // Handle cases where error might be null or not an Error object
+        const safeError = error || new Error('Unknown error');
+        
         const errorInfo = {
-            message: error.message,
-            stack: error.stack,
+            message: safeError.message || 'Unknown error message',
+            stack: safeError.stack || 'No stack trace available',
             context,
             timestamp: new Date().toISOString(),
             url: window.location.href,
@@ -1098,11 +1104,11 @@ const errorHandler = {
         
         // Show to user if requested
         if (showUser) {
-            showToast(`Fout: ${error.message}`, true);
+            showToast(`Fout: ${safeError.message}`, true);
         }
         
         // Attempt recovery for specific error types
-        this.attemptRecovery(error, context);
+        this.attemptRecovery(safeError, context);
     },
     
     /**
@@ -1319,5 +1325,36 @@ if (originalDrawConnectionWithLoop) {
 
 // Export for global access
 window.loopDetector = loopDetector;
+
+// Title management functions
+function getMindmapTitle() {
+    return mindmapTitle;
+}
+
+function setMindmapTitle(title) {
+    mindmapTitle = title || 'Mindmap Project';
+    if (mindmapTitleEl) {
+        mindmapTitleEl.value = mindmapTitle;
+    }
+    // Update version control if available
+    if (window.VersionControl && window.VersionControl.setProject && window.VersionControl.getCurrentProject) {
+        const currentProject = window.VersionControl.getCurrentProject();
+        if (currentProject && currentProject.version) {
+            window.VersionControl.setProject(mindmapTitle, currentProject.version);
+        }
+    }
+}
+
+function updateTitleFromInput() {
+    if (mindmapTitleEl) {
+        const newTitle = mindmapTitleEl.value.trim() || 'Mindmap Project';
+        setMindmapTitle(newTitle);
+    }
+}
+
+// Export title functions to global scope
+window.getMindmapTitle = getMindmapTitle;
+window.setMindmapTitle = setMindmapTitle;
+window.updateTitleFromInput = updateTitleFromInput;
 
 console.log('🔄 Infinite loop detection activated');
