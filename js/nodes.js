@@ -9,7 +9,34 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
         saveStateForUndo();
     }
     
+    // CRITICAL FIX: Ensure nextNodeId is correct before creating new node
+    let maxNodeId = 0;
+    nodes.forEach(node => {
+        const nodeNum = parseInt(node.id.replace('node-', ''));
+        if (!isNaN(nodeNum) && nodeNum > maxNodeId) {
+            maxNodeId = nodeNum;
+        }
+    });
+    
+    // If nextNodeId would create a conflict, fix it
+    if (nextNodeId <= maxNodeId) {
+        const oldNextNodeId = nextNodeId;
+        nextNodeId = maxNodeId + 1;
+        console.warn(`[createNode] CORRECTING nextNodeId from ${oldNextNodeId} to ${nextNodeId} to avoid conflicts`);
+    }
+    
     const nodeId = 'node-' + nextNodeId++;
+    
+    // Check for ID conflicts (should not happen now)
+    const existingNode = nodes.find(n => n.id === nodeId);
+    if (existingNode) {
+        console.error(`[createNode] ID CONFLICT! Node ${nodeId} already exists!`);
+        console.error('Existing node:', existingNode);
+        console.error('Current nextNodeId:', nextNodeId);
+        console.error('All existing node IDs:', nodes.map(n => n.id));
+        // This should not happen anymore, but if it does, we need to handle it
+        return null;
+    }
     
     // Maak knooppunt object
     const newNode = {
@@ -183,8 +210,35 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
     canvas.appendChild(nodeEl);
     
     // Als er een parent is opgegeven, maak een verbinding
+    // Gebruik requestAnimationFrame om er zeker van te zijn dat de DOM is bijgewerkt
     if (parentNode) {
-        createConnection(parentNode, newNode.id);
+        // Log voor debugging
+        console.log(`[createNode] Creating connection from parent ${parentNode} to new node ${newNode.id}`);
+        
+        // Verifieer dat beide nodes bestaan voordat we de verbinding maken
+        const parentExists = nodes.some(n => n.id === parentNode);
+        const newNodeExists = nodes.some(n => n.id === newNode.id);
+        
+        if (!parentExists || !newNodeExists) {
+            console.error(`[createNode] Cannot create connection - nodes don't exist in array`);
+            console.error(`  Parent (${parentNode}) exists: ${parentExists}`);
+            console.error(`  NewNode (${newNode.id}) exists: ${newNodeExists}`);
+        } else {
+            // Gebruik requestAnimationFrame om DOM update te garanderen
+            requestAnimationFrame(() => {
+                // Controleer of DOM elementen bestaan
+                const parentEl = document.getElementById(parentNode);
+                const newNodeEl = document.getElementById(newNode.id);
+                
+                if (parentEl && newNodeEl) {
+                    createConnection(parentNode, newNode.id);
+                } else {
+                    console.error(`[createNode] DOM elements not found for connection`);
+                    console.error(`  Parent element exists: ${!!parentEl}`);
+                    console.error(`  New node element exists: ${!!newNodeEl}`);
+                }
+            });
+        }
     }
     
     // Update minimap

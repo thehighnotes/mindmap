@@ -963,17 +963,62 @@ function createNodeElement(node) {
             // Sla huidige staat op voordat we een nieuwe node toevoegen
             saveStateForUndo();
             
+            // Log voor debugging
+            console.log(`[createNodeElement] Creating child node from parent ${actualNode.id} at position (${newX}, ${newY})`);
+            console.log(`[createNodeElement] Parent node details:`, {
+                id: actualNode.id,
+                x: actualNode.x,
+                y: actualNode.y,
+                title: actualNode.title
+            });
+            
+            // Verify parent node still exists in DOM
+            const parentEl = document.getElementById(actualNode.id);
+            console.log(`[createNodeElement] Parent DOM element exists: ${!!parentEl}`);
+            if (parentEl) {
+                const rect = parentEl.getBoundingClientRect();
+                console.log(`[createNodeElement] Parent element position:`, {
+                    left: parentEl.style.left,
+                    top: parentEl.style.top,
+                    clientRect: { left: rect.left, top: rect.top }
+                });
+            }
+            
             // Maak nieuw knooppunt
             const childNode = createNode('Nieuw idee', '', actualNode.color, newX, newY, 'rounded', actualNode.id);
             
-            // Focus op titel voor directe bewerking
-            const childEl = document.getElementById(childNode.id);
-            if (childEl) {
-                const titleEl = childEl.querySelector('.node-title');
-                if (titleEl) {
-                    makeEditable(titleEl, childNode);
-                }
+            if (!childNode) {
+                console.error(`[createNodeElement] Failed to create child node - likely ID conflict!`);
+                return;
             }
+            
+            console.log(`[createNodeElement] Child node created:`, {
+                id: childNode.id,
+                x: childNode.x,
+                y: childNode.y,
+                parentId: actualNode.id
+            });
+            
+            // Focus op titel voor directe bewerking
+            // Gebruik requestAnimationFrame om zeker te zijn dat DOM is bijgewerkt
+            requestAnimationFrame(() => {
+                const childEl = document.getElementById(childNode.id);
+                if (childEl) {
+                    console.log(`[createNodeElement] Child node ${childNode.id} DOM element found, making editable`);
+                    console.log(`[createNodeElement] Child element position:`, {
+                        left: childEl.style.left,
+                        top: childEl.style.top
+                    });
+                } else {
+                    console.error(`[createNodeElement] Child node ${childNode.id} DOM element NOT found!`);
+                }
+                if (childEl) {
+                    const titleEl = childEl.querySelector('.node-title');
+                    if (titleEl) {
+                        makeEditable(titleEl, childNode);
+                    }
+                }
+            });
         });
     });
     

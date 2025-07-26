@@ -34,6 +34,24 @@ if (typeof ConnectionModules !== 'undefined') {
             if (!sourceNode || !targetNode) {
                 console.warn(`[drawConnection] Kon nodes niet vinden voor verbinding ${connection.id}. Source: ${connection.source}, Target: ${connection.target}`);
                 
+                // Probeer het opnieuw na een korte vertraging (voor het geval de nodes nog worden geladen)
+                if (!connection._retryCount) {
+                    connection._retryCount = 0;
+                }
+                
+                if (connection._retryCount < 3) {
+                    connection._retryCount++;
+                    console.log(`[drawConnection] Retrying connection ${connection.id} (attempt ${connection._retryCount}/3)`);
+                    
+                    requestAnimationFrame(() => {
+                        drawConnection(connection);
+                    });
+                    return;
+                }
+                
+                // Na 3 pogingen, verwijder de ongeldige verbinding
+                console.error(`[drawConnection] Failed to find nodes after 3 attempts, removing connection ${connection.id}`);
+                
                 // Remove invalid connection from array
                 const index = connections.findIndex(c => c.id === connection.id);
                 if (index !== -1) {
@@ -46,6 +64,11 @@ if (typeof ConnectionModules !== 'undefined') {
                     existingEl.parentNode.removeChild(existingEl);
                 }
                 return;
+            }
+            
+            // Reset retry count on success
+            if (connection._retryCount) {
+                delete connection._retryCount;
             }
             
             // Controleer of deze verbinding al een element heeft

@@ -944,8 +944,26 @@ function loadMindmapData(data) {
         canvas.appendChild(connectionsContainer);
         
         // Laad de gegevens
+        console.log(`[loadMindmapData] Setting nextNodeId from ${nextNodeId} to ${data.nextNodeId || 1}`);
         nextNodeId = data.nextNodeId || 1;
         rootNodeId = data.rootNodeId || null;
+        console.log(`[loadMindmapData] nextNodeId is now ${nextNodeId}, rootNodeId: ${rootNodeId}`);
+        
+        // CRITICAL FIX: Calculate proper nextNodeId based on actual nodes
+        let maxNodeId = 0;
+        data.nodes.forEach(nodeData => {
+            const nodeNum = parseInt(nodeData.id.replace('node-', ''));
+            if (!isNaN(nodeNum) && nodeNum > maxNodeId) {
+                maxNodeId = nodeNum;
+            }
+        });
+        
+        // Set nextNodeId to be one more than the highest existing node ID
+        const calculatedNextNodeId = maxNodeId + 1;
+        if (calculatedNextNodeId > nextNodeId) {
+            console.log(`[loadMindmapData] FIXING nextNodeId: was ${nextNodeId}, should be ${calculatedNextNodeId}`);
+            nextNodeId = calculatedNextNodeId;
+        }
         
         // Load title if available
         if (data.title && setMindmapTitle) {
@@ -969,11 +987,7 @@ function loadMindmapData(data) {
             // Voeg node toe aan de nodes array
             nodes.push(node);
             
-            // Update nextNodeId if necessary
-            const nodeNum = parseInt(node.id.replace('node-', ''));
-            if (!isNaN(nodeNum) && nodeNum >= nextNodeId) {
-                nextNodeId = nodeNum + 1;
-            }
+            // nextNodeId is now calculated correctly upfront, no need to update per node
             
             // Gebruik de bestaande createNodeElement functie voor consistente event handling
             createNodeElement(node);
