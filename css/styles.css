@@ -510,38 +510,66 @@ body {
 
 /* Diamond node specific styling */
 .diamond-node {
-    min-width: 100px !important;
-    padding: 15px !important;
+    min-width: 120px !important;
+    min-height: 120px !important;
+    width: 120px !important;
+    height: 120px !important;
+    padding: 0 !important;
+    border-width: 3px !important;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.8);
+    position: relative !important;
 }
 
 .diamond-node .node-title {
-    transform: rotate(-45deg);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 70px;
-    height: auto;
-    line-height: 1.2;
-    padding: 0;
-    margin: 0;
-    font-size: 0.9em;
-    font-weight: bold;
+    width: 80px;
+    height: 80px;
+    max-width: 80px;
+    line-height: 1.1;
+    padding: 4px;
+    margin: 0 auto;
+    font-size: 0.8em;
+    font-weight: 600;
     text-align: center;
     word-break: break-word;
     hyphens: auto;
+    overflow-wrap: break-word;
+    white-space: normal;
+    color: #333;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.8);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-origin: center;
+    transform: translate(-50%, -50%) rotate(-45deg) !important;
 }
 
 .diamond-node .node-content {
-    transform: rotate(-45deg);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 70px;
-    margin-top: 2px;
-    font-size: 0.7em;
+    width: 80px;
+    height: 80px;
+    max-width: 80px;
+    padding: 4px;
+    margin: 0 auto;
+    font-size: 0.65em;
+    font-weight: 500;
     text-align: center;
     word-break: break-word;
     hyphens: auto;
+    overflow-wrap: break-word;
+    white-space: normal;
+    color: #555;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.8);
+    position: absolute;
+    top: 65%;
+    left: 50%;
+    transform-origin: center;
+    transform: translate(-50%, -50%) rotate(-45deg) !important;
 }
 
 /* Add-node buttons op de randen van nodes */

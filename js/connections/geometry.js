@@ -95,7 +95,7 @@ if (typeof ConnectionModules !== 'undefined') {
             if (node.shape === 'circle') {
                 width = height = 120;
             } else if (node.shape === 'diamond') {
-                width = height = 100;
+                width = height = 120;
             }
             
             // Voor rechthoekige nodes, bereken de werkelijke breedte op basis van tekst
@@ -171,7 +171,7 @@ if (typeof ConnectionModules !== 'undefined') {
             if (node.shape === 'circle') {
                 width = height = 120;
             } else if (node.shape === 'diamond') {
-                width = height = 100;
+                width = height = 120;
             } else if (node.shape === 'rectangle' || node.shape === 'rounded') {
                 // Gebruik werkelijke breedte voor betere edge point berekening
                 width = calculateActualNodeWidth(node);

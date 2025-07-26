@@ -79,8 +79,8 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
         case 'diamond':
             nodeEl.classList.add('diamond-node');
             nodeEl.style.transform = 'rotate(45deg)';
-            nodeEl.style.width = '100px';
-            nodeEl.style.height = '100px';
+            nodeEl.style.width = '120px';
+            nodeEl.style.height = '120px';
             nodeEl.style.display = 'flex';
             nodeEl.style.flexDirection = 'column';
             nodeEl.style.justifyContent = 'center';
@@ -97,8 +97,8 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
     
     if (shape === 'diamond') {
         innerContent = `
-            <div class="node-title" style="transform: rotate(-45deg);">${newNode.title}</div>
-            ${newNode.content ? `<div class="node-content" style="transform: rotate(-45deg);">${newNode.content}</div>` : ''}
+            <div class="node-title">${newNode.title}</div>
+            ${newNode.content ? `<div class="node-content">${newNode.content}</div>` : ''}
         `;
     } else {
         innerContent = `
@@ -585,8 +585,8 @@ function saveNodeEdits() {
                     break;
                 case 'diamond':
                     nodeEl.style.transform = 'rotate(45deg)';
-                    nodeEl.style.width = '100px';
-                    nodeEl.style.height = '100px';
+                    nodeEl.style.width = '120px';
+                    nodeEl.style.height = '120px';
                     break;
                 default: // rectangle
                     nodeEl.style.borderRadius = '3px';
@@ -598,8 +598,8 @@ function saveNodeEdits() {
             
             if (node.shape === 'diamond') {
                 innerContent = `
-                    <div class="node-title" style="transform: rotate(-45deg);">${node.title}</div>
-                    ${node.content ? `<div class="node-content" style="transform: rotate(-45deg);">${node.content}</div>` : ''}
+                    <div class="node-title">${node.title}</div>
+                    ${node.content ? `<div class="node-content">${node.content}</div>` : ''}
                 `;
             } else {
                 innerContent = `

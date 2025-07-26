@@ -1084,7 +1084,7 @@ function exportAsImage() {
                 if (node.shape === 'circle') {
                     width = height = 120;
                 } else if (node.shape === 'diamond') {
-                    width = height = 100;
+                    width = height = 120;
                 }
                 
                 return {
@@ -1114,7 +1114,7 @@ function exportAsImage() {
                 } else if (node.shape === 'diamond') {
                     const normalizedAngle = (angle + Math.PI * 2) % (Math.PI * 2);
                     const rotatedAngle = normalizedAngle - Math.PI / 4;
-                    radius = 50 / Math.max(Math.abs(Math.cos(rotatedAngle)), Math.abs(Math.sin(rotatedAngle)));
+                    radius = 60 / Math.max(Math.abs(Math.cos(rotatedAngle)), Math.abs(Math.sin(rotatedAngle)));
                 } else {
                     const width = 120;
                     const height = 60;
@@ -1305,9 +1305,9 @@ function exportAsImage() {
         
         if (node.shape === 'diamond') {
             // Voor diamond moet de tekst gedraaid worden
-            ctx.translate(x + 50, y + 50);
+            ctx.translate(x + 60, y + 60);
             ctx.rotate(-Math.PI / 4);
-            ctx.fillText(node.title, 0, 0, 80);
+            ctx.fillText(node.title, 0, 0, 90);
             ctx.setTransform(1, 0, 0, 1, 0, 0);
         } else {
             // Voor andere vormen

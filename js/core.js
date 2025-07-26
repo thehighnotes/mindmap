@@ -866,8 +866,8 @@ function createNodeElement(node) {
     
     if (actualNode.shape === 'diamond') {
         innerContent = `
-            <div class="node-title" style="transform: rotate(-45deg);">${actualNode.title}</div>
-            ${actualNode.content ? `<div class="node-content" style="transform: rotate(-45deg);">${actualNode.content}</div>` : ''}
+            <div class="node-title">${actualNode.title}</div>
+            ${actualNode.content ? `<div class="node-content">${actualNode.content}</div>` : ''}
         `;
     } else {
         innerContent = `
