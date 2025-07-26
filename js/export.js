@@ -952,157 +952,23 @@ function loadMindmapData(data) {
             setMindmapTitle(data.title);
         }
         
-        // Maak eerst alle knooppunten
+        // Maak eerst alle knooppunten - gebruik createNodeElement voor consistentie
         data.nodes.forEach(node => {
-                const nodeEl = document.createElement('div');
-                nodeEl.id = node.id;
-                nodeEl.className = 'node';
-                if (node.isRoot) nodeEl.classList.add('root-node');
-                nodeEl.style.left = node.x + 'px';
-                nodeEl.style.top = node.y + 'px';
-                nodeEl.style.borderColor = node.color;
-                
-                // Pas stijl aan op basis van vorm
-                switch(node.shape) {
-                    case 'rounded':
-                        nodeEl.style.borderRadius = '10px';
-                        break;
-                    case 'circle':
-                        nodeEl.style.borderRadius = '50%';
-                        nodeEl.style.width = '120px';
-                        nodeEl.style.height = '120px';
-                        nodeEl.style.display = 'flex';
-                        nodeEl.style.flexDirection = 'column';
-                        nodeEl.style.justifyContent = 'center';
-                        nodeEl.style.alignItems = 'center';
-                        break;
-                    case 'diamond':
-                        nodeEl.style.transform = 'rotate(45deg)';
-                        nodeEl.style.width = '100px';
-                        nodeEl.style.height = '100px';
-                        break;
-                    default: // rectangle
-                        nodeEl.style.borderRadius = '3px';
-                        break;
-                }
-                
-                // Maak de inhoud
-                let innerContent = '';
-                
-                if (node.shape === 'diamond') {
-                    innerContent = `
-                        <div class="node-title" style="transform: rotate(-45deg);">${node.title}</div>
-                        ${node.content ? `<div class="node-content" style="transform: rotate(-45deg);">${node.content}</div>` : ''}
-                    `;
-                } else {
-                    innerContent = `
-                        <div class="node-title">${node.title}</div>
-                        ${node.content ? `<div class="node-content">${node.content}</div>` : ''}
-                    `;
-                }
-                
-                // Voeg plusjes toe
-                const addButtons = `
-                    <div class="add-node-btn top" title="Knooppunt boven toevoegen">+</div>
-                    <div class="add-node-btn right" title="Knooppunt rechts toevoegen">+</div>
-                    <div class="add-node-btn bottom" title="Knooppunt onder toevoegen">+</div>
-                    <div class="add-node-btn left" title="Knooppunt links toevoegen">+</div>
-                `;
-                nodeEl.innerHTML = innerContent + addButtons;
-                
-                // Voeg event listeners toe
-                nodeEl.addEventListener('mousedown', function(e) {
-                    if (e.button === 0) { // Alleen linkermuisknop
-                        handleNodeMouseDown(e, node);
-                    }
-                });
-                
-                nodeEl.addEventListener('dblclick', function(e) {
-                    // Als de klik in de titel was, maak direct bewerkbaar
-                    if (e.target.classList.contains('node-title')) {
-                        makeEditable(e.target, node);
-                    } else {
-                        // Anders open de editor modal
-                        openNodeEditor(node);
-                    }
-                });
-                
-                nodeEl.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                    showContextMenu(e, node);
-                });
-                
-                // Event voor connect tool en tijdelijke verbindingslijn
-                nodeEl.addEventListener('mouseover', function(e) {
-                    if (currentTool === 'connect' && sourceNode && sourceNode !== node.id) {
-                        nodeEl.style.boxShadow = '0 0 0 2px #2196F3';
-                    }
-                });
-                
-                nodeEl.addEventListener('mouseout', function(e) {
-                    if (currentTool === 'connect') {
-                        nodeEl.style.boxShadow = '';
-                    }
-                });
-                
-                // Event listeners voor de plusjes
-                nodeEl.querySelectorAll('.add-node-btn').forEach(btn => {
-                    btn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        
-                        // Bereken positie voor nieuw knooppunt op basis van de positie van de knop
-                        const direction = this.classList.contains('top') ? 'top' : 
-                                        this.classList.contains('right') ? 'right' : 
-                                        this.classList.contains('bottom') ? 'bottom' : 'left';
-                        
-                        // Standaard offset
-                        const offset = 180;
-                        
-                        // Bepaal nieuwe positie
-                        let newX = node.x;
-                        let newY = node.y;
-                        
-                        switch(direction) {
-                            case 'top':
-                                newY = node.y - offset;
-                                break;
-                            case 'right':
-                                newX = node.x + offset;
-                                break;
-                            case 'bottom':
-                                newY = node.y + offset;
-                                break;
-                            case 'left':
-                                newX = node.x - offset;
-                                break;
-                        }
-                        
-                        // Maak nieuw knooppunt
-                        const childNode = createNode('Nieuw idee', '', node.color, newX, newY, 'rounded', node.id);
-                        
-                        // Focus op titel voor directe bewerking
-                        const childEl = document.getElementById(childNode.id);
-                        if (childEl) {
-                            const titleEl = childEl.querySelector('.node-title');
-                            if (titleEl) {
-                                makeEditable(titleEl, childNode);
-                            }
-                        }
-                    });
-                });
-                
-                // Voeg toe aan het canvas
-                canvas.appendChild(nodeEl);
-                
-                // Voeg toe aan de nodes array
-                nodes.push(node);
-            });
+            // Voeg node toe aan de nodes array eerst
+            nodes.push(node);
+            
+            // Gebruik de bestaande createNodeElement functie voor consistente event handling
+            createNodeElement(node);
+        });
             
             // Maak alle verbindingen
             data.connections.forEach(conn => {
                 connections.push(conn);
                 drawConnection(conn);
             });
+            
+            // Post-load initialization to ensure all managers are updated
+            initializeAfterLoad();
             
             // Centreer op hoofdknooppunt
             if (rootNodeId) {
@@ -1629,9 +1495,64 @@ function compareVersions(versionA, versionB) {
     return differences;
 }
 
+// Post-load initialization function to ensure all managers are properly updated
+function initializeAfterLoad() {
+    console.log('🔄 Initializing after mindmap load...');
+    
+    try {
+        // Reset connection cache for all nodes
+        if (typeof resetConnectionCache === 'function') {
+            resetConnectionCache(); // Reset entire cache
+        }
+        
+        // Re-initialize mobile touch manager if it exists
+        if (window.mobileTouchManager) {
+            console.log('📱 Re-initializing mobile touch manager...');
+            
+            // Clear any stale references
+            if (typeof window.mobileTouchManager.reset === 'function') {
+                window.mobileTouchManager.reset();
+            }
+            
+            // Re-setup touch properties for all nodes
+            document.querySelectorAll('.node').forEach(nodeEl => {
+                // Ensure touch-action is set correctly for mobile
+                nodeEl.style.touchAction = 'none';
+                
+                // Mark for mobile touch manager tracking
+                if (window.mobileTouchManager.addNode) {
+                    window.mobileTouchManager.addNode(nodeEl);
+                }
+            });
+        }
+        
+        // Re-initialize mobile navigation manager if it exists
+        if (window.mobileNavigationManager) {
+            console.log('🧭 Re-initializing mobile navigation manager...');
+            if (typeof window.mobileNavigationManager.reset === 'function') {
+                window.mobileNavigationManager.reset();
+            }
+        }
+        
+        // Ensure all event listeners are properly attached
+        // Note: createNodeElement should handle this, but ensure UI events are working
+        if (typeof updateToolStates === 'function') {
+            updateToolStates();
+        }
+        
+        console.log('✅ Post-load initialization completed');
+        
+    } catch (error) {
+        console.error('⚠️ Error during post-load initialization:', error);
+        // Don't throw - we want the load to succeed even if some initialization fails
+    }
+}
+
 // Expose functions to global scope for use in other modules
 window.exportToJson = exportToJson;
 window.importFromJson = importFromJson;
 window.exportToMermaid = exportToMermaid;
 window.importFromMermaid = importFromMermaid;
 window.exportAsImage = exportAsImage;
+window.loadMindmapData = loadMindmapData;
+window.initializeAfterLoad = initializeAfterLoad;

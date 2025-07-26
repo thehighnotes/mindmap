@@ -919,6 +919,11 @@ const VersionControl = {
             createNodeElement(node);
         });
         
+        // Post-load initialization to ensure all managers are updated
+        if (typeof initializeAfterLoad === 'function') {
+            initializeAfterLoad();
+        }
+        
         refreshConnections();
         updateMinimap();
         this.updateVersionIndicator();

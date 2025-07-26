@@ -792,6 +792,11 @@ function undoLastAction() {
         createNodeElement(node);
     });
     
+    // Post-load initialization to ensure all managers are updated
+    if (typeof initializeAfterLoad === 'function') {
+        initializeAfterLoad();
+    }
+    
     // Teken alle verbindingen opnieuw
     refreshConnections();
     
@@ -883,7 +888,12 @@ function createNodeElement(node) {
     });
     
     nodeEl.addEventListener('dblclick', function(e) {
-        // Als de klik in de titel was, maak direct bewerkbaar
+        // Skip double-click handling for touch events (handled by mobile-touch.js)
+        if (e.pointerType === 'touch' || 'ontouchstart' in window) {
+            return;
+        }
+        
+        // Desktop behavior: Als de klik in de titel was, maak direct bewerkbaar
         if (e.target.classList.contains('node-title')) {
             makeEditable(e.target, node);
         } else {
@@ -960,8 +970,16 @@ function createNodeElement(node) {
         });
     });
     
+    // Mobile touch integration - ensure proper touch handling
+    nodeEl.style.touchAction = 'none'; // Prevent default touch behaviors
+    
     // Voeg de node toe aan het canvas
     canvas.appendChild(nodeEl);
+    
+    // Notify mobile touch manager if available
+    if (window.mobileTouchManager && typeof window.mobileTouchManager.addNode === 'function') {
+        window.mobileTouchManager.addNode(nodeEl);
+    }
     
     return nodeEl;
 }

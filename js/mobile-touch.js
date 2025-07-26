@@ -1703,6 +1703,61 @@ class ModernTouchManager {
         canvas.style.cursor = '';
     }
     
+    /**
+     * Reset the mobile touch manager state - for use after loading saved data
+     */
+    reset() {
+        console.log('📱 Resetting mobile touch manager state...');
+        
+        // Reset state using existing method
+        this.resetState();
+        this.state.activePointers.clear();
+        
+        // Clear last tap info for fresh double-tap detection
+        this.lastTap = {
+            time: 0,
+            target: null,
+            x: 0,
+            y: 0
+        };
+        
+        // Reset flags
+        this.justHandledDoubleTap = false;
+        this.contextMenuActive = false;
+        this.activeContextMenuNode = null;
+        
+        // Remove any existing floating UI elements
+        this.removeContextMenu();
+        this.removeQuickActionMenu();
+        this.removeFloatingEditButton();
+        
+        console.log('✅ Mobile touch manager reset completed');
+    }
+    
+    /**
+     * Add a node to mobile touch tracking - for use when nodes are restored
+     * @param {Element} nodeElement - The DOM element of the node to track
+     */
+    addNode(nodeElement) {
+        if (!nodeElement || !nodeElement.id) {
+            console.warn('⚠️ Attempted to add invalid node to touch manager');
+            return;
+        }
+        
+        // Ensure touch-action is set for mobile interactions
+        nodeElement.style.touchAction = 'none';
+        
+        // Ensure proper CSS classes for mobile styling
+        if (!nodeElement.classList.contains('node')) {
+            nodeElement.classList.add('node');
+        }
+        
+        // No need to re-add event listeners as those are handled by createNodeElement
+        // This method just ensures mobile-specific properties are set
+        
+        console.log(`📱 Added node ${nodeElement.id} to mobile touch tracking`);
+    }
+
     // Public API
     cleanup() {
         this.resetState();
