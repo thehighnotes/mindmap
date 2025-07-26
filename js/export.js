@@ -953,9 +953,27 @@ function loadMindmapData(data) {
         }
         
         // Maak eerst alle knooppunten - gebruik createNodeElement voor consistentie
-        data.nodes.forEach(node => {
-            // Voeg node toe aan de nodes array eerst
+        data.nodes.forEach(nodeData => {
+            // Creëer een nieuwe node met de juiste ID
+            const node = {
+                id: nodeData.id,
+                title: nodeData.title || 'Nieuw knooppunt',
+                content: nodeData.content || '',
+                color: nodeData.color || '#4CAF50',
+                x: nodeData.x,
+                y: nodeData.y,
+                shape: nodeData.shape || 'rectangle',
+                isRoot: nodeData.isRoot || false
+            };
+            
+            // Voeg node toe aan de nodes array
             nodes.push(node);
+            
+            // Update nextNodeId if necessary
+            const nodeNum = parseInt(node.id.replace('node-', ''));
+            if (!isNaN(nodeNum) && nodeNum >= nextNodeId) {
+                nextNodeId = nodeNum + 1;
+            }
             
             // Gebruik de bestaande createNodeElement functie voor consistente event handling
             createNodeElement(node);

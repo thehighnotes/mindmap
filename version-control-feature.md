@@ -155,6 +155,11 @@ The Mindmap Brainstorm Tool has been enhanced with a comprehensive version contr
   - Corrected syntax error in export.js catch block
   - Resolved exportToMermaid undefined reference in ui.js
   - Fixed EventListener initialization issues
+  - **Fixed Critical Session Reload Issue** (January 2025):
+    - Resolved node selection problems after loading saved sessions
+    - Fixed node dragging functionality for reloaded projects
+    - Corrected connection creation failures after session reload
+    - Ensured consistent event handler attachment between new and loaded projects
 
 ### 🔄 In Progress
 - Comprehensive functionality testing
@@ -171,5 +176,6 @@ The implementation provides enterprise-level functionality entirely within the b
 ---
 
 *Generated: January 2024*  
-*Version: 2.0*  
+*Last Updated: January 2025*  
+*Version: 2.1*  
 *Status: Production Ready*

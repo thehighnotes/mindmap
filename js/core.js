@@ -817,21 +817,28 @@ function undoLastAction() {
 function createNodeElement(node) {
     console.log("[DEBUG] Aanmaken van node element met positie:", { id: node.id, x: node.x, y: node.y });
     
+    // CRITICAL: Ensure we're working with the actual node from the nodes array
+    const actualNode = nodes.find(n => n.id === node.id);
+    if (!actualNode) {
+        console.error(`[createNodeElement] Node not found in nodes array: ${node.id}`);
+        return null;
+    }
+    
     const nodeEl = document.createElement('div');
-    nodeEl.id = node.id;
+    nodeEl.id = actualNode.id;
     nodeEl.className = 'node';
-    if (node.isRoot) nodeEl.classList.add('root-node');
+    if (actualNode.isRoot) nodeEl.classList.add('root-node');
     
     // Zorg ervoor dat we absolute waarden gebruiken
-    const x = Math.round(parseFloat(node.x));
-    const y = Math.round(parseFloat(node.y));
+    const x = Math.round(parseFloat(actualNode.x));
+    const y = Math.round(parseFloat(actualNode.y));
     
     nodeEl.style.left = x + 'px';
     nodeEl.style.top = y + 'px';
-    nodeEl.style.borderColor = node.color;
+    nodeEl.style.borderColor = actualNode.color;
     
     // Stel nodestyle in op basis van vorm
-    switch(node.shape) {
+    switch(actualNode.shape) {
         case 'rounded':
             nodeEl.style.borderRadius = '10px';
             break;
@@ -857,15 +864,15 @@ function createNodeElement(node) {
     // Maak de inhoud van de node
     let innerContent = '';
     
-    if (node.shape === 'diamond') {
+    if (actualNode.shape === 'diamond') {
         innerContent = `
-            <div class="node-title" style="transform: rotate(-45deg);">${node.title}</div>
-            ${node.content ? `<div class="node-content" style="transform: rotate(-45deg);">${node.content}</div>` : ''}
+            <div class="node-title" style="transform: rotate(-45deg);">${actualNode.title}</div>
+            ${actualNode.content ? `<div class="node-content" style="transform: rotate(-45deg);">${actualNode.content}</div>` : ''}
         `;
     } else {
         innerContent = `
-            <div class="node-title">${node.title}</div>
-            ${node.content ? `<div class="node-content">${node.content}</div>` : ''}
+            <div class="node-title">${actualNode.title}</div>
+            ${actualNode.content ? `<div class="node-content">${actualNode.content}</div>` : ''}
         `;
     }
     
@@ -883,7 +890,7 @@ function createNodeElement(node) {
     // Voeg event listeners toe
     nodeEl.addEventListener('mousedown', function(e) {
         if (e.button === 0) { // Alleen linkermuisknop
-            handleNodeMouseDown(e, node);
+            handleNodeMouseDown(e, actualNode);
         }
     });
     
@@ -895,21 +902,21 @@ function createNodeElement(node) {
         
         // Desktop behavior: Als de klik in de titel was, maak direct bewerkbaar
         if (e.target.classList.contains('node-title')) {
-            makeEditable(e.target, node);
+            makeEditable(e.target, actualNode);
         } else {
             // Anders open de editor modal
-            openNodeEditor(node);
+            openNodeEditor(actualNode);
         }
     });
     
     nodeEl.addEventListener('contextmenu', function(e) {
         e.preventDefault();
-        showContextMenu(e, node);
+        showContextMenu(e, actualNode);
     });
     
     // Event voor connect tool en tijdelijke verbindingslijn
     nodeEl.addEventListener('mouseover', function(e) {
-        if (currentTool === 'connect' && sourceNode && sourceNode !== node.id) {
+        if (currentTool === 'connect' && sourceNode && sourceNode !== actualNode.id) {
             nodeEl.style.boxShadow = '0 0 0 2px #2196F3';
         }
     });
@@ -935,21 +942,21 @@ function createNodeElement(node) {
             const offset = 180;
             
             // Bepaal nieuwe positie
-            let newX = node.x;
-            let newY = node.y;
+            let newX = actualNode.x;
+            let newY = actualNode.y;
             
             switch(direction) {
                 case 'top':
-                    newY = node.y - offset;
+                    newY = actualNode.y - offset;
                     break;
                 case 'right':
-                    newX = node.x + offset;
+                    newX = actualNode.x + offset;
                     break;
                 case 'bottom':
-                    newY = node.y + offset;
+                    newY = actualNode.y + offset;
                     break;
                 case 'left':
-                    newX = node.x - offset;
+                    newX = actualNode.x - offset;
                     break;
             }
             
@@ -957,7 +964,7 @@ function createNodeElement(node) {
             saveStateForUndo();
             
             // Maak nieuw knooppunt
-            const childNode = createNode('Nieuw idee', '', node.color, newX, newY, 'rounded', node.id);
+            const childNode = createNode('Nieuw idee', '', actualNode.color, newX, newY, 'rounded', actualNode.id);
             
             // Focus op titel voor directe bewerking
             const childEl = document.getElementById(childNode.id);

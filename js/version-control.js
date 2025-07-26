@@ -908,8 +908,22 @@ const VersionControl = {
         currentVersion = draft.lastVersion;
         currentAuthor = draft.author;
         
-        // Restore nodes and connections
-        nodes = draft.unsavedChanges.nodes;
+        // Restore nodes and connections - ensure we create fresh references
+        nodes = [];
+        draft.unsavedChanges.nodes.forEach(nodeData => {
+            const node = {
+                id: nodeData.id,
+                title: nodeData.title || 'Nieuw knooppunt',
+                content: nodeData.content || '',
+                color: nodeData.color || '#4CAF50',
+                x: nodeData.x,
+                y: nodeData.y,
+                shape: nodeData.shape || 'rectangle',
+                isRoot: nodeData.isRoot || false
+            };
+            nodes.push(node);
+        });
+        
         connections = draft.unsavedChanges.connections;
         changesSinceLastSave = draft.changesSince;
         unsavedChanges = true;
