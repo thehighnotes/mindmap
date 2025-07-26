@@ -212,18 +212,12 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
     // Als er een parent is opgegeven, maak een verbinding
     // Gebruik requestAnimationFrame om er zeker van te zijn dat de DOM is bijgewerkt
     if (parentNode) {
-        // Log voor debugging
-        console.log(`[createNode] Creating connection from parent ${parentNode} to new node ${newNode.id}`);
         
         // Verifieer dat beide nodes bestaan voordat we de verbinding maken
         const parentExists = nodes.some(n => n.id === parentNode);
         const newNodeExists = nodes.some(n => n.id === newNode.id);
         
-        if (!parentExists || !newNodeExists) {
-            console.error(`[createNode] Cannot create connection - nodes don't exist in array`);
-            console.error(`  Parent (${parentNode}) exists: ${parentExists}`);
-            console.error(`  NewNode (${newNode.id}) exists: ${newNodeExists}`);
-        } else {
+        if (parentExists && newNodeExists) {
             // Gebruik requestAnimationFrame om DOM update te garanderen
             requestAnimationFrame(() => {
                 // Controleer of DOM elementen bestaan
@@ -232,10 +226,6 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
                 
                 if (parentEl && newNodeEl) {
                     createConnection(parentNode, newNode.id);
-                } else {
-                    console.error(`[createNode] DOM elements not found for connection`);
-                    console.error(`  Parent element exists: ${!!parentEl}`);
-                    console.error(`  New node element exists: ${!!newNodeEl}`);
                 }
             });
         }

@@ -9,20 +9,9 @@ if (typeof ConnectionModules !== 'undefined') {
         
         // Verbinding maken tussen knooppunten
         window.createConnection = function(sourceId, targetId, isYBranch = false) {
-            console.log(`[createConnection] Attempting to create connection from ${sourceId} to ${targetId}`);
-            
             // Valideer eerst of beide nodes bestaan
             const sourceExists = nodes.some(n => n.id === sourceId);
             const targetExists = nodes.some(n => n.id === targetId);
-            
-            console.log(`[createConnection] Node validation:`, {
-                sourceId,
-                targetId,
-                sourceExists,
-                targetExists,
-                totalNodes: nodes.length,
-                nodeIds: nodes.map(n => n.id)
-            });
             
             if (!sourceExists || !targetExists) {
                 console.error(`[createConnection] Kan geen verbinding maken - nodes bestaan niet`);
@@ -54,13 +43,6 @@ if (typeof ConnectionModules !== 'undefined') {
             
             // Voeg toe aan array
             connections.push(newConnection);
-            
-            console.log(`[createConnection] Connection created successfully:`, {
-                id: connectionId,
-                sourceId,
-                targetId,
-                totalConnections: connections.length
-            });
             
             // Teken de verbinding
             drawConnection(newConnection);

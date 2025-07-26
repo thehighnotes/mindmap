@@ -944,10 +944,8 @@ function loadMindmapData(data) {
         canvas.appendChild(connectionsContainer);
         
         // Laad de gegevens
-        console.log(`[loadMindmapData] Setting nextNodeId from ${nextNodeId} to ${data.nextNodeId || 1}`);
         nextNodeId = data.nextNodeId || 1;
         rootNodeId = data.rootNodeId || null;
-        console.log(`[loadMindmapData] nextNodeId is now ${nextNodeId}, rootNodeId: ${rootNodeId}`);
         
         // CRITICAL FIX: Calculate proper nextNodeId based on actual nodes
         let maxNodeId = 0;
