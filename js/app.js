@@ -36,6 +36,12 @@ document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
         }
         
+        // Stel color selection in
+        if (typeof setupColorSelection === 'function') {
+            console.log('🎨 Setting up color selection...');
+            setupColorSelection();
+        }
+        
         // Check for draft recovery before initializing new mindmap
         let draftRecovered = false;
         if (window.VersionControl && typeof window.VersionControl.checkForDraftRecovery === 'function') {

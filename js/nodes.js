@@ -526,6 +526,9 @@ function openNodeEditor(node) {
     nodeColor.value = node.color;
     nodeShape.value = node.shape;
     
+    // Update color selection
+    updateColorSelection(node.color);
+    
     // Sla het te bewerken knooppunt id op voor later gebruik
     nodeModal.dataset.nodeId = node.id;
     
@@ -1931,4 +1934,50 @@ function findNonOverlappingPosition(baseX, baseY, nodeWidth = 150, nodeHeight = 
         x: baseX + Math.cos(angle) * distance,
         y: baseY + Math.sin(angle) * distance
     };
+}
+
+// Color selection functionality
+function updateColorSelection(selectedColor) {
+    const colorOptions = document.querySelectorAll('.color-option');
+    const customColorInput = document.getElementById('node-color');
+    
+    // Clear previous selections
+    colorOptions.forEach(option => option.classList.remove('selected'));
+    
+    // Check if selected color matches any standard color
+    let foundMatch = false;
+    colorOptions.forEach(option => {
+        if (option.dataset.color === selectedColor) {
+            option.classList.add('selected');
+            foundMatch = true;
+        }
+    });
+    
+    // Update custom color input
+    customColorInput.value = selectedColor;
+}
+
+function setupColorSelection() {
+    const colorOptions = document.querySelectorAll('.color-option');
+    const customColorInput = document.getElementById('node-color');
+    
+    // Add click handlers for standard color options
+    colorOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            const selectedColor = this.dataset.color;
+            
+            // Update visual selection
+            colorOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            // Update the custom color input
+            customColorInput.value = selectedColor;
+        });
+    });
+    
+    // Add change handler for custom color input
+    customColorInput.addEventListener('change', function() {
+        // Clear standard color selections when custom color is used
+        colorOptions.forEach(option => option.classList.remove('selected'));
+    });
 }

@@ -496,10 +496,26 @@ body {
 }
 
 .node-title[contenteditable="true"] {
-    border: 1px dashed #888;
-    outline: none;
-    padding: 2px 4px;
-    background-color: #444;
+    border: 2px solid #2196F3 !important;
+    outline: none !important;
+    padding: 6px 8px !important;
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+    border-radius: 4px;
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    font-weight: bold;
+    text-align: center;
+    cursor: text;
+    transition: none;
+    min-height: 24px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.node-title[contenteditable="true"]:focus {
+    background-color: #2a2a2a !important;
+    color: #ffffff !important;
+    border-color: #2196F3 !important;
 }
 
 .node-content {
@@ -1352,6 +1368,79 @@ body {
 .form-group textarea {
     min-height: 100px;
     resize: vertical;
+}
+
+/* Color selection styling */
+.color-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.standard-colors {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.color-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+    border-color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.color-option.selected {
+    border-color: #fff;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+.color-option.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.custom-color-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.custom-color-wrapper label {
+    font-size: 14px;
+    color: #bbb;
+}
+
+.custom-color-wrapper input[type="color"] {
+    width: 60px;
+    height: 40px;
+    padding: 0;
+    border-radius: 6px;
+    border: 2px solid #444;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.custom-color-wrapper input[type="color"]:hover {
+    border-color: #666;
 }
 
 .modal-footer {
