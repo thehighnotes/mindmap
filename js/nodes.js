@@ -378,6 +378,108 @@ function handleNodeMouseDown(e, node) {
         return;
     }
     
+    // CTRL+drag voor smart node placement into connections
+    if (e.ctrlKey && !e.altKey && !isFromContentEditable) {
+        e.preventDefault();
+        
+        // Sla de huidige staat op voor undo
+        if (typeof saveStateForUndo === 'function') {
+            saveStateForUndo();
+        }
+        
+        const actualNode = nodes.find(n => n.id === node.id);
+        if (!actualNode) {
+            console.error(`[handleNodeMouseDown] Kon node niet vinden in nodes array: ${node.id}`);
+            return;
+        }
+        
+        // Start CTRL-drag mode for smart placement
+        nodeEl.classList.add('ctrl-dragging');
+        window.ctrlDraggingNode = {
+            node: actualNode,
+            originalConnections: {
+                incoming: connections.filter(conn => conn.target === actualNode.id).map(conn => ({...conn})),
+                outgoing: connections.filter(conn => conn.source === actualNode.id).map(conn => ({...conn}))
+            },
+            detached: false
+        };
+        
+        // Temporarily detach the node visually (but keep connection data)
+        const allNodeConnections = connections.filter(conn => 
+            conn.source === actualNode.id || conn.target === actualNode.id
+        );
+        
+        // Hide connections visually but don't delete them yet
+        allNodeConnections.forEach(conn => {
+            const connEl = document.getElementById(conn.id);
+            if (connEl) {
+                connEl.classList.add('temporarily-hidden');
+                connEl.style.display = 'none'; // Actually hide them
+            }
+        });
+        
+        // Redraw connections between remaining nodes
+        const affectedNodes = new Set();
+        allNodeConnections.forEach(conn => {
+            if (conn.source !== actualNode.id) affectedNodes.add(conn.source);
+            if (conn.target !== actualNode.id) affectedNodes.add(conn.target);
+        });
+        
+        // Create temporary connections between affected nodes if needed
+        window.ctrlDraggingNode.temporaryConnections = [];
+        
+        // Only create temporary connections if there are both incoming and outgoing connections
+        if (window.ctrlDraggingNode.originalConnections.incoming.length > 0 && 
+            window.ctrlDraggingNode.originalConnections.outgoing.length > 0) {
+            
+            window.ctrlDraggingNode.originalConnections.incoming.forEach(inConn => {
+                window.ctrlDraggingNode.originalConnections.outgoing.forEach(outConn => {
+                    // Check if a connection already exists between these nodes
+                    const existingConn = connections.find(c => 
+                        c.source === inConn.source && c.target === outConn.target &&
+                        c.id !== inConn.id && c.id !== outConn.id
+                    );
+                    
+                    if (!existingConn) {
+                        // Create a temporary connection and add it to the connections array
+                        const tempConnId = `temp-conn-${Date.now()}-${Math.random()}`;
+                        const tempConn = {
+                            id: tempConnId,
+                            source: inConn.source,
+                            target: outConn.target,
+                            isTemporary: true,
+                            styleClass: 'temporary-connection'
+                        };
+                        
+                        // Add to connections array temporarily
+                        connections.push(tempConn);
+                        
+                        // Draw the temporary connection
+                        if (typeof drawConnection === 'function') {
+                            drawConnection(tempConn);
+                        }
+                        
+                        window.ctrlDraggingNode.temporaryConnections.push(tempConnId);
+                    }
+                });
+            });
+        }
+        
+        // Start normal drag
+        draggedNode = actualNode;
+        mouseStartPos = { x: e.clientX, y: e.clientY };
+        nodeStartPos = { x: actualNode.x, y: actualNode.y };
+        isDragging = true;
+        
+        // Visual feedback - distinct CTRL+drag style
+        nodeEl.style.zIndex = 100;
+        nodeEl.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(76, 175, 80, 0.5)';
+        nodeEl.style.opacity = '0.92';
+        
+        showToast('CTRL+Sleep: Sleep naar een verbinding om de node in te voegen');
+        return;
+    }
+    
     // ALT+drag voor node reconnection
     if (e.altKey && !e.ctrlKey && !isFromContentEditable) {
         e.preventDefault();
@@ -1980,4 +2082,164 @@ function setupColorSelection() {
         // Clear standard color selections when custom color is used
         colorOptions.forEach(option => option.classList.remove('selected'));
     });
+}
+
+// ==========================
+// CTRL+DRAG HELPER FUNCTIONS
+// ==========================
+
+/**
+ * Check if dropping a node into a connection would create a circular reference
+ * @param {string} nodeId - The ID of the node to check
+ * @param {object} connection - The connection object
+ * @returns {boolean} True if it would create a circular reference
+ */
+function wouldCreateCircularConnection(nodeId, connection) {
+    // Simple cycle detection: check if adding this node would create a loop
+    const visited = new Set();
+    const stack = [connection.source];
+    
+    while (stack.length > 0) {
+        const current = stack.pop();
+        
+        if (current === nodeId) {
+            return true; // Cycle found
+        }
+        
+        if (!visited.has(current)) {
+            visited.add(current);
+            
+            // Add all parents to the stack
+            const parentConnections = connections.filter(conn => conn.target === current);
+            parentConnections.forEach(conn => {
+                if (!visited.has(conn.source)) {
+                    stack.push(conn.source);
+                }
+            });
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Check if a node can be dropped into a connection
+ * @param {string} nodeId - The ID of the node to check
+ * @param {string} connectionId - The ID of the connection to check
+ * @returns {boolean} True if the node can be dropped into the connection
+ */
+function canDropNodeIntoConnection(nodeId, connectionId) {
+    const node = nodes.find(n => n.id === nodeId);
+    const connection = connections.find(conn => conn.id === connectionId);
+    
+    if (!node || !connection) {
+        return false;
+    }
+    
+    // Don't allow dropping into temporary connections
+    if (connection.isTemporary) {
+        return false;
+    }
+    
+    // Allow all other drops
+    return true;
+}
+
+/**
+ * Drop a node into a connection, inserting it between the source and target
+ * @param {string} nodeId - The ID of the node being dropped
+ * @param {string} connectionId - The ID of the connection to drop into
+ * @param {number} x - X coordinate of the drop position (unused - node already positioned)
+ * @param {number} y - Y coordinate of the drop position (unused - node already positioned)
+ */
+function dropNodeIntoConnection(nodeId, connectionId, x, y) {
+    const node = nodes.find(n => n.id === nodeId);
+    const connection = connections.find(conn => conn.id === connectionId);
+    
+    if (!node || !connection) {
+        showToast('Knooppunt of verbinding niet gevonden', true);
+        return;
+    }
+    
+    // Save original connection info
+    const originalSource = connection.source;
+    const originalTarget = connection.target;
+    const originalLabel = connection.label;
+    const originalStyleClass = connection.styleClass;
+    
+    // Delete the original connection
+    deleteConnection(connectionId);
+    
+    // Create new connections: source -> node -> target
+    const conn1 = createConnection(originalSource, nodeId);
+    const conn2 = createConnection(nodeId, originalTarget);
+    
+    // Copy original properties to both new connections
+    if (conn1 && originalLabel) {
+        conn1.label = originalLabel;
+    }
+    if (conn1 && originalStyleClass) {
+        conn1.styleClass = originalStyleClass;
+    }
+    if (conn2 && originalLabel) {
+        conn2.label = originalLabel;
+    }
+    if (conn2 && originalStyleClass) {
+        conn2.styleClass = originalStyleClass;
+    }
+    
+    // Refresh connections
+    if (typeof refreshConnections === 'function') {
+        refreshConnections();
+    }
+    
+    // Update minimap
+    if (typeof updateMinimap === 'function') {
+        updateMinimap();
+    }
+    
+    showToast('Knooppunt ingevoegd in verbinding');
+}
+
+/**
+ * Show a preview tooltip during drag operations
+ * @param {number} x - X coordinate for the tooltip
+ * @param {number} y - Y coordinate for the tooltip
+ * @param {string} message - Message to display
+ * @param {boolean} isError - Whether this is an error message
+ */
+function showDropPreview(x, y, message, isError = false) {
+    hideDropPreview(); // Remove any existing preview
+    
+    const preview = document.createElement('div');
+    preview.id = 'drop-preview';
+    preview.className = `drop-preview ${isError ? 'drop-preview-error' : 'drop-preview-valid'}`;
+    preview.style.cssText = `
+        position: fixed;
+        left: ${x + 15}px;
+        top: ${y - 30}px;
+        background: ${isError ? '#f44336' : '#4CAF50'};
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 10000;
+        pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        white-space: nowrap;
+        animation: fadeIn 0.2s ease;
+    `;
+    preview.textContent = message;
+    
+    document.body.appendChild(preview);
+}
+
+/**
+ * Hide the drop preview tooltip
+ */
+function hideDropPreview() {
+    const preview = document.getElementById('drop-preview');
+    if (preview) {
+        preview.remove();
+    }
 }

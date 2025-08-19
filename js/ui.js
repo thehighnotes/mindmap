@@ -4,7 +4,143 @@
 
 // Event handler voor mouseup (na verplaatsen)
 function handleMouseUp(e) {
-    // Handle reconnect drop eerst
+    // Handle CTRL+drag drop for smart node placement
+    if (window.ctrlDraggingNode && isDragging && draggedNode) {
+        // Find target connection
+        const targetConnection = document.querySelector('.connection.connection-drop-target');
+        
+        if (targetConnection && targetConnection.id) {
+            // The node is already positioned correctly from dragging
+            // Just update the nodes array to make sure position is saved
+            const nodeIndex = nodes.findIndex(n => n.id === draggedNode.id);
+            if (nodeIndex !== -1) {
+                nodes[nodeIndex].x = draggedNode.x;
+                nodes[nodeIndex].y = draggedNode.y;
+            }
+            
+            // First, keep the temporary bridge connections as permanent
+            // These connect the nodes that were originally connected through the dragged node
+            if (window.ctrlDraggingNode.temporaryConnections) {
+                window.ctrlDraggingNode.temporaryConnections.forEach(tempConnId => {
+                    const tempConn = connections.find(c => c.id === tempConnId);
+                    if (tempConn) {
+                        // Change the temporary connection to a permanent one
+                        tempConn.isTemporary = false;
+                        tempConn.styleClass = '';
+                        // Update its ID to be permanent
+                        const newId = 'conn-' + tempConn.source + '-' + tempConn.target;
+                        
+                        // Update the DOM element ID
+                        const tempEl = document.getElementById(tempConnId);
+                        if (tempEl) {
+                            tempEl.id = newId;
+                        }
+                        
+                        tempConn.id = newId;
+                    }
+                });
+            }
+            
+            // Remove original connections (they were only hidden visually)
+            window.ctrlDraggingNode.originalConnections.incoming.forEach(conn => {
+                const existingConn = connections.find(c => c.id === conn.id);
+                if (existingConn) {
+                    deleteConnection(conn.id);
+                }
+            });
+            
+            window.ctrlDraggingNode.originalConnections.outgoing.forEach(conn => {
+                const existingConn = connections.find(c => c.id === conn.id);
+                if (existingConn) {
+                    deleteConnection(conn.id);
+                }
+            });
+            
+            // Drop the node into the connection (use actual node position)
+            dropNodeIntoConnection(draggedNode.id, targetConnection.id, draggedNode.x, draggedNode.y);
+            
+            // Refresh all connections to ensure proper rendering
+            if (typeof refreshConnections === 'function') {
+                refreshConnections();
+            }
+        } else {
+            // No valid drop target - restore original connections
+            window.ctrlDraggingNode.originalConnections.incoming.forEach(conn => {
+                // Unhide the connection
+                const connEl = document.getElementById(conn.id);
+                if (connEl) {
+                    connEl.classList.remove('temporarily-hidden');
+                    connEl.style.display = ''; // Show them again
+                }
+            });
+            
+            window.ctrlDraggingNode.originalConnections.outgoing.forEach(conn => {
+                // Unhide the connection
+                const connEl = document.getElementById(conn.id);
+                if (connEl) {
+                    connEl.classList.remove('temporarily-hidden');
+                    connEl.style.display = ''; // Show them again
+                }
+            });
+            
+            // Refresh to ensure proper rendering
+            if (typeof refreshConnections === 'function') {
+                refreshConnections();
+            }
+        }
+        
+        // Clean up temporary connections only if we DIDN'T drop on a valid target
+        // (If we did drop on a valid target, they've been converted to permanent)
+        if (!targetConnection && window.ctrlDraggingNode.temporaryConnections) {
+            window.ctrlDraggingNode.temporaryConnections.forEach(tempConnId => {
+                // Remove from connections array
+                const index = connections.findIndex(c => c.id === tempConnId);
+                if (index !== -1) {
+                    connections.splice(index, 1);
+                }
+                
+                // Remove DOM element
+                const tempConnEl = document.getElementById(tempConnId);
+                if (tempConnEl) {
+                    tempConnEl.remove();
+                }
+            });
+        }
+        
+        // Clean up visual states
+        const nodeEl = document.getElementById(draggedNode.id);
+        if (nodeEl) {
+            nodeEl.classList.remove('ctrl-dragging');
+            nodeEl.style.opacity = '1';
+            nodeEl.style.zIndex = currentSelectedNode === draggedNode.id ? 10 : 2;
+            
+            // Restore selection style if selected
+            if (currentSelectedNode === draggedNode.id) {
+                nodeEl.style.boxShadow = '0 0 0 4px #2196F3, 0 0 0 8px rgba(33, 150, 243, 0.3), 0 0 20px rgba(33, 150, 243, 0.6), 0 8px 25px rgba(0,0,0,0.4)';
+            } else {
+                nodeEl.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            }
+        }
+        
+        // Clean up connection highlights
+        document.querySelectorAll('.connection').forEach(conn => {
+            conn.classList.remove('connection-drop-target', 'connection-drop-invalid', 'temporarily-hidden');
+        });
+        
+        // Hide preview
+        hideDropPreview();
+        
+        // Clear CTRL drag state
+        window.ctrlDraggingNode = null;
+        
+        // Mark drag as complete
+        isDragging = false;
+        draggedNode = null;
+        
+        return; // Exit early to prevent other handlers
+    }
+    
+    // Handle reconnect drop (ALT+drag)
     if (window.reconnectingNode && isDragging) {
         const dropTarget = document.elementFromPoint(e.clientX, e.clientY)?.closest('.node');
         
@@ -38,68 +174,9 @@ function handleMouseUp(e) {
         window.reconnectingNode = null;
     }
     
-    // IMPROVED: Handle drop into connection with better detection
-    if (isDragging && draggedNode && !window.reconnectingNode) {
-        // Use larger search area for better sensitivity
-        const searchRadius = 15;
-        let dropTarget = null;
-        
-        // Check multiple points around the mouse cursor for better hit detection
-        for (let offsetX = -searchRadius; offsetX <= searchRadius; offsetX += 5) {
-            for (let offsetY = -searchRadius; offsetY <= searchRadius; offsetY += 5) {
-                const testX = e.clientX + offsetX;
-                const testY = e.clientY + offsetY;
-                const element = document.elementFromPoint(testX, testY);
-                
-                if (element) {
-                    // Check for connection-related elements
-                    const connectionElement = element.closest('.connection') || 
-                                            element.closest('.connection-path') ||
-                                            element.closest('.connection-hitzone') ||
-                                            (element.tagName === 'path' && element.closest('#connections-container'));
-                    
-                    if (connectionElement) {
-                        // Find the actual connection element with an ID
-                        dropTarget = connectionElement.id ? connectionElement : 
-                                   connectionElement.closest('[id^="conn-"]');
-                        if (dropTarget) break;
-                    }
-                }
-            }
-            if (dropTarget) break;
-        }
-        
-        if (dropTarget && canDropNodeIntoConnection(draggedNode.id, dropTarget.id)) {
-            // Calculate drop position in canvas coordinates - CORRECTED calculation
-            const canvasRect = canvas.getBoundingClientRect();
-            // Don't subtract canvasOffset here as it's already applied in CSS transform
-            const dropX = (e.clientX - canvasRect.left) / zoomLevel;
-            const dropY = (e.clientY - canvasRect.top) / zoomLevel;
-            
-            // Drop the node into the connection
-            dropNodeIntoConnection(draggedNode.id, dropTarget.id, dropX, dropY);
-            
-            // Update selection status
-            updateSelectionStatus();
-            
-            // Clean up drop target highlights
-            document.querySelectorAll('.connection').forEach(conn => {
-                conn.classList.remove('drop-target', 'drop-invalid');
-            });
-            
-            // Hide preview
-            hideDropPreview();
-            
-            // Exit early to avoid normal drag completion
-            isDragging = false;
-            draggedNode = null;
-            return;
-        }
-    }
-    
-    // Clean up drop highlights if not dropped into connection
+    // Clean up any remaining highlights
     document.querySelectorAll('.connection').forEach(conn => {
-        conn.classList.remove('drop-target', 'drop-invalid');
+        conn.classList.remove('connection-drop-target', 'connection-drop-invalid', 'temporarily-hidden');
     });
     hideDropPreview();
     
@@ -184,6 +261,39 @@ let nodeConnectionsCache = {};
 // Queue voor connection updates om race conditions te voorkomen
 let connectionUpdateQueue = [];
 let isProcessingConnectionQueue = false;
+
+/**
+ * Calculate the distance from a point to a line segment
+ * @param {number} px - Point X coordinate
+ * @param {number} py - Point Y coordinate
+ * @param {number} x1 - Line start X
+ * @param {number} y1 - Line start Y
+ * @param {number} x2 - Line end X
+ * @param {number} y2 - Line end Y
+ * @returns {number} Distance from point to line segment
+ */
+function distanceFromPointToLineSegment(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    
+    // If the line segment is actually a point
+    if (dx === 0 && dy === 0) {
+        return Math.sqrt(Math.pow(px - x1, 2) + Math.pow(py - y1, 2));
+    }
+    
+    // Calculate the t that minimizes the distance
+    let t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+    
+    // Clamp t to the range [0, 1] to handle points outside the segment
+    t = Math.max(0, Math.min(1, t));
+    
+    // Find the nearest point on the line segment
+    const nearestX = x1 + t * dx;
+    const nearestY = y1 + t * dy;
+    
+    // Calculate distance from the point to the nearest point
+    return Math.sqrt(Math.pow(px - nearestX, 2) + Math.pow(py - nearestY, 2));
+}
 
 /**
  * Reset de cache voor een specifieke node of voor alle nodes
@@ -388,65 +498,97 @@ function handleMouseMove(e) {
         }
     }
     
-    // IMPROVED: Highlight connections during regular drag for drop-into-connection functionality
-    if (isDragging && draggedNode && !window.reconnectingNode) {
-        // Use enhanced detection with search radius
-        const searchRadius = 10;
-        let connectionElement = null;
+    // CTRL+drag: Highlight connections for smart node placement
+    if (window.ctrlDraggingNode && isDragging && draggedNode) {
+        // Get all connection elements (they're divs with SVG inside)
+        const allConnections = document.querySelectorAll('#connections-container .connection:not(.temporarily-hidden)');
         
-        // Check multiple points around the mouse cursor for better hit detection
-        for (let offsetX = -searchRadius; offsetX <= searchRadius; offsetX += 3) {
-            for (let offsetY = -searchRadius; offsetY <= searchRadius; offsetY += 3) {
-                const testX = e.clientX + offsetX;
-                const testY = e.clientY + offsetY;
-                const element = document.elementFromPoint(testX, testY);
-                
-                if (element) {
-                    // Check for connection-related elements
-                    const foundConnection = element.closest('.connection') || 
-                                          element.closest('.connection-path') ||
-                                          element.closest('.connection-hitzone') ||
-                                          (element.tagName === 'path' && element.closest('#connections-container'));
-                    
-                    if (foundConnection) {
-                        // Find the actual connection element with an ID
-                        connectionElement = foundConnection.id ? foundConnection : 
-                                          foundConnection.closest('[id^="conn-"]');
-                        if (connectionElement) break;
-                    }
-                }
-            }
-            if (connectionElement) break;
-        }
+        // Get the node element to check its position
+        const nodeEl = document.getElementById(draggedNode.id);
+        if (!nodeEl) return;
         
-        // Reset alle connection highlights
-        document.querySelectorAll('.connection').forEach(conn => {
-            conn.classList.remove('drop-target', 'drop-invalid');
+        const nodeRect = nodeEl.getBoundingClientRect();
+        const nodeCenterX = nodeRect.left + nodeRect.width / 2;
+        const nodeCenterY = nodeRect.top + nodeRect.height / 2;
+        
+        // Reset all connection highlights first
+        allConnections.forEach(conn => {
+            conn.classList.remove('connection-drop-target', 'connection-drop-invalid');
         });
         
-        if (connectionElement) {
-            const connectionId = connectionElement.id;
+        let hoveredConnection = null;
+        let minDistance = 50; // Maximum distance to consider a hover (in pixels)
+        
+        // Check each connection to see if node is close to it
+        allConnections.forEach(connEl => {
+            if (!connEl.id || connEl.id.startsWith('temp-conn-')) return;
+            
+            // Get the connection data
+            const connection = connections.find(c => c.id === connEl.id);
+            if (!connection) return;
+            
+            // Get the source and target nodes
+            const sourceNode = nodes.find(n => n.id === connection.source);
+            const targetNode = nodes.find(n => n.id === connection.target);
+            if (!sourceNode || !targetNode) return;
+            
+            // Get the source and target elements to find their screen positions
+            const sourceEl = document.getElementById(connection.source);
+            const targetEl = document.getElementById(connection.target);
+            if (!sourceEl || !targetEl) return;
+            
+            const sourceRect = sourceEl.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
+            
+            // Calculate the line between source and target
+            const sourceCenterX = sourceRect.left + sourceRect.width / 2;
+            const sourceCenterY = sourceRect.top + sourceRect.height / 2;
+            const targetCenterX = targetRect.left + targetRect.width / 2;
+            const targetCenterY = targetRect.top + targetRect.height / 2;
+            
+            // Check distance from node center to the line segment
+            const distance = distanceFromPointToLineSegment(
+                nodeCenterX, nodeCenterY,
+                sourceCenterX, sourceCenterY,
+                targetCenterX, targetCenterY
+            );
+            
+            // If this connection is close enough and is the closest so far
+            if (distance < minDistance) {
+                minDistance = distance;
+                hoveredConnection = connEl;
+            }
+        });
+        
+        // Highlight the hovered connection
+        if (hoveredConnection) {
+            const connectionId = hoveredConnection.id;
             const connection = connections.find(c => c.id === connectionId);
             
-            // Check if we can drop this node into this connection
-            if (canDropNodeIntoConnection(draggedNode.id, connectionId)) {
-                connectionElement.classList.add('drop-target');
+            if (connection) {
+                // Always allow dropping - just show as valid target
+                hoveredConnection.classList.add('connection-drop-target');
                 
                 // Show preview tooltip
                 const sourceNode = nodes.find(n => n.id === connection.source);
                 const targetNode = nodes.find(n => n.id === connection.target);
                 showDropPreview(e.clientX, e.clientY, `Invoegen tussen "${sourceNode?.title}" en "${targetNode?.title}"`);
-            } else {
-                connectionElement.classList.add('drop-invalid');
-                showDropPreview(e.clientX, e.clientY, 'Kan hier niet invoegen', true);
             }
         } else {
             hideDropPreview();
         }
-    } else {
+    }
+    // Regular drag: clean up highlights
+    else if (isDragging && draggedNode && !window.reconnectingNode && !window.ctrlDraggingNode) {
+        // Clean up any connection highlights
+        document.querySelectorAll('.connection').forEach(conn => {
+            conn.classList.remove('connection-drop-target', 'connection-drop-invalid');
+        });
+        hideDropPreview();
+    } else if (!isDragging) {
         // Clean up when not dragging
         document.querySelectorAll('.connection').forEach(conn => {
-            conn.classList.remove('drop-target', 'drop-invalid');
+            conn.classList.remove('connection-drop-target', 'connection-drop-invalid');
         });
         hideDropPreview();
         
