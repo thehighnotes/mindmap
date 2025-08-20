@@ -15,7 +15,7 @@
                 <span></span>
                 <span></span>
             </button>
-            <h1>Mindmap <span class="version">v0.930</span></h1>
+            <h1>Mindmap <span class="version">v0.931</span></h1>
             <div class="mindmap-title-container">
                 <input type="text" id="mindmap-title" class="mindmap-title" placeholder="Untitled Mindmap" value="Mindmap Project">
                 <span class="edit-title-hint">Click to edit title</span>
@@ -46,6 +46,7 @@
                 </div>
                 <div class="menu-section">
                     <h3>Help</h3>
+                    <button class="menu-item" id="menu-releases-btn" title="Bekijk releases">📋 Releases</button>
                     <button class="menu-item" id="menu-help-btn" title="Toon help">❓ Help</button>
                 </div>
             </div>
@@ -56,6 +57,7 @@
             <button class="btn btn-save" id="save-btn" title="Sla de mindmap op als bestand">Opslaan</button>
             <button class="btn btn-save" id="load-btn" title="Laad een opgeslagen mindmap">Laden</button>
             <button class="btn btn-secondary" id="version-browser-btn" title="Bekijk versiegeschiedenis">Versies</button>
+            <button class="btn btn-info" id="releases-btn" title="Bekijk releases">Releases</button>
             <button class="btn btn-export" id="export-mermaid-btn" title="Exporteer naar Mermaid syntax">Exporteer naar Mermaid</button>
             <button class="btn btn-save" id="export-image-btn" title="Sla op als afbeelding">Exporteer als Afbeelding</button>
             <button class="btn" id="center-btn" title="Centreer de mindmap">Centreren</button>
@@ -859,6 +861,98 @@
             <div class="modal-footer">
                 <button class="btn" id="cancel-batch-text">Annuleren</button>
                 <button class="btn btn-save" id="confirm-batch-text">Child Nodes Toevoegen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Releases Modal -->
+    <div class="modal" id="releases-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📋 Releases</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="releases-container">
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.930</span>
+                            <span class="release-date">Huidige versie</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>🎯 <strong>Slim nodes plaatsen:</strong> Houd CTRL ingedrukt en sleep een node naar een verbindingslijn om deze automatisch tussen te voegen</li>
+                            <li>🔗 <strong>Intelligente verbindingen:</strong> Verbindingen herschikken zich automatisch wanneer je nodes verplaatst of toevoegt</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.923</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>🎨 <strong>Uitgebreide kleuren:</strong> Kies uit 12 standaardkleuren of maak je eigen kleur met de kleurenkiezer</li>
+                            <li>✨ <strong>Visuele verbetering:</strong> Nodes hebben nu duidelijkere randen en betere kleurcontrasten</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.921</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📱 <strong>Mobiel vriendelijk:</strong> Touch gestures werken nu soepeler op telefoons en tablets</li>
+                            <li>⚡ <strong>Sneller laden:</strong> Projecten starten direct op zonder vertraging bij het laden</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.920</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📚 <strong>Help systeem:</strong> Nieuwe help met tabs voor beginners, tools, sneltoetsen en meer</li>
+                            <li>🔍 <strong>Zoek in help:</strong> Vind snel wat je zoekt met de nieuwe zoekfunctie</li>
+                            <li>💾 <strong>.mindmap formaat:</strong> Verbeterde bestandsopslag met versiegeschiedenis</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.915</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>🚀 <strong>Snellere verbindingen:</strong> Verbindingslijnen tekenen nu veel vloeiender</li>
+                            <li>✅ <strong>Stabiele updates:</strong> Node verbindingen blijven behouden bij wijzigingen</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.910 - v0.914</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📱 <strong>Mobiele revolutie:</strong> Complete herontwerp voor touch bediening</li>
+                            <li>👆 <strong>Dubbeltik functies:</strong> Maak snel nieuwe nodes met dubbeltikken</li>
+                            <li>👁️ <strong>Visuele feedback:</strong> Zie direct waar je tikt met animaties</li>
+                            <li>📋 <strong>Context menu:</strong> Houd ingedrukt voor opties op mobiel</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.900 - v0.909</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📚 <strong>Versie systeem:</strong> Bewaar meerdere versies van je mindmap</li>
+                            <li>💾 <strong>Smart Save:</strong> Automatische versienummering (major/minor/patch)</li>
+                            <li>⚡ <strong>Auto-backup:</strong> Je werk wordt elke 30 seconden automatisch bewaard</li>
+                            <li>🔄 <strong>Versie browser:</strong> Bekijk en herstel eerdere versies</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="close-releases">Sluiten</button>
             </div>
         </div>
     </div>

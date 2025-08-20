@@ -1206,6 +1206,52 @@ function setupEventListeners() {
         helpModal.style.display = 'none';
     });
     
+    // Releases tonen
+    const releasesBtn = document.getElementById('releases-btn');
+    const releasesModal = document.getElementById('releases-modal');
+    const closeReleases = document.getElementById('close-releases');
+    const menuReleasesBtn = document.getElementById('menu-releases-btn');
+    
+    if (releasesBtn) {
+        releasesBtn.addEventListener('click', function() {
+            releasesModal.style.display = 'flex';
+        });
+    }
+    
+    if (menuReleasesBtn) {
+        menuReleasesBtn.addEventListener('click', function() {
+            releasesModal.style.display = 'flex';
+            // Close hamburger menu
+            const hamburgerMenu = document.getElementById('hamburger-menu');
+            if (hamburgerMenu) {
+                hamburgerMenu.classList.remove('active');
+            }
+        });
+    }
+    
+    if (closeReleases) {
+        closeReleases.addEventListener('click', function() {
+            releasesModal.style.display = 'none';
+        });
+    }
+    
+    // Close modal when clicking outside
+    if (releasesModal) {
+        releasesModal.addEventListener('click', function(e) {
+            if (e.target === releasesModal) {
+                releasesModal.style.display = 'none';
+            }
+        });
+        
+        // Close button in modal header
+        const closeModalBtn = releasesModal.querySelector('.close-modal');
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function() {
+                releasesModal.style.display = 'none';
+            });
+        }
+    }
+    
     // Toon beginners tips knop
     if (showTipsBtn) {
         showTipsBtn.addEventListener('click', function() {
