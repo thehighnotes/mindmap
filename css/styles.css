@@ -2886,13 +2886,47 @@ body {
     font-size: 14px;
 }
 
-.btn-info {
-    background: #2196F3;
-    color: white;
+/* Version info button under version number */
+.version-info-btn {
+    position: absolute;
+    top: 45px;
+    left: 120px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.btn-info:hover {
-    background: #1976D2;
+.version-info-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
+}
+
+.version-info-icon {
+    font-size: 12px;
+}
+
+.version-info-text {
+    font-weight: 500;
+}
+
+/* Make version number clickable appearance */
+.version {
+    cursor: help;
+    transition: color 0.3s ease;
+}
+
+.version:hover {
+    color: #4CAF50;
 }
 
 /* Version Selection Modal */

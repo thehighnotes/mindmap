@@ -1206,14 +1206,23 @@ function setupEventListeners() {
         helpModal.style.display = 'none';
     });
     
-    // Releases tonen
-    const releasesBtn = document.getElementById('releases-btn');
+    // Releases tonen (Wat is nieuw)
+    const versionInfoBtn = document.getElementById('version-info-btn');
+    const versionNumber = document.getElementById('version-number');
     const releasesModal = document.getElementById('releases-modal');
     const closeReleases = document.getElementById('close-releases');
     const menuReleasesBtn = document.getElementById('menu-releases-btn');
     
-    if (releasesBtn) {
-        releasesBtn.addEventListener('click', function() {
+    // Version info button click
+    if (versionInfoBtn) {
+        versionInfoBtn.addEventListener('click', function() {
+            releasesModal.style.display = 'flex';
+        });
+    }
+    
+    // Version number click
+    if (versionNumber) {
+        versionNumber.addEventListener('click', function() {
             releasesModal.style.display = 'flex';
         });
     }
