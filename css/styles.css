@@ -52,6 +52,8 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+    flex-wrap: wrap;
+    position: relative;
 }
 
 .header h1 {
@@ -2888,9 +2890,9 @@ body {
 
 /* Version info button under version number */
 .version-info-btn {
-    position: absolute;
-    top: 45px;
-    left: 120px;
+    position: relative;
+    top: auto;
+    left: auto;
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.2);
     color: rgba(255, 255, 255, 0.7);
@@ -2899,9 +2901,11 @@ body {
     font-size: 11px;
     cursor: pointer;
     transition: all 0.3s ease;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
 }
 
 .version-info-btn:hover {
@@ -2917,6 +2921,29 @@ body {
 
 .version-info-text {
     font-weight: 500;
+}
+
+/* Responsive styles for version-info-btn */
+@media screen and (max-width: 768px) {
+    .version-info-btn {
+        font-size: 10px;
+        padding: 1px 5px;
+        margin-left: 5px;
+    }
+    
+    .version-info-text {
+        display: none;
+    }
+    
+    .version-info-icon {
+        font-size: 11px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .version-info-btn {
+        display: none;
+    }
 }
 
 /* Make version number clickable appearance */
