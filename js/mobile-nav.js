@@ -302,32 +302,55 @@ class MobileNavigationManager {
         const rawNewZoom = this.state.pinchStartZoom * scale;
         const newZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, rawNewZoom));
         
-        // Only log significant zoom changes
-        if (Math.abs(newZoom - zoomLevel) > 0.05) {
-            this.updateDebugInfo(`Zoom: ${zoomLevel.toFixed(2)} → ${newZoom.toFixed(2)} (scale=${scale.toFixed(2)})`);
-        }
+        // Check if this is mostly pan (no significant zoom change)
+        const zoomThreshold = 0.05; // 5% change threshold
+        const isPurelyPanning = Math.abs(scale - 1.0) < zoomThreshold;
         
-        // Use SAME coordinate system as working wheel zoom (container coordinates)
-        const rect = this.canvasContainer.getBoundingClientRect();
-        const containerCenterX = currentCenterX - rect.left;
-        const containerCenterY = currentCenterY - rect.top;
-        
-        // Calculate world coordinates (same as wheel zoom)
-        const worldX = (containerCenterX - canvasOffset.x) / zoomLevel;
-        const worldY = (containerCenterY - canvasOffset.y) / zoomLevel;
-        
-        // Update zoom
-        setZoomLevel(newZoom);
-        
-        // Keep world point fixed at container position (same as wheel zoom)
+        // Store old offsets for logging
         const oldOffsetX = canvasOffset.x;
         const oldOffsetY = canvasOffset.y;
-        canvasOffset.x = containerCenterX - worldX * newZoom;
-        canvasOffset.y = containerCenterY - worldY * newZoom;
         
-        // Now apply the pan on top of the zoom adjustment
-        canvasOffset.x += panDX;
-        canvasOffset.y += panDY;
+        // If this is pure panning (2-finger drag without zoom), just pan
+        if (isPurelyPanning) {
+            // Apply pan directly
+            canvasOffset.x += panDX;
+            canvasOffset.y += panDY;
+            
+            // Update canvas transform
+            updateCanvasTransform();
+            
+            // Don't show zoom indicator for pure pan
+            this.hideZoomIndicator();
+        } else {
+            // Handle zoom with pan (original pinch-zoom behavior)
+            // Only log significant zoom changes
+            if (Math.abs(newZoom - zoomLevel) > 0.05) {
+                this.updateDebugInfo(`Zoom: ${zoomLevel.toFixed(2)} → ${newZoom.toFixed(2)} (scale=${scale.toFixed(2)})`);
+            }
+            
+            // Use SAME coordinate system as working wheel zoom (container coordinates)
+            const rect = this.canvasContainer.getBoundingClientRect();
+            const containerCenterX = currentCenterX - rect.left;
+            const containerCenterY = currentCenterY - rect.top;
+            
+            // Calculate world coordinates (same as wheel zoom)
+            const worldX = (containerCenterX - canvasOffset.x) / zoomLevel;
+            const worldY = (containerCenterY - canvasOffset.y) / zoomLevel;
+            
+            // Update zoom
+            setZoomLevel(newZoom);
+            
+            // Keep world point fixed at container position (same as wheel zoom)
+            canvasOffset.x = containerCenterX - worldX * newZoom;
+            canvasOffset.y = containerCenterY - worldY * newZoom;
+            
+            // Now apply the pan on top of the zoom adjustment
+            canvasOffset.x += panDX;
+            canvasOffset.y += panDY;
+            
+            // Update zoom indicator
+            this.updateZoomIndicator(Math.round(newZoom * 100) + '%');
+        }
         
         // Log significant offset changes
         if (Math.abs(canvasOffset.x - oldOffsetX) > 5 || Math.abs(canvasOffset.y - oldOffsetY) > 5) {

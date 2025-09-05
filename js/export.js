@@ -925,6 +925,91 @@ function loadVersionFromProject(projectData, versionIndex = -1) {
     showToast(`Versie ${version.version} geladen door ${version.author}`);
 }
 
+// Setup event handlers for imported nodes (works with existing DOM structure)
+function setupImportedNodeHandlers(nodeEl, node) {
+    // Mouse down for dragging
+    nodeEl.addEventListener('mousedown', function(e) {
+        if (typeof handleNodeMouseDown === 'function') {
+            handleNodeMouseDown(e, node);
+        }
+    });
+    
+    // Double click for editing
+    nodeEl.addEventListener('dblclick', function(e) {
+        e.stopPropagation();
+        if (typeof makeEditable === 'function') {
+            makeEditable(node.id);
+        }
+    });
+    
+    // Context menu
+    nodeEl.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof showNodeContextMenu === 'function') {
+            showNodeContextMenu(e, node.id);
+        }
+    });
+    
+    // Add-node button handlers (using the correct class names)
+    const addNodeBtns = nodeEl.querySelectorAll('.add-node-btn');
+    addNodeBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            // Bepaal richting op basis van class
+            const direction = btn.classList.contains('top') ? 'top' : 
+                            btn.classList.contains('right') ? 'right' : 
+                            btn.classList.contains('bottom') ? 'bottom' : 'left';
+            
+            // Standaard offset
+            const offset = 180;
+            
+            // Bepaal nieuwe positie
+            let newX = node.x;
+            let newY = node.y;
+            
+            switch(direction) {
+                case 'top':
+                    newY = node.y - offset;
+                    break;
+                case 'right':
+                    newX = node.x + offset;
+                    break;
+                case 'bottom':
+                    newY = node.y + offset;
+                    break;
+                case 'left':
+                    newX = node.x - offset;
+                    break;
+            }
+            
+            // Maak nieuw knooppunt
+            if (typeof createNode === 'function') {
+                const childNode = createNode('Nieuw idee', '', node.color, newX, newY, 'rounded', node.id);
+                
+                // Focus op titel voor directe bewerking (alleen op desktop)
+                if (!('ontouchstart' in window)) {
+                    const childEl = document.getElementById(childNode.id);
+                    if (childEl) {
+                        const titleEl = childEl.querySelector('.node-title');
+                        if (titleEl && typeof makeEditable === 'function') {
+                            setTimeout(() => makeEditable(childNode.id), 100);
+                        }
+                    }
+                }
+            }
+        });
+    });
+    
+    // Click for selection
+    nodeEl.addEventListener('click', function(e) {
+        if (!e.shiftKey && !e.ctrlKey && typeof selectNode === 'function') {
+            selectNode(node.id);
+        }
+    });
+}
+
 // Load mindmap data into current state
 function loadMindmapData(data) {
     try {
@@ -968,7 +1053,7 @@ function loadMindmapData(data) {
             setMindmapTitle(data.title);
         }
         
-        // Maak eerst alle knooppunten - gebruik createNodeElement voor consistentie
+        // Maak eerst alle knooppunten - gebruik de standaard createNode functionaliteit
         data.nodes.forEach(nodeData => {
             // Creëer een nieuwe node met de juiste ID
             const node = {
@@ -985,10 +1070,12 @@ function loadMindmapData(data) {
             // Voeg node toe aan de nodes array
             nodes.push(node);
             
-            // nextNodeId is now calculated correctly upfront, no need to update per node
-            
-            // Gebruik de bestaande createNodeElement functie voor consistente event handling
-            createNodeElement(node);
+            // Use the createNodeElement function from core.js which creates proper styling
+            const nodeEl = createNodeElement(node);
+            if (nodeEl) {
+                // Setup all event handlers for the imported node
+                setupImportedNodeHandlers(nodeEl, node);
+            }
         });
             
             // Maak alle verbindingen

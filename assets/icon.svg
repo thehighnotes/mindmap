@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#1e1e1e" stroke="#4CAF50" stroke-width="16"/>
+  
+  <!-- Central node -->
+  <circle cx="256" cy="256" r="40" fill="#4CAF50"/>
+  
+  <!-- Connected nodes -->
+  <!-- Top node -->
+  <circle cx="256" cy="120" r="30" fill="#2196F3"/>
+  <line x1="256" y1="216" x2="256" y2="150" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Top-right node -->
+  <circle cx="370" cy="170" r="30" fill="#FF9800"/>
+  <line x1="285" y1="235" x2="340" y2="190" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Right node -->
+  <circle cx="392" cy="256" r="30" fill="#9C27B0"/>
+  <line x1="296" y1="256" x2="362" y2="256" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Bottom-right node -->
+  <circle cx="370" cy="342" r="30" fill="#F44336"/>
+  <line x1="285" y1="277" x2="340" y2="322" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Bottom node -->
+  <circle cx="256" cy="392" r="30" fill="#00BCD4"/>
+  <line x1="256" y1="296" x2="256" y2="362" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Bottom-left node -->
+  <circle cx="142" cy="342" r="30" fill="#FFC107"/>
+  <line x1="227" y1="277" x2="172" y2="322" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Left node -->
+  <circle cx="120" cy="256" r="30" fill="#795548"/>
+  <line x1="216" y1="256" x2="150" y2="256" stroke="#aaa" stroke-width="4"/>
+  
+  <!-- Top-left node -->
+  <circle cx="142" cy="170" r="30" fill="#E91E63"/>
+  <line x1="227" y1="235" x2="172" y2="190" stroke="#aaa" stroke-width="4"/>
+</svg>
