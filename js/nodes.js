@@ -9,33 +9,23 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
         saveStateForUndo();
     }
     
-    // CRITICAL FIX: Ensure nextNodeId is correct before creating new node
-    let maxNodeId = 0;
-    nodes.forEach(node => {
-        const nodeNum = parseInt(node.id.replace('node-', ''));
-        if (!isNaN(nodeNum) && nodeNum > maxNodeId) {
-            maxNodeId = nodeNum;
-        }
-    });
+    // Always use new ID generator (modern system is default)
+    let nodeId;
     
-    // If nextNodeId would create a conflict, fix it
-    if (nextNodeId <= maxNodeId) {
-        const oldNextNodeId = nextNodeId;
-        nextNodeId = maxNodeId + 1;
-        console.warn(`[createNode] CORRECTING nextNodeId from ${oldNextNodeId} to ${nextNodeId} to avoid conflicts`);
+    if (window.IdGenerator) {
+        // Use new ID generator - this is now the default
+        nodeId = IdGenerator.node();
+    } else {
+        // Emergency fallback only if IdGenerator not loaded
+        nodeId = 'node-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        if (window.Logger) {
+            Logger.warn('IdGenerator not available, using emergency fallback');
+        }
     }
     
-    const nodeId = 'node-' + nextNodeId++;
-    
-    // Check for ID conflicts (should not happen now)
-    const existingNode = nodes.find(n => n.id === nodeId);
-    if (existingNode) {
-        console.error(`[createNode] ID CONFLICT! Node ${nodeId} already exists!`);
-        console.error('Existing node:', existingNode);
-        console.error('Current nextNodeId:', nextNodeId);
-        console.error('All existing node IDs:', nodes.map(n => n.id));
-        // This should not happen anymore, but if it does, we need to handle it
-        return null;
+    // Log ID generation in debug mode
+    if (window.Logger) {
+        Logger.debug('Creating node with ID:', nodeId);
     }
     
     // Maak knooppunt object

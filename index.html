@@ -1047,6 +1047,59 @@
     <script src="js/connections/interaction.js"></script>
     <script src="js/connections/editor.js"></script>
     
+    <!-- Migration Dialog -->
+    <div id="migrationModal" class="modal migration-modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <h2>Mindmap Upgrade</h2>
+            <div class="migration-message">
+                <p>Dit is een oudere mindmap bestand (.mindmap of .json).</p>
+                <p><strong>Wilt u upgraden naar het moderne .mindmap2 formaat?</strong></p>
+                <div class="migration-benefits">
+                    <h3>Voordelen van upgrade:</h3>
+                    <ul>
+                        <li>✓ Betere performance</li>
+                        <li>✓ Geen ID conflicten meer</li>
+                        <li>✓ Verbeterde stabiliteit</li>
+                        <li>✓ Moderne features</li>
+                    </ul>
+                </div>
+                <p class="migration-note">Het originele bestand blijft behouden. De geüpgrade versie wordt opgeslagen met de .mindmap2 extensie.</p>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="acceptMigration()" class="btn btn-primary">
+                    <span>Ja, upgrade naar .mindmap2</span>
+                </button>
+                <button onclick="declineMigration()" class="btn btn-secondary">
+                    <span>Nee, gebruik web versie</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security and utility modules (load first) -->
+    <script src="js/utils/sanitizer.js"></script>
+    <script src="js/utils/logger.js"></script>
+    <script src="js/utils/idGenerator.js"></script>
+    <script src="js/utils/eventBus.js"></script>
+    <script src="js/utils/domCache.js"></script>
+    <script src="js/utils/performance.js"></script>
+    <script src="js/utils/compatibility.js"></script>
+    
+    <!-- State Management System (Phase 3) -->
+    <script src="js/state/StateManager.js"></script>
+    <script src="js/state/middleware/loggerMiddleware.js"></script>
+    <script src="js/state/middleware/validationMiddleware.js"></script>
+    <script src="js/state/middleware/persistenceMiddleware.js"></script>
+    <script src="js/state/StateAdapter.js"></script>
+    <script src="js/state/initState.js"></script>
+    
+    <!-- Performance Optimization (Phase 4) -->
+    <script src="js/rendering/RenderQueue.js"></script>
+    <script src="js/rendering/VirtualConnectionRenderer.js"></script>
+    <script src="js/rendering/PerformanceMonitor.js"></script>
+    <script src="js/rendering/OptimizedRenderer.js"></script>
+    
     <!-- Enhanced mobile touch support -->
     <script src="js/mobile-touch.js"></script>
     <script src="js/mobile-nav.js"></script>
@@ -1058,6 +1111,9 @@
     <script src="js/ui.js"></script>
     <script src="js/export.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- Initialize new utilities (load last) -->
+    <script src="js/utils/init.js"></script>
     
     
     <!-- Attribution -->

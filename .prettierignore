@@ -1,0 +1,36 @@
+# Prettier Ignore File
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Electron
+out/
+
+# Test coverage
+coverage/
+
+# Minified files
+*.min.js
+*.min.css
+
+# Backup files
+*.backup
+*.backup.js
+
+# Version control
+.git/
+.claude/
+
+# Config files that shouldn't be formatted
+package-lock.json
+yarn.lock
+
+# Generated files
+*.map
+
+# Test files with specific formatting
+tests/fixtures/

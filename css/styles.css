@@ -1822,6 +1822,109 @@ body {
 }
 
 /* ========================================
+   MIGRATION MODAL STYLES
+   ======================================== */
+
+.migration-modal .modal-content {
+    max-width: 500px;
+    padding: 30px;
+}
+
+.migration-modal h2 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.migration-message {
+    margin-bottom: 25px;
+}
+
+.migration-message p {
+    margin-bottom: 15px;
+    line-height: 1.6;
+}
+
+.migration-message p strong {
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.migration-benefits {
+    background: #f8f9fa;
+    border-left: 4px solid #4CAF50;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.migration-benefits h3 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.migration-benefits ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.migration-benefits li {
+    padding: 5px 0;
+    color: #555;
+    font-size: 14px;
+}
+
+.migration-note {
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+    background: #fff9e6;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ffd700;
+}
+
+.migration-modal .modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 25px;
+}
+
+.migration-modal .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.migration-modal .btn-primary {
+    background: #4CAF50;
+    color: white;
+}
+
+.migration-modal .btn-primary:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(76, 175, 80, 0.3);
+}
+
+.migration-modal .btn-secondary {
+    background: #e0e0e0;
+    color: #333;
+}
+
+.migration-modal .btn-secondary:hover {
+    background: #d0d0d0;
+}
+
+/* ========================================
    MOBILE SCALING & VIEWPORT OPTIMIZATION
    ======================================== */
 

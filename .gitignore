@@ -37,12 +37,20 @@ logs/
 # Testing
 coverage/
 .nyc_output
+*.lcov
+test-results/
+junit.xml
 
 # Temporary files
 tmp/
 temp/
 *.tmp
 nul
+
+# Backup files
+*.backup
+*.backup.js
+*.bak
 
 # Claude AI
 .claude/

@@ -351,7 +351,8 @@ function exportToJson() {
     
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'mindmap.json';
+    // Use .mindmap2 for new format
+    a.download = window.currentFileFormat === 'mindmap2' ? 'mindmap.mindmap2' : 'mindmap.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -486,7 +487,8 @@ function generateSmartFilename(projectName, version, author, summary) {
         filename += `_${keyword}`;
     }
     
-    filename += '.mindmap';
+    // Use .mindmap2 for modern format
+    filename += window.currentFileFormat === 'mindmap2' ? '.mindmap2' : '.mindmap';
     
     return filename;
 }
@@ -549,7 +551,7 @@ async function savWithFileSystemAPI(projectData, suggestedFilename) {
                 {
                     description: 'Mindmap project files',
                     accept: {
-                        'application/json': ['.mindmap', '.json']
+                        'application/json': ['.mindmap2', '.mindmap', '.json']
                     }
                 }
             ]
@@ -611,24 +613,58 @@ function saveWithTraditionalDownload(projectData, suggestedFilename) {
     }
 }
 
-// Enhanced import with version support
+// Enhanced import with version support and migration prompt
 function importFromJson(file) {
     const reader = new FileReader();
+    
+    // Track the filename for format detection
+    const filename = file.name;
+    if (window.CompatibilityManager) {
+        CompatibilityManager.setCurrentFile(filename);
+    }
     
     reader.onload = function(e) {
         try {
             const data = JSON.parse(e.target.result);
             
-            // Check if this is an enhanced project file or legacy format
-            if (data.metadata && data.metadata.formatVersion === '2.0' && data.versionHistory) {
-                // New enhanced format with embedded version history
-                importEnhancedProject(data);
-            } else if (data.formatVersion && data.versions) {
-                // Old enhanced format (legacy)
-                importLegacyEnhancedProject(data);
+            // Check if this is a legacy file that needs migration
+            const isLegacyFile = window.CompatibilityManager ? 
+                CompatibilityManager.isLegacyFile(filename) : false;
+            
+            if (isLegacyFile && window.CompatibilityManager) {
+                // Show migration dialog
+                CompatibilityManager.showMigrationDialog(
+                    // On accept - migrate and save as .mindmap2
+                    () => {
+                        const migratedData = CompatibilityManager.migrateToModernFormat(data);
+                        window.currentFileFormat = 'mindmap2';
+                        loadMindmapData(migratedData);
+                        
+                        // Auto-save as .mindmap2
+                        setTimeout(() => {
+                            exportToJson();
+                            showToast('Mindmap geüpgraded naar modern formaat');
+                        }, 500);
+                    },
+                    // On decline - show web version message
+                    () => {
+                        showToast('Gebruik de web versie voor oude mindmap bestanden', true);
+                        // Don't load the file
+                    }
+                );
             } else {
-                // Legacy format - import directly
-                importLegacyFormat(data);
+                // Modern format or already migrated
+                // Check if this is an enhanced project file or legacy format
+                if (data.metadata && data.metadata.formatVersion === '2.0' && data.versionHistory) {
+                    // New enhanced format with embedded version history
+                    importEnhancedProject(data);
+                } else if (data.formatVersion && data.versions) {
+                    // Old enhanced format (legacy)
+                    importLegacyEnhancedProject(data);
+                } else {
+                    // Direct import
+                    loadMindmapData(data);
+                }
             }
             
         } catch (error) {
@@ -1013,6 +1049,11 @@ function setupImportedNodeHandlers(nodeEl, node) {
 // Load mindmap data into current state
 function loadMindmapData(data) {
     try {
+        // Use CompatibilityManager to prepare data for loading
+        if (window.CompatibilityManager) {
+            data = CompatibilityManager.prepareDataForLoading(data);
+        }
+        
         // Verwijder huidige mindmap
         clearMindmap(false); // Don't clear version history when loading project
         
@@ -1095,10 +1136,20 @@ function loadMindmapData(data) {
             // Update minimap
             updateMinimap();
             
+            // Reset compatibility state after successful load
+            if (window.CompatibilityManager) {
+                CompatibilityManager.resetLoadingState();
+            }
+            
             showToast('Mindmap geladen');
         } catch (error) {
             console.error('Fout bij het laden van mindmap:', error);
             showToast('Fout bij het laden van de mindmap', true);
+            
+            // Reset compatibility state even on error
+            if (window.CompatibilityManager) {
+                CompatibilityManager.resetLoadingState();
+            }
         }
 }
 
