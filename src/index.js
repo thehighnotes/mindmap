@@ -32,6 +32,13 @@ import { UIController } from './modules/UIController';
 import { ExportManager } from './modules/ExportManager';
 import { StorageManager } from './modules/StorageManager';
 
+// Phase 6: UX Components
+import { KeyboardNavigation } from './a11y/KeyboardNavigation';
+import { SafeExecutor } from './utils/SafeExecutor';
+import { HelpSystem, helpSystem } from './ui/HelpSystem';
+import { NotificationSystem, notifications } from './ui/NotificationSystem';
+import { OnboardingTutorial } from './ui/OnboardingTutorial';
+
 // Styles
 import '../css/styles.css';
 
@@ -47,6 +54,8 @@ class MindmapApplication {
     #storageManager = null;
     #renderQueue = null;
     #performanceMonitor = null;
+    #keyboardNavigation = null;
+    #helpSystem = null;
     #isInitialized = false;
 
     constructor(config = {}) {
@@ -82,6 +91,9 @@ class MindmapApplication {
 
             // Initialize application modules
             await this.#initializeModules();
+
+            // Initialize UX components (Phase 6)
+            await this.#initializeUXComponents();
 
             // Setup event listeners
             this.#setupEventListeners();
@@ -212,6 +224,166 @@ class MindmapApplication {
             this.#exportManager.init(),
             this.#storageManager.init()
         ]);
+    }
+
+    /**
+     * Initialize UX components (Phase 6)
+     */
+    async #initializeUXComponents() {
+        Logger.info('Initializing UX components');
+
+        try {
+            // Initialize KeyboardNavigation
+            this.#keyboardNavigation = new KeyboardNavigation(document.body);
+            
+            // Register all UI elements for keyboard navigation
+            this.#registerUIElementsForKeyboard();
+            
+            // Setup tooltips for all UI elements
+            this.#setupTooltips();
+            
+            // Initialize help system (use global instance)
+            this.#helpSystem = helpSystem;
+            
+            // Setup onboarding for first-time users
+            if (OnboardingTutorial.shouldShowOnboarding()) {
+                // Delay onboarding to ensure app is fully loaded
+                setTimeout(() => {
+                    OnboardingTutorial.start({
+                        onComplete: () => {
+                            notifications.success('Welkom! U bent klaar om te starten met mindmappen.');
+                        },
+                        onSkip: () => {
+                            notifications.info('U kunt de rondleiding altijd starten via Help → Rondleiding');
+                        }
+                    });
+                }, 2000);
+            }
+            
+            // Wrap critical operations with SafeExecutor
+            this.#wrapCriticalOperations();
+            
+            // Expose globally for compatibility
+            window.keyboardNavigation = this.#keyboardNavigation;
+            window.helpSystem = this.#helpSystem;
+            window.notifications = notifications;
+            window.SafeExecutor = SafeExecutor;
+            
+            Logger.info('UX components initialized successfully');
+            
+        } catch (error) {
+            Logger.error('Failed to initialize UX components', error);
+            // Don't fail the entire app if UX components fail
+            notifications.error('Sommige gebruikersfuncties zijn mogelijk niet beschikbaar');
+        }
+    }
+
+    /**
+     * Register UI elements for keyboard navigation
+     */
+    #registerUIElementsForKeyboard() {
+        // Register main toolbar buttons
+        const toolbarButtons = document.querySelectorAll('.toolbar button, .header button');
+        toolbarButtons.forEach((btn, index) => {
+            if (btn.id) {
+                this.#keyboardNavigation.registerElement(btn.id, btn, {
+                    label: btn.title || btn.textContent || `Button ${index + 1}`,
+                    role: 'button',
+                    group: 'toolbar',
+                    order: index
+                });
+            }
+        });
+        
+        // Register zoom controls
+        const zoomControls = document.querySelectorAll('.zoom-controls button');
+        zoomControls.forEach((btn, index) => {
+            if (btn.id) {
+                this.#keyboardNavigation.registerElement(btn.id, btn, {
+                    label: btn.title || btn.textContent || `Zoom ${index + 1}`,
+                    role: 'button',
+                    group: 'zoom',
+                    order: index
+                });
+            }
+        });
+        
+        // Register canvas for main workspace
+        const canvas = document.getElementById('canvas');
+        if (canvas) {
+            this.#keyboardNavigation.registerElement('canvas', canvas, {
+                label: 'Mindmap werkruimte',
+                role: 'application',
+                group: 'main',
+                order: 0,
+                onActivate: () => {
+                    // Focus canvas for creation
+                    canvas.focus();
+                }
+            });
+        }
+    }
+
+    /**
+     * Setup tooltips for UI elements
+     */
+    #setupTooltips() {
+        // Toolbar tooltips
+        helpSystem.registerTooltip('[title]', null, {
+            content: (el) => el.getAttribute('title'),
+            position: 'bottom'
+        });
+        
+        // Custom tooltips for complex elements
+        helpSystem.registerTooltip('.version-info-btn', 
+            'Klik om te zien wat er nieuw is in deze versie', 
+            { position: 'bottom' }
+        );
+        
+        helpSystem.registerTooltip('.mindmap-title', 
+            'Klik om de titel van uw mindmap te bewerken', 
+            { position: 'bottom' }
+        );
+        
+        helpSystem.registerTooltip('#canvas', 
+            'Dubbelklik om een nieuw knooppunt te maken. Gebruik Spatie + sleep om te pannen.', 
+            { position: 'center', delay: 1000 }
+        );
+    }
+
+    /**
+     * Wrap critical operations with SafeExecutor
+     */
+    #wrapCriticalOperations() {
+        // Wrap save operations
+        const originalSave = this.save.bind(this);
+        this.save = SafeExecutor.wrap(originalSave, {
+            userMessage: 'Fout bij opslaan van mindmap',
+            fallback: false,
+            critical: false,
+            retry: true,
+            retryAttempts: 2
+        });
+        
+        // Wrap load operations  
+        const originalLoad = this.load.bind(this);
+        this.load = SafeExecutor.wrap(originalLoad, {
+            userMessage: 'Fout bij laden van mindmap', 
+            fallback: false,
+            critical: true, // Critical as it could lose work
+            retry: true,
+            retryAttempts: 2
+        });
+        
+        // Wrap export operations
+        const originalExport = this.export.bind(this);
+        this.export = SafeExecutor.wrap(originalExport, {
+            userMessage: 'Fout bij exporteren van mindmap',
+            fallback: null,
+            critical: false,
+            retry: true,
+            retryAttempts: 1
+        });
     }
 
     /**

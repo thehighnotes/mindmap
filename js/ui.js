@@ -1196,11 +1196,15 @@ function setupEventListeners() {
         autoLayoutBtn.addEventListener('click', arrangeNodes);
     }
     
-    // Hulp tonen
+    // Hulp tonen - Use new help system if available
     helpBtn.addEventListener('click', function() {
-        helpModal.style.display = 'flex';
-        // Reset help modal to first tab when opened
-        resetHelpModalToFirstTab();
+        if (window.helpSystem) {
+            window.helpSystem.showHelp();
+        } else {
+            // Fallback to legacy system
+            helpModal.style.display = 'flex';
+            resetHelpModalToFirstTab();
+        }
     });
     closeHelp.addEventListener('click', function() {
         helpModal.style.display = 'none';
@@ -1569,6 +1573,38 @@ function setupEventListeners() {
                     }
                 }
             }
+        }
+        
+        // Phase 6: New keyboard shortcuts integration
+        if (window.helpSystem && e.key === 'F1') {
+            e.preventDefault();
+            window.helpSystem.showContextHelp();
+        }
+        
+        if (window.helpSystem && e.key === '?') {
+            e.preventDefault();
+            window.helpSystem.showShortcuts();
+        }
+        
+        if (window.notifications && e.key === 'n' && !e.ctrlKey) {
+            // Quick node creation with notification feedback
+            const rect = canvasContainer.getBoundingClientRect();
+            const centerX = ((-canvasOffset.x + rect.width / 2) / zoomLevel);
+            const centerY = ((-canvasOffset.y + rect.height / 2) / zoomLevel);
+            
+            const newNode = createNode('Nieuw Knooppunt', '', '#4CAF50', centerX, centerY);
+            window.notifications.success('Nieuw knooppunt gemaakt');
+            
+            // Auto-focus for editing
+            setTimeout(() => {
+                const nodeEl = document.getElementById(newNode.id);
+                if (nodeEl) {
+                    const titleEl = nodeEl.querySelector('.node-title');
+                    if (titleEl) {
+                        makeEditable(titleEl, newNode);
+                    }
+                }
+            }, 100);
         }
     });
     
@@ -2912,10 +2948,14 @@ function setupHamburgerMenu() {
     
     if (menuHelpBtn) {
         menuHelpBtn.addEventListener('click', () => {
-            helpModal.style.display = 'flex';
+            if (window.helpSystem) {
+                window.helpSystem.showHelp();
+            } else {
+                // Fallback to legacy system
+                helpModal.style.display = 'flex';
+                resetHelpModalToFirstTab();
+            }
             closeHamburgerMenu();
-            // Reset help modal to first tab when opened
-            resetHelpModalToFirstTab();
         });
     }
 }
