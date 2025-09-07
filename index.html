@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, minimum-scale=0.5, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-content">
+    <title>Mindmap Brainstorm Tool</title>
+    <!-- CSS bestanden -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="hamburger-btn" id="hamburger-btn" title="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1>Mindmap <span class="version" id="version-number">v0.932</span>
+                <button class="version-info-btn" id="version-info-btn" title="Wat is nieuw in deze versie">
+                    <span class="version-info-text">Wat is nieuw</span>
+                    <span class="version-info-icon">🆕</span>
+                </button>
+            </h1>
+            <div class="mindmap-title-container">
+                <input type="text" id="mindmap-title" class="mindmap-title" placeholder="Untitled Mindmap" value="Mindmap Project">
+                <span class="edit-title-hint">Click to edit title</span>
+                <div class="version-indicator" id="version-indicator">v1.0.0 • Saved</div>
+            </div>
+            <div class="last-modified-indicator" id="last-modified-indicator" style="display: none;"></div>
+            <div class="auto-save-indicator" id="auto-save-indicator">Auto-saved</div>
+        </div>
+        
+        <!-- Mobile hamburger menu -->
+        <div class="hamburger-menu" id="hamburger-menu">
+            <div class="hamburger-menu-content">
+                <div class="menu-section">
+                    <h3>Bestand</h3>
+                    <button class="menu-item" id="menu-save-btn" title="Sla de mindmap op als bestand">💾 Opslaan</button>
+                    <button class="menu-item" id="menu-load-btn" title="Laad een opgeslagen mindmap">📂 Laden</button>
+                    <button class="menu-item" id="menu-version-browser-btn" title="Bekijk projectgeschiedenis">📚 Project Historie</button>
+                </div>
+                <div class="menu-section">
+                    <h3>Export</h3>
+                    <button class="menu-item" id="menu-export-mermaid-btn" title="Exporteer naar Mermaid syntax">📊 Mermaid</button>
+                    <button class="menu-item" id="menu-export-image-btn" title="Sla op als afbeelding">🖼️ Afbeelding</button>
+                </div>
+                <div class="menu-section">
+                    <h3>Navigatie</h3>
+                    <button class="menu-item" id="menu-center-btn" title="Centreer de mindmap">🎯 Centreren</button>
+                    <button class="menu-item" id="menu-clear-btn" title="Wis de mindmap">🗑️ Wissen</button>
+                </div>
+                <div class="menu-section">
+                    <h3>Help</h3>
+                    <button class="menu-item" id="menu-releases-btn" title="Wat is nieuw">🆕 Wat is nieuw</button>
+                    <button class="menu-item" id="menu-help-btn" title="Toon help">❓ Help</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Desktop button group (hidden on mobile) -->
+        <div class="button-group desktop-only">
+            <button class="btn btn-save" id="save-btn" title="Sla de mindmap op als bestand">Opslaan</button>
+            <button class="btn btn-save" id="load-btn" title="Laad een opgeslagen mindmap">Laden</button>
+            <button class="btn btn-secondary" id="version-browser-btn" title="Bekijk projectgeschiedenis">Project Historie</button>
+            <button class="btn btn-export" id="export-mermaid-btn" title="Exporteer naar Mermaid syntax">Exporteer naar Mermaid</button>
+            <button class="btn btn-save" id="export-image-btn" title="Sla op als afbeelding">Exporteer als Afbeelding</button>
+            <button class="btn" id="center-btn" title="Centreer de mindmap">Centreren</button>
+            <button class="btn" id="clear-btn" title="Wis de mindmap">Wissen</button>
+            <button class="btn" id="help-btn" title="Toon help">Help</button>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="toolbar">
+            <button class="tool-btn" id="delete-tool" title="Verwijder element (D)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </button>
+            <div class="tool-divider"></div>
+            <button class="tool-btn" id="batch-text-tool" title="Voeg meerdere child nodes toe">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </button>
+            <div class="template-dropdown">
+                <button class="tool-btn" id="template-tool" title="Voeg template node groep toe">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <rect x="7" y="7" width="3" height="3"></rect>
+                        <rect x="14" y="7" width="3" height="3"></rect>
+                        <rect x="7" y="14" width="3" height="3"></rect>
+                        <rect x="14" y="14" width="3" height="3"></rect>
+                    </svg>
+                </button>
+                <div class="template-dropdown-content" id="template-dropdown">
+                    <div class="template-item" data-template="swot">SWOT Analyse</div>
+                    <div class="template-item" data-template="meeting">Meeting Agenda</div>
+                    <div class="template-item" data-template="project">Project Planning</div>
+                    <div class="template-item" data-template="decision">Beslisboom</div>
+                    <div class="template-item" data-template="brainstorm">Brainstorm Sessie</div>
+                    <div class="template-item" data-template="kanban">Kanban Board</div>
+                    <div class="template-item" data-template="mindfulness">Mindfulness Map</div>
+                    <div class="template-item" data-template="weekplanning">Weekplanning</div>
+                </div>
+            </div>
+            <button class="tool-btn" id="undo-btn" title="Ongedaan maken (Ctrl+Z)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6M3 10l6-6"></path>
+                </svg>
+            </button>
+            <div class="tool-divider"></div>
+            <button class="tool-btn" id="toggle-grid-btn" title="Raster aan/uit (G)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="3" y1="15" x2="21" y2="15"></line>
+                    <line x1="9" y1="3" x2="9" y2="21"></line>
+                    <line x1="15" y1="3" x2="15" y2="21"></line>
+                </svg>
+            </button>
+            <button class="tool-btn" id="toggle-minimap-btn" title="Minimap aan/uit (M)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <rect x="7" y="7" width="10" height="10" rx="1" ry="1"></rect>
+                </svg>
+            </button>
+            <button class="tool-btn" id="toggle-mobile-debug-btn" title="Mobile debug aan/uit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                    <circle cx="7" cy="8" r="1"></circle>
+                    <circle cx="12" cy="8" r="1"></circle>
+                    <circle cx="17" cy="8" r="1"></circle>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="canvas-container">
+            <div id="mindmap-canvas"></div>
+            
+            <div class="mini-map" id="mini-map">
+                <div class="mini-map-content" id="mini-map-content">
+                    <div class="mini-map-viewport" id="mini-map-viewport"></div>
+                </div>
+            </div>
+            
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+                <div class="zoom-level" id="zoom-level">100%</div>
+                <button class="zoom-btn" id="zoom-out" title="Zoom uit">−</button>
+                <button class="zoom-btn" id="zoom-reset" title="Reset zoom">⟳</button>
+                <button class="zoom-btn" id="zoom-to-selection" title="Zoom naar selectie (Ctrl+F)">🔍</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Knooppunt bewerken modal -->
+    <div class="modal" id="node-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Knooppunt Bewerken</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="node-title">Titel:</label>
+                    <input type="text" id="node-title" placeholder="Voer een titel in">
+                </div>
+                <div class="form-group">
+                    <label for="node-content">Inhoud (optioneel):</label>
+                    <textarea id="node-content" placeholder="Voer inhoud in (optioneel)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="node-color">Kleur:</label>
+                    <div class="color-selection">
+                        <div class="standard-colors">
+                            <div class="color-option" data-color="#4CAF50" style="background-color: #4CAF50;" title="Groen"></div>
+                            <div class="color-option" data-color="#2196F3" style="background-color: #2196F3;" title="Blauw"></div>
+                            <div class="color-option" data-color="#FF9800" style="background-color: #FF9800;" title="Oranje"></div>
+                            <div class="color-option" data-color="#9C27B0" style="background-color: #9C27B0;" title="Paars"></div>
+                            <div class="color-option" data-color="#F44336" style="background-color: #F44336;" title="Rood"></div>
+                            <div class="color-option" data-color="#009688" style="background-color: #009688;" title="Teal"></div>
+                            <div class="color-option" data-color="#FFC107" style="background-color: #FFC107;" title="Geel"></div>
+                            <div class="color-option" data-color="#607D8B" style="background-color: #607D8B;" title="Grijs"></div>
+                            <div class="color-option" data-color="#795548" style="background-color: #795548;" title="Bruin"></div>
+                            <div class="color-option" data-color="#E91E63" style="background-color: #E91E63;" title="Roze"></div>
+                        </div>
+                        <div class="custom-color-wrapper">
+                            <label for="node-color-custom">Of kies aangepaste kleur:</label>
+                            <input type="color" id="node-color" value="#4CAF50">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="node-shape">Vorm:</label>
+                    <select id="node-shape">
+                        <option value="rectangle">Rechthoek</option>
+                        <option value="rounded">Afgerond</option>
+                        <option value="circle">Cirkel</option>
+                        <option value="diamond">Ruit</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancel-node-edit">Annuleren</button>
+                <button class="btn btn-save" id="save-node-edit">Opslaan</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Verbinding bewerken modal -->
+    <div class="modal" id="connection-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Verbinding Bewerken</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="connection-label">Label:</label>
+                    <input type="text" id="connection-label" placeholder="Voer een label in (optioneel)">
+                </div>
+                <div class="form-group">
+                    <label for="connection-style">Lijnstijl:</label>
+                    <select id="connection-style">
+                        <option value="solid">Doorgetrokken</option>
+                        <option value="dashed">Gestippeld</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="connection-type">Type verbinding:</label>
+                    <select id="connection-type">
+                        <option value="default">Standaard</option>
+                        <option value="primary">Primair</option>
+                        <option value="secondary">Secundair</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancel-connection-edit">Annuleren</button>
+                <button class="btn btn-save" id="save-connection-edit">Opslaan</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Export modal -->
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Exporteren naar Mermaid</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Gebruik onderstaande Mermaid code in de Mermaid Live Editor:</p>
+                <textarea id="export-content" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-export" id="copy-export">Kopiëren</button>
+                <button class="btn" id="close-export">Sluiten</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Import modal -->
+    <div class="modal" id="import-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Importeren van Mermaid</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Plak hieronder de Mermaid code:</p>
+                <textarea id="import-content" placeholder="Plak hier de Mermaid code..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancel-import">Annuleren</button>
+                <button class="btn btn-import" id="confirm-import">Importeren</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Help modal -->
+    <div class="modal" id="help-modal">
+        <div class="modal-content help-modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span class="help-icon">❓</span>
+                    Mindmap Help & Gebruiksaanwijzing
+                </div>
+                <button class="close-modal">&times;</button>
+            </div>
+            
+            <!-- Search bar -->
+            <div class="help-search-container">
+                <input type="text" id="help-search" class="help-search-input" placeholder="🔍 Zoek in help..." />
+            </div>
+            
+            <div class="modal-body help-modal-body">
+                <!-- Tab navigation -->
+                <div class="help-tabs">
+                    <button class="help-tab active" data-tab="getting-started">
+                        <span class="tab-icon">🚀</span>
+                        <span class="tab-text">Beginnen</span>
+                    </button>
+                    <button class="help-tab" data-tab="tools-features">
+                        <span class="tab-icon">🛠️</span>
+                        <span class="tab-text">Tools & Features</span>
+                    </button>
+                    <button class="help-tab" data-tab="shortcuts">
+                        <span class="tab-icon">⌨️</span>
+                        <span class="tab-text">Sneltoetsen</span>
+                    </button>
+                    <button class="help-tab" data-tab="collaboration">
+                        <span class="tab-icon">👥</span>
+                        <span class="tab-text">Versie Control</span>
+                    </button>
+                    <button class="help-tab" data-tab="export-import">
+                        <span class="tab-icon">📤</span>
+                        <span class="tab-text">Export & Import</span>
+                    </button>
+                </div>
+                
+                <!-- Tab content -->
+                <div class="help-content">
+                    <!-- Getting Started Tab -->
+                    <div class="help-tab-content active" id="getting-started">
+                        <div class="help-section">
+                            <h2 class="help-section-title">🚀 Welkom bij de Mindmap Tool</h2>
+                            <p class="help-intro">Een krachtige tool voor visuele brainstorming en ideeënorganisatie.</p>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">📍 Basisnavigatie</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🖱️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Canvas navigatie:</strong> Houd <kbd>Spatiebalk</kbd> ingedrukt en sleep om te pannen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔍</div>
+                                        <div class="help-feature-content">
+                                            <strong>Zoomen:</strong> Gebruik het muiswiel of de zoom-knoppen linksonder
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎯</div>
+                                        <div class="help-feature-content">
+                                            <strong>Centreren:</strong> Klik op "Centreren" om de mindmap te centreren
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">➕ Je eerste knooppunt maken</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">✨</div>
+                                        <div class="help-feature-content">
+                                            <strong>Nieuw knooppunt:</strong> Dubbelklik op een lege plaats in het canvas
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">➕</div>
+                                        <div class="help-feature-content">
+                                            <strong>Child knooppunt:</strong> Hover over een knooppunt en klik op de <span class="help-highlight">+</span> knop
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">✏️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Tekst bewerken:</strong> Dubbelklik op een knooppunt om de titel te bewerken
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔗 Verbindingen maken</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔗</div>
+                                        <div class="help-feature-content">
+                                            <strong>Aftakking maken:</strong> Sleep vanuit het oranje bolletje op een verbindingslijn naar een bestaande node
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚡</div>
+                                        <div class="help-feature-content">
+                                            <strong>Snelle verbinding:</strong> Houd <kbd>Ctrl</kbd> ingedrukt en klik op twee knooppunten
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎨</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verbindingslabel:</strong> Dubbelklik op een verbindingslijn om een label toe te voegen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tools & Features Tab -->
+                    <div class="help-tab-content" id="tools-features">
+                        <div class="help-section">
+                            <h2 class="help-section-title">🛠️ Tools & Features</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🎨 Knooppunt bewerking</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔄</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verplaatsen:</strong> Sleep knooppunten om ze te verplaatsen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎭</div>
+                                        <div class="help-feature-content">
+                                            <strong>Vorm wijzigen:</strong> Rechtsklik → "Bewerken" voor verschillende vormen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎨</div>
+                                        <div class="help-feature-content">
+                                            <strong>Kleuren:</strong> Pas achtergrondkleur aan via het bewerkingsmenu
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🗑️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verwijderen:</strong> Selecteer en druk <kbd>Delete</kbd> of gebruik de verwijder tool
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔗 Geavanceerde verbindingen</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📐</div>
+                                        <div class="help-feature-content">
+                                            <strong>Curve aanpassen:</strong> Klik en sleep op de verbindingslijn om de boog aan te passen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">➕</div>
+                                        <div class="help-feature-content">
+                                            <strong>Tussennode:</strong> Klik op het groene plusje op een verbindingslijn
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🌿</div>
+                                        <div class="help-feature-content">
+                                            <strong>Aftakking naar bestaande node:</strong> Sleep vanuit het oranje bolletje op een verbindingslijn direct naar een andere node
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">⚡ Productiviteitstools</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📝</div>
+                                        <div class="help-feature-content">
+                                            <strong>Batch tekst:</strong> Gebruik de batch tekst tool om meerdere knooppunten in één keer toe te voegen
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📋</div>
+                                        <div class="help-feature-content">
+                                            <strong>Templates:</strong> SWOT analyse, Kanban board, mindfulness map, en meer
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎯</div>
+                                        <div class="help-feature-content">
+                                            <strong>Auto-layout:</strong> Automatische organisatie van je mindmap
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">👁️ Weergave opties</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚏</div>
+                                        <div class="help-feature-content">
+                                            <strong>Raster:</strong> Druk <kbd>G</kbd> om het achtergrond raster aan/uit te zetten
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🗺️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Minimap:</strong> Druk <kbd>M</kbd> om de minimap rechtsonder te tonen/verbergen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Keyboard Shortcuts Tab -->
+                    <div class="help-tab-content" id="shortcuts">
+                        <div class="help-section">
+                            <h2 class="help-section-title">⌨️ Sneltoetsen</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">📁 Bestand operaties</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+                                        <div class="help-shortcut-desc">Opslaan</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>O</kbd></div>
+                                        <div class="help-shortcut-desc">Laden</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>E</kbd></div>
+                                        <div class="help-shortcut-desc">Exporteer naar Mermaid</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>I</kbd></div>
+                                        <div class="help-shortcut-desc">Importeer van Mermaid (tijdelijk onbeschikbaar)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">✂️ Bewerken</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Z</kbd></div>
+                                        <div class="help-shortcut-desc">Ongedaan maken</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+                                        <div class="help-shortcut-desc">Kopiëren</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>V</kbd></div>
+                                        <div class="help-shortcut-desc">Plakken</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Delete</kbd> / <kbd>Backspace</kbd></div>
+                                        <div class="help-shortcut-desc">Verwijderen</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🧭 Navigatie</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Spatiebalk</kbd></div>
+                                        <div class="help-shortcut-desc">Pan modus (houden)</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>F</kbd></div>
+                                        <div class="help-shortcut-desc">Zoom naar selectie</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>G</kbd></div>
+                                        <div class="help-shortcut-desc">Raster aan/uit</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>M</kbd></div>
+                                        <div class="help-shortcut-desc">Minimap aan/uit</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔗 Knooppunten & Verbindingen</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Tab</kbd></div>
+                                        <div class="help-shortcut-desc">Snel child knooppunt toevoegen</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>Klik</kbd></div>
+                                        <div class="help-shortcut-desc">Knooppunten verbinden</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Escape</kbd></div>
+                                        <div class="help-shortcut-desc">Actie annuleren</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Version Control & Collaboration Tab -->
+                    <div class="help-tab-content" id="collaboration">
+                        <div class="help-section">
+                            <h2 class="help-section-title">👥 Versie Control & Samenwerking</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">💾 Smart Save Systeem</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚡</div>
+                                        <div class="help-feature-content">
+                                            <strong>Auto-save:</strong> Je werk wordt elke 30 seconden automatisch tijdelijk bewaard in de browser
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🎯</div>
+                                        <div class="help-feature-content">
+                                            <strong>Slimme versie suggesties:</strong> Het systeem stelt automatisch de juiste versie nummering voor
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📝</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verandering tracking:</strong> Alle wijzigingen worden bijgehouden met timestamps
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">💾</div>
+                                        <div class="help-feature-content">
+                                            <strong>Echte versies:</strong> Klik "Opslaan" (Ctrl+S) om een permanente versie aan te maken die daadwerkelijk wordt opgeslagen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">📚 Versie Browser</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⭐</div>
+                                        <div class="help-feature-content">
+                                            <strong>Huidige versie:</strong> Gemarkeerd met een ster (★) en groene tekst
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🖱️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Versie selectie:</strong> Klik op versies om een preview te zien, groene highlighting toont selectie
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">👤</div>
+                                        <div class="help-feature-content">
+                                            <strong>Auteur informatie:</strong> Zie wie welke wijzigingen heeft gemaakt en wanneer
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🤝 Team Samenwerking</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📄</div>
+                                        <div class="help-feature-content">
+                                            <strong>Bestand delen:</strong> Deel .mindmap bestanden via email of cloud storage
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⚠️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Conflict detectie:</strong> Waarschuwingen wanneer nieuwere versies beschikbaar zijn
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📊</div>
+                                        <div class="help-feature-content">
+                                            <strong>Verandering statistieken:</strong> Overzicht van toegevoegde/gewijzigde/verwijderde elementen
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔄 Versie Beheer</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔢</div>
+                                        <div class="help-feature-content">
+                                            <strong>Automatische nummering:</strong> Patch (0.0.X), Minor (0.X.0), Major (X.0.0) versies
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🕰️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Volledige geschiedenis:</strong> Alle versies worden bewaard in het projectbestand
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">↪️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Versie laden:</strong> Ga terug naar elke eerdere versie met één klik
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export & Import Tab -->
+                    <div class="help-tab-content" id="export-import">
+                        <div class="help-section">
+                            <h2 class="help-section-title">📤 Export & Import</h2>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">💾 Bestand formaten</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📋</div>
+                                        <div class="help-feature-content">
+                                            <strong>.mindmap bestanden:</strong> Volledig project met versie geschiedenis en metadata
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📄</div>
+                                        <div class="help-feature-content">
+                                            <strong>.json bestanden:</strong> Basis mindmap data (legacy ondersteuning)
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🖼️</div>
+                                        <div class="help-feature-content">
+                                            <strong>PNG afbeelding:</strong> Visuele export voor presentaties en documentatie
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔄 Mermaid integratie</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📊</div>
+                                        <div class="help-feature-content">
+                                            <strong>Export naar Mermaid:</strong> Converteer je mindmap naar Mermaid flowchart syntax
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">📥</div>
+                                        <div class="help-feature-content">
+                                            <strong>Import van Mermaid:</strong> Tijdelijk onbeschikbaar - wordt binnenkort hersteld
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🌐</div>
+                                        <div class="help-feature-content">
+                                            <strong>Mermaid Live Editor:</strong> Gebruik geëxporteerde code direct in online editors
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">🔒 Bestandscompatibiliteit</h3>
+                                <div class="help-feature-list">
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">⬆️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Automatische upgrade:</strong> Oude bestanden worden automatisch geconverteerd
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🔄</div>
+                                        <div class="help-feature-content">
+                                            <strong>Backwards compatibility:</strong> Ondersteuning voor alle eerdere bestandsformaten
+                                        </div>
+                                    </div>
+                                    <div class="help-feature-item">
+                                        <div class="help-feature-icon">🛡️</div>
+                                        <div class="help-feature-content">
+                                            <strong>Data integriteit:</strong> Veilige import/export met fout herstel
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="help-feature-group">
+                                <h3 class="help-feature-title">⚡ Snelle acties</h3>
+                                <div class="help-shortcuts-grid">
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>S</kbd></div>
+                                        <div class="help-shortcut-desc">Smart Save Dialog</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>O</kbd></div>
+                                        <div class="help-shortcut-desc">Bestand laden</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>E</kbd></div>
+                                        <div class="help-shortcut-desc">Mermaid export</div>
+                                    </div>
+                                    <div class="help-shortcut-item">
+                                        <div class="help-shortcut-keys"><kbd>Ctrl</kbd> + <kbd>I</kbd></div>
+                                        <div class="help-shortcut-desc">Mermaid import (tijdelijk onbeschikbaar)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer help-modal-footer">
+                <button class="btn btn-secondary" id="show-tips-btn">💡 Toon Beginners Tips</button>
+                <button class="btn" id="close-help">✅ Sluiten</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Context menu -->
+    <div class="context-menu" id="context-menu">
+        <div class="context-menu-item" id="context-edit">Bewerken</div>
+        <div class="context-menu-item" id="context-rename">Hernoemen</div>
+        <div class="context-menu-item" id="context-create-child">Nieuw subknooppunt</div>
+        <div class="context-menu-item" id="context-batch-children">Meerdere child nodes toevoegen</div>
+        <div class="context-menu-item" id="context-branch">Y-vertakking maken</div>
+        <div class="context-menu-item" id="context-set-root">Als hoofdknooppunt instellen</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="context-disconnect-mode">Verbindingen bewerken</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="context-delete">Verwijderen</div>
+    </div>
+    
+    <!-- Verbinding context menu -->
+    <div class="context-menu" id="connection-context-menu">
+        <div class="context-menu-item" id="connection-edit">Bewerken</div>
+        <div class="context-menu-item" id="connection-branch">Vertakking maken</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="connection-style-solid">Stijl: Doorgetrokken</div>
+        <div class="context-menu-item" id="connection-style-dashed">Stijl: Gestippeld</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="connection-type-default">Type: Standaard</div>
+        <div class="context-menu-item" id="connection-type-primary">Type: Primair</div>
+        <div class="context-menu-item" id="connection-type-secondary">Type: Secundair</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" id="connection-delete">Verwijderen</div>
+    </div>
+    
+    <!-- Batch text entry modal -->
+    <div class="modal" id="batch-text-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Voeg Meerdere Child Nodes Toe</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Typ elke nieuwe child node op een aparte regel:</p>
+                <textarea id="batch-text-input" placeholder="Marketing&#10;Sales&#10;Development&#10;Support"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="cancel-batch-text">Annuleren</button>
+                <button class="btn btn-save" id="confirm-batch-text">Child Nodes Toevoegen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Releases Modal -->
+    <div class="modal" id="releases-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">🆕 Wat is nieuw</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="releases-container">
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.932</span>
+                            <span class="release-date">Huidige versie</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📍 <strong>Duidelijker onderscheid:</strong> "Project Historie" voor jouw saves, "Wat is nieuw" voor app updates</li>
+                            <li>🎨 <strong>Subtiele interface:</strong> Kleine "Wat is nieuw" knop direct naast het versienummer</li>
+                            <li>🆕 <strong>Release overzicht:</strong> Complete geschiedenis van alle app verbeteringen</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.931</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📋 <strong>Releases modal:</strong> Nieuwe sectie om alle app updates te bekijken</li>
+                            <li>📚 <strong>Versiegeschiedenis:</strong> Uitgebreide beschrijvingen van elke release</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.930</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>🎯 <strong>Slim nodes plaatsen:</strong> Houd CTRL ingedrukt en sleep een node naar een verbindingslijn om deze automatisch tussen te voegen</li>
+                            <li>🔗 <strong>Intelligente verbindingen:</strong> Verbindingen herschikken zich automatisch wanneer je nodes verplaatst of toevoegt</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.923</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>🎨 <strong>Uitgebreide kleuren:</strong> Kies uit 12 standaardkleuren of maak je eigen kleur met de kleurenkiezer</li>
+                            <li>✨ <strong>Visuele verbetering:</strong> Nodes hebben nu duidelijkere randen en betere kleurcontrasten</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.921</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📱 <strong>Mobiel vriendelijk:</strong> Touch gestures werken nu soepeler op telefoons en tablets</li>
+                            <li>⚡ <strong>Sneller laden:</strong> Projecten starten direct op zonder vertraging bij het laden</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.920</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📚 <strong>Help systeem:</strong> Nieuwe help met tabs voor beginners, tools, sneltoetsen en meer</li>
+                            <li>🔍 <strong>Zoek in help:</strong> Vind snel wat je zoekt met de nieuwe zoekfunctie</li>
+                            <li>💾 <strong>.mindmap formaat:</strong> Verbeterde bestandsopslag met versiegeschiedenis</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.915</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>🚀 <strong>Snellere verbindingen:</strong> Verbindingslijnen tekenen nu veel vloeiender</li>
+                            <li>✅ <strong>Stabiele updates:</strong> Node verbindingen blijven behouden bij wijzigingen</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.910 - v0.914</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📱 <strong>Mobiele revolutie:</strong> Complete herontwerp voor touch bediening</li>
+                            <li>👆 <strong>Dubbeltik functies:</strong> Maak snel nieuwe nodes met dubbeltikken</li>
+                            <li>👁️ <strong>Visuele feedback:</strong> Zie direct waar je tikt met animaties</li>
+                            <li>📋 <strong>Context menu:</strong> Houd ingedrukt voor opties op mobiel</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="release-item">
+                        <div class="release-header">
+                            <span class="release-version">v0.900 - v0.909</span>
+                        </div>
+                        <ul class="release-features">
+                            <li>📚 <strong>Versie systeem:</strong> Bewaar meerdere versies van je mindmap</li>
+                            <li>💾 <strong>Smart Save:</strong> Automatische versienummering (major/minor/patch)</li>
+                            <li>⚡ <strong>Auto-backup:</strong> Je werk wordt elke 30 seconden automatisch bewaard</li>
+                            <li>🔄 <strong>Versie browser:</strong> Bekijk en herstel eerdere versies</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="close-releases">Sluiten</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version Browser modal -->
+    <div class="modal" id="version-browser-modal">
+        <div class="modal-content version-browser-content">
+            <div class="modal-header">
+                <div class="modal-title">📚 Project Historie</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="version-browser-layout">
+                    <div class="project-info">
+                        <div class="current-project-name" id="current-project-name">Huidig Project</div>
+                        <div class="project-stats" id="project-stats">Geen versiegeschiedenis beschikbaar</div>
+                    </div>
+                    
+                    <div class="version-list-container">
+                        <div class="version-list-header">
+                            <h4>Beschikbare Versies</h4>
+                            <button class="btn btn-small" id="refresh-versions">🔄 Vernieuwen</button>
+                        </div>
+                        <div class="version-list" id="version-list">
+                            <div class="no-versions-message">
+                                <p>Geen versiegeschiedenis gevonden.</p>
+                                <p>Sla je mindmap op om versiegeschiedenis te maken.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="version-preview" id="version-preview">
+                        <div class="preview-header">
+                            <h4>Versiedetails</h4>
+                        </div>
+                        <div class="preview-content">
+                            <p>Selecteer een versie om details te zien</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="close-version-browser">Sluiten</button>
+                <button class="btn btn-warning" id="load-selected-version" disabled>Geselecteerde Versie Laden</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notificatie -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Verborgen file input -->
+    <input type="file" id="file-input" accept=".json,.mindmap,.mindmap2">
+    
+    <!-- JavaScript bestanden -->
+    <script src="js/module-loader.js"></script>
+    <!-- ID Generator MUST load first! -->
+    <script src="js/utils/idGenerator.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/nodes.js"></script>
+    <!-- Connection modules in correct order -->
+    <script src="js/connections/geometry.js"></script>
+    <script src="js/connections/utils.js"></script>
+    <script src="js/connections/core.js"></script>
+    <script src="js/connections/branches.js"></script>
+    <script src="js/connections/rendering.js"></script>
+    <script src="js/connections/interaction.js"></script>
+    <script src="js/connections/editor.js"></script>
+    
+    <!-- Enhanced mobile touch support -->
+    <script src="js/mobile-touch.js"></script>
+    <script src="js/mobile-nav.js"></script>
+    
+    <script src="js/storage-utils.js"></script>
+    <script src="js/version-control.js"></script>
+    <script src="js/smart-save.js"></script>
+    <script src="js/version-browser.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/export.js"></script>
+    
+    <!-- State Management System (Add AFTER existing scripts, BEFORE app.js) -->
+    <script src="js/state/StateManager.js"></script>
+    <script src="js/state/StateAdapter.js"></script>
+    <script src="js/state/StateAdapter-v2.js"></script>
+    <script src="js/state/initState.js"></script>
+    
+    <!-- App initialization (stays last) -->
+    <script src="js/app.js"></script>
+    
+    <!-- Electron bridge (loads only in Electron environment) -->
+    <script src="js/electron-bridge.js"></script>
+    
+    
+    <!-- Attribution -->
+    <div class="attribution">
+        <p>Gemaakt door Mark Wind</p>
+    </div>
+</body>
+</html>

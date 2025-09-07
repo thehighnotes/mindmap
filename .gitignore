@@ -1,0 +1,26 @@
+# Electron-specific (not needed for web version)
+electron/
+dist/
+node_modules/
+
+# Build files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Package files (not needed for static web hosting)
+package.json
+package-lock.json
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+test*.html
+*.backup.js
+
+# Documentation
+*.md
+!README.md

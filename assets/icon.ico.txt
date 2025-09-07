@@ -1,0 +1,1 @@
+Please convert icon.png to icon.ico using an ICO converter or tool like png2ico
