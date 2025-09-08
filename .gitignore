@@ -1,5 +1,4 @@
-# Electron-specific (not needed for web version)
-electron/
+# Electron build output
 dist/
 node_modules/
 
