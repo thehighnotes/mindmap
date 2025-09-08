@@ -23,3 +23,6 @@ test*.html
 # Documentation
 *.md
 !README.md
+!CONTRIBUTING.md
+!SIGNPATH-SETUP.md
+!LICENSE
