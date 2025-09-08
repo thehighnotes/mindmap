@@ -1,0 +1,129 @@
+{
+  "name": "mindmap-electron",
+  "version": "0.94.5",
+  "description": "Mindmap Brainstorm Tool - Electron Application",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "dist": "electron-builder --publish=never",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "keywords": [
+    "mindmap",
+    "brainstorm",
+    "electron",
+    "visualization"
+  ],
+  "author": "Mark Wind",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.3.11",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.markwind.mindmap",
+    "productName": "Mindmap",
+    "copyright": "Copyright © 2024 Mark Wind",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "electron/**/*",
+      "assets/**/*",
+      "!test*.html",
+      "!mindmap-backup/**/*",
+      "!create-icons.js",
+      "!*.md",
+      "!.git/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "publisherName": "Mark Wind",
+      "verifyUpdateCodeSignature": true,
+      "requestedExecutionLevel": "asInvoker",
+      "certificateSubjectName": "Mark Wind",
+      "signDlls": true
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "shortcutName": "Mindmap",
+      "installerLanguages": [
+        "en_US",
+        "nl_NL"
+      ],
+      "warningsAsErrors": false
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Office",
+      "desktop": {
+        "Type": "Application",
+        "Name": "Mindmap",
+        "Comment": "Mindmap Brainstorm Tool"
+      }
+    },
+    "fileAssociations": [
+      {
+        "ext": "mindmap2",
+        "name": "Mindmap 2.0 File",
+        "description": "Mindmap 2.0 Project File",
+        "role": "Editor",
+        "isPackage": false
+      },
+      {
+        "ext": "mindmap",
+        "name": "Mindmap Legacy File",
+        "description": "Mindmap Project File (Legacy)",
+        "role": "Editor",
+        "isPackage": false
+      }
+    ],
+    "protocols": [
+      {
+        "name": "mindmap-protocol",
+        "schemes": [
+          "mindmap"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  }
+}
