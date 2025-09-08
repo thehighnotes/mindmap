@@ -83,6 +83,7 @@ let confirmImport;
 let helpModal;
 let closeHelp;
 let showTipsBtn;
+let startTutorialBtn;
 let contextMenu;
 let connectionContextMenu;
 let contextEdit;
@@ -144,6 +145,7 @@ function initializeReferences() {
     helpModal = document.getElementById('help-modal');
     closeHelp = document.getElementById('close-help');
     showTipsBtn = document.getElementById('show-tips-btn');
+    startTutorialBtn = document.getElementById('start-tutorial-btn');
     contextMenu = document.getElementById('context-menu');
     connectionContextMenu = document.getElementById('connection-context-menu');
     contextEdit = document.getElementById('context-edit');

@@ -3827,3 +3827,246 @@ kbd {
         opacity: 1;
     }
 }
+
+/* ==========================
+   ONBOARDING STYLES
+   ========================== */
+
+.onboarding-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+    pointer-events: none; /* Allow canvas interaction */
+}
+
+.onboarding-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1); /* Very light tint for tutorial */
+    backdrop-filter: none; /* No blur during tutorial */
+    pointer-events: none; /* Allow clicks through backdrop */
+}
+
+/* Darker backdrop specifically for welcome screen */
+#welcome-overlay .onboarding-backdrop {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(2px);
+}
+
+.onboarding-tooltip {
+    position: fixed;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 0;
+    width: 450px; /* Fixed width for consistency */
+    max-height: 50vh; /* Half viewport height max */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    z-index: 10001;
+    animation: slideInOnboarding 0.4s ease;
+    overflow: hidden;
+    pointer-events: auto; /* Tooltip itself is interactive */
+    top: 20px; /* Default position top-left */
+    left: 20px;
+    transform: none;
+}
+
+.onboarding-progress {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    position: relative;
+}
+
+.onboarding-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.onboarding-content {
+    padding: 25px;
+    color: white;
+}
+
+.onboarding-title {
+    margin: 0 0 12px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.onboarding-text {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.onboarding-text strong {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.onboarding-demo {
+    display: none;
+    margin: 20px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.demo-animation {
+    animation: demoMove 2s ease-in-out infinite;
+}
+
+.demo-hand {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.demo-text {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.demo-mindmap svg {
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+.demo-branch-point {
+    animation: pulseOnboarding 1.5s ease-in-out infinite;
+}
+
+.onboarding-actions {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.onboarding-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.onboarding-next {
+    background: white;
+    color: #667eea;
+    flex: 1;
+}
+
+.onboarding-next:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.onboarding-back {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.onboarding-back:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.onboarding-skip {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: underline;
+    padding: 10px;
+}
+
+.onboarding-skip:hover {
+    color: white;
+}
+
+.onboarding-spotlight {
+    position: fixed;
+    border: 3px solid #4CAF50;
+    border-radius: 8px;
+    background: rgba(76, 175, 80, 0.1);
+    pointer-events: none;
+    display: none;
+    animation: spotlightPulse 2s ease-in-out infinite;
+    z-index: 9999;
+}
+
+/* Onboarding Animations */
+@keyframes slideInOnboarding {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes demoMove {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(20px); }
+}
+
+@keyframes pulseOnboarding {
+    0%, 100% { r: 4; fill: orange; }
+    50% { r: 6; fill: #ff9800; }
+}
+
+@keyframes spotlightPulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+    }
+    50% { 
+        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+    }
+}
+
+.onboarding-overlay.fade-out {
+    animation: fadeOut 0.3s ease;
+}
+
+/* Responsive onboarding */
+@media (max-width: 768px) {
+    .onboarding-tooltip {
+        max-width: 90%;
+        margin: 20px;
+    }
+    
+    .onboarding-title {
+        font-size: 20px;
+    }
+    
+    .onboarding-text {
+        font-size: 14px;
+    }
+    
+    .onboarding-actions {
+        flex-direction: column;
+    }
+    
+    .onboarding-btn {
+        width: 100%;
+    }
+}

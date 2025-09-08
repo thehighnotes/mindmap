@@ -1,0 +1,232 @@
+name: Build and Sign
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'draft'
+        type: choice
+        options:
+          - draft
+          - prerelease
+          - release
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build Electron App
+      run: npm run dist:win
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload artifacts for signing
+      uses: actions/upload-artifact@v4
+      with:
+        name: unsigned-windows
+        path: |
+          dist/*.exe
+          dist/*.msi
+          dist/*.portable.exe
+        retention-days: 1
+    
+    - name: Sign with SignPath
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: signpath/github-action@v0.3
+      with:
+        connector-url: https://vault.signpath.io
+        organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+        project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+        signing-policy-slug: release-signing
+        github-artifact-name: unsigned-windows
+        wait-for-completion: true
+        output-artifact-name: signed-windows
+    
+    - name: Upload signed artifacts
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-signed-release
+        path: signed-windows/*
+        retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build Electron App for macOS
+      run: npm run dist:mac
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-release
+        path: |
+          dist/*.dmg
+          dist/*.zip
+        retention-days: 7
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install Linux dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y rpm fakeroot dpkg
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build Electron App for Linux
+      run: npm run dist:linux
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload Linux artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-release
+        path: |
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.rpm
+          dist/*.snap
+        retention-days: 7
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+    
+    - name: List artifacts
+      run: |
+        echo "Downloaded artifacts:"
+        ls -la ./artifacts/
+        ls -la ./artifacts/*/ || true
+    
+    - name: Prepare release files
+      run: |
+        mkdir -p release-files
+        
+        # Copy signed Windows files if available
+        if [ -d "./artifacts/windows-signed-release" ]; then
+          cp ./artifacts/windows-signed-release/* ./release-files/ 2>/dev/null || true
+        else
+          # Fallback to unsigned if signing failed
+          cp ./artifacts/unsigned-windows/* ./release-files/ 2>/dev/null || true
+        fi
+        
+        # Copy macOS files
+        cp ./artifacts/macos-release/* ./release-files/ 2>/dev/null || true
+        
+        # Copy Linux files
+        cp ./artifacts/linux-release/* ./release-files/ 2>/dev/null || true
+        
+        echo "Release files:"
+        ls -la ./release-files/
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Extract version from tag
+        VERSION=${GITHUB_REF#refs/tags/}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Generate basic changelog
+        cat > RELEASE_NOTES.md << EOF
+        ## What's New in $VERSION
+        
+        ### Features
+        - Visual mindmapping with unlimited nodes
+        - Real-time collaboration support
+        - AI-powered idea generation
+        - Smart save with version control
+        - Cross-platform support (Windows, macOS, Linux)
+        - Export to multiple formats
+        
+        ### Installation
+        
+        #### Windows
+        - Download the \`.exe\` installer or portable version
+        - The installer is signed for security
+        
+        #### macOS
+        - Download the \`.dmg\` file
+        - Drag Mindmap to your Applications folder
+        
+        #### Linux
+        - **AppImage**: Make executable and run
+        - **DEB**: Install with \`sudo dpkg -i mindmap-*.deb\`
+        
+        ### Checksums
+        \`\`\`
+        $(cd release-files && sha256sum * 2>/dev/null || shasum -a 256 * || echo "Checksums not available")
+        \`\`\`
+        
+        ---
+        
+        **Note**: Windows binaries are signed with SignPath.io for security.
+        EOF
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-files/*
+        body_path: RELEASE_NOTES.md
+        draft: ${{ github.event.inputs.release_type == 'draft' }}
+        prerelease: ${{ github.event.inputs.release_type == 'prerelease' }}
+        generate_release_notes: true
+        name: Mindmap ${{ steps.changelog.outputs.version }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

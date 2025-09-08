@@ -3,7 +3,14 @@
  */
 
 // Smart save dialog functionality
-function showSmartSaveDialog() {
+function showSmartSaveDialog(forceSaveAs = false) {
+    // Check if dialog already exists to prevent duplicates
+    const existingModal = document.querySelector('.smart-save-modal');
+    if (existingModal) {
+        console.log('Save dialog already open');
+        return;
+    }
+    
     // Get current title from mindmap
     const currentTitle = getMindmapTitle ? getMindmapTitle() : 'Mindmap Project';
     
@@ -106,12 +113,12 @@ function showSmartSaveDialog() {
     // Add to page
     document.body.appendChild(modal);
     
-    // Set up event listeners
-    setupSmartSaveEventListeners(modal, projectInfo);
+    // Set up event listeners (pass forceSaveAs parameter)
+    setupSmartSaveEventListeners(modal, projectInfo, forceSaveAs);
 }
 
 // Set up event listeners for smart save dialog
-function setupSmartSaveEventListeners(modal, projectInfo) {
+function setupSmartSaveEventListeners(modal, projectInfo, forceSaveAs = false) {
     const authorNameInput = modal.querySelector('#author-name');
     const changeSummaryInput = modal.querySelector('#change-summary');
     const filenamePreview = modal.querySelector('#filename-preview');
@@ -149,13 +156,24 @@ function setupSmartSaveEventListeners(modal, projectInfo) {
     // Quick save button removed - only one save button now
     
     // Save with version control
-    modal.querySelector('#save-version').addEventListener('click', () => {
+    const saveButton = modal.querySelector('#save-version');
+    if (!saveButton) {
+        console.error('Save button not found!');
+        return;
+    }
+    
+    saveButton.addEventListener('click', async (e) => {
+        // Prevent double clicks
+        if (saveButton.disabled) return;
+        saveButton.disabled = true;
+        
         const author = authorNameInput.value.trim();
         const summary = changeSummaryInput.value.trim();
         
         if (!author) {
             showToast('Auteur naam is verplicht', true);
             authorNameInput.focus();
+            saveButton.disabled = false;
             return;
         }
         
@@ -194,15 +212,24 @@ function setupSmartSaveEventListeners(modal, projectInfo) {
         const projectData = safeExportWithVersionControl(versionInfo);
         const filename = getSmartFilename(currentTitle, version, author, summary);
         
-        // Save file
-        safeSaveWithFilePicker(projectData, filename);
-        
-        // Update last modified indicator
-        if (window.VersionControl) {
-            window.VersionControl.updateLastModifiedIndicator(projectData);
+        try {
+            // Save file (pass forceSaveAs from dialog parameter)
+            await safeSaveWithFilePicker(projectData, filename, forceSaveAs);
+            
+            // Update last modified indicator
+            if (window.VersionControl) {
+                window.VersionControl.updateLastModifiedIndicator(projectData);
+            }
+            
+            // Close modal after successful save
+            if (modal && modal.parentNode) {
+                document.body.removeChild(modal);
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            saveButton.disabled = false;
+            showToast('Fout bij opslaan', true);
         }
-        
-        document.body.removeChild(modal);
     });
 }
 
@@ -300,11 +327,53 @@ function safeExportWithVersionControl(versionInfo) {
     };
 }
 
-function safeSaveWithFilePicker(projectData, filename) {
+async function safeSaveWithFilePicker(projectData, filename, forceSaveAs = false) {
+    // Check if we're in Electron
+    if (window.electronAPI && window.electronAPI.isElectron) {
+        // Use Electron's save dialog
+        const suggestedName = filename;
+        
+        // If forceSaveAs or no current file, always show save dialog
+        let filePath;
+        if (forceSaveAs || !window.currentFilePath) {
+            filePath = await window.electronAPI.showSaveDialog({ suggestedName });
+        } else {
+            // Use existing file path for regular save
+            filePath = window.currentFilePath;
+        }
+        
+        if (filePath) {
+            const result = await window.electronAPI.saveFile(filePath, projectData);
+            
+            if (result.success) {
+                // Update Electron's tracking
+                window.currentFilePath = filePath;  // Update global tracking
+                window.electronAPI.setCurrentFile(filePath);
+                window.electronAPI.setUnsavedChanges(false);
+                
+                // Initialize content tracking for version history
+                if (window.lastSavedContent !== undefined) {
+                    const dataStr = JSON.stringify(projectData);
+                    window.lastSavedContent = dataStr;
+                    if (window.hashContent) {
+                        window.lastContentHash = window.hashContent(dataStr);
+                    }
+                }
+                
+                showToast(`Project opgeslagen als ${filePath.split(/[\\/]/).pop()}`);
+            } else {
+                showToast('Fout bij opslaan: ' + result.error, true);
+            }
+        }
+        return;
+    }
+    
+    // Browser mode - use file picker if available
     if (typeof saveWithFilePicker === 'function') {
         return saveWithFilePicker(projectData, filename);
     }
     
+    // Fallback to traditional download
     console.warn('saveWithFilePicker not available, using traditional download');
     const dataStr = JSON.stringify(projectData, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });

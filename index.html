@@ -6,6 +6,7 @@
     <title>Mindmap Brainstorm Tool</title>
     <!-- CSS bestanden -->
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/collaboration.css">
 </head>
 <body>
     <div class="header">
@@ -816,6 +817,7 @@
             </div>
             
             <div class="modal-footer help-modal-footer">
+                <button class="btn btn-secondary" id="start-tutorial-btn">🎓 Start Tutorial</button>
                 <button class="btn btn-secondary" id="show-tips-btn">💡 Toon Beginners Tips</button>
                 <button class="btn" id="close-help">✅ Sluiten</button>
             </div>
@@ -1072,6 +1074,9 @@
     <script src="js/ui.js"></script>
     <script src="js/export.js"></script>
     
+    <!-- Onboarding for new users -->
+    <script src="js/onboarding.js"></script>
+    
     <!-- State Management System (Add AFTER existing scripts, BEFORE app.js) -->
     <script src="js/state/StateManager.js"></script>
     <script src="js/state/StateAdapter.js"></script>
@@ -1083,6 +1088,8 @@
     
     <!-- Electron bridge (loads only in Electron environment) -->
     <script src="js/electron-bridge.js"></script>
+    <script src="js/user-setup.js"></script>
+    <script src="js/collaboration.js"></script>
     
     
     <!-- Attribution -->

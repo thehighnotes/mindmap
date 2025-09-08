@@ -17,6 +17,21 @@
     // Override file operations with Electron versions
     let currentFilePath = null;
     
+    // Listen for recent file opened
+    window.electronAPI.onOpenRecentFile((filePath) => {
+        console.log('Opening recent file:', filePath);
+        electronOpen(filePath);
+    });
+    
+    // Listen for external file changes
+    window.electronAPI.onFileChanged((filePath) => {
+        if (filePath === currentFilePath) {
+            if (confirm('Het bestand is extern gewijzigd. Wilt u het herladen?')) {
+                electronOpen(filePath);
+            }
+        }
+    });
+    
     // Listen for menu actions from Electron
     window.electronAPI.onMenuAction((action) => {
         console.log('Menu action received:', action);
@@ -28,6 +43,11 @@
                     currentFilePath = null;
                     window.electronAPI.setCurrentFile(null);
                     window.electronAPI.setUnsavedChanges(false);
+                    
+                    // Stop collaboration on new file
+                    if (window.Collaboration && window.Collaboration.initialized) {
+                        window.Collaboration.onFileClosed();
+                    }
                 }
                 break;
                 
@@ -36,11 +56,23 @@
                 break;
                 
             case 'save':
-                electronSave();
+                // Use the same smart save dialog as the in-app button
+                if (typeof showSmartSaveDialog === 'function') {
+                    showSmartSaveDialog();
+                } else {
+                    // Fallback to direct save if dialog not available
+                    electronSave();
+                }
                 break;
                 
             case 'save-as':
-                electronSaveAs();
+                // Force save-as dialog
+                if (typeof showSmartSaveDialog === 'function') {
+                    // Pass true to force save-as mode
+                    showSmartSaveDialog(true);
+                } else {
+                    electronSaveAs();
+                }
                 break;
                 
             case 'undo':
@@ -116,37 +148,167 @@
         });
     });
     
-    // Track state changes
-    if (window.stateManager) {
-        window.stateManager.on('state:changed', () => {
-            if (window.stateManager.state.project.isDirty) {
-                window.electronAPI.setUnsavedChanges(true);
-            }
-        });
+    // Track state changes and setup auto-save
+    function setupChangeTracking() {
+        // Listen for any changes to trigger auto-save
+        const triggerAutoSave = () => {
+            window.electronAPI.setUnsavedChanges(true);
+            updateTitleBar();
+            setupAutoSave();
+        };
         
-        window.stateManager.on('project:saved', () => {
-            window.electronAPI.setUnsavedChanges(false);
-        });
+        // Monitor various change events
+        document.addEventListener('nodeCreated', triggerAutoSave);
+        document.addEventListener('nodeEdited', triggerAutoSave);
+        document.addEventListener('nodeDeleted', triggerAutoSave);
+        document.addEventListener('connectionCreated', triggerAutoSave);
+        document.addEventListener('connectionDeleted', triggerAutoSave);
+        
+        // StateManager events if available
+        if (window.stateManager) {
+            window.stateManager.on('state:changed', () => {
+                if (window.stateManager.state.project.isDirty) {
+                    triggerAutoSave();
+                }
+            });
+            
+            window.stateManager.on('project:saved', () => {
+                window.electronAPI.setUnsavedChanges(false);
+                updateTitleBar();
+            });
+        }
+        
+        // Monitor direct changes to nodes and connections arrays
+        if (typeof nodes !== 'undefined' && typeof connections !== 'undefined') {
+            setInterval(() => {
+                const currentState = JSON.stringify({ nodes, connections });
+                if (currentState !== lastKnownState) {
+                    lastKnownState = currentState;
+                    triggerAutoSave();
+                }
+            }, 1000);
+        }
+    }
+    
+    let lastKnownState = '';
+    
+    // Initialize change tracking when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupChangeTracking);
+    } else {
+        setupChangeTracking();
+    }
+    
+    // Auto-save functionality for Electron
+    let autoSaveInterval = null;
+    let lastSaveTime = Date.now();
+    let lastSavedContent = ''; // Track last saved content to detect real changes
+    let lastContentHash = '';
+    const AUTO_SAVE_DELAY = 5000; // 5 seconds after changes
+    const VERSION_INTERVAL = 600000; // Create version backup every 10 minutes if changed
+    let lastVersionTime = Date.now();
+    
+    // Simple hash function to detect content changes
+    function hashContent(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(36);
     }
     
     // Electron-specific save function
-    async function electronSave(callback) {
+    async function electronSave(callback, silent = false, createVersion = false) {
         if (!currentFilePath) {
             electronSaveAs(callback);
             return;
         }
         
         const data = prepareDataForSave();
+        const dataStr = JSON.stringify(data);
+        const currentHash = hashContent(dataStr);
+        
+        // Check if content actually changed
+        if (currentHash === lastContentHash && !createVersion) {
+            if (!silent) {
+                showToast('Geen wijzigingen om op te slaan');
+            }
+            if (callback) callback();
+            return;
+        }
+        
+        // Create version backup if enough time passed and content changed
+        const timeSinceVersion = Date.now() - lastVersionTime;
+        if (createVersion || (timeSinceVersion > VERSION_INTERVAL && lastContentHash !== '' && lastSavedContent !== '')) {
+            // Only create backup if we have previous content
+            if (lastSavedContent) {
+                await window.electronAPI.createVersionBackup(currentFilePath, lastSavedContent);
+                lastVersionTime = Date.now();
+            }
+        }
+        
         const result = await window.electronAPI.saveFile(currentFilePath, data);
         
         if (result.success) {
+            lastSavedContent = dataStr;
+            lastContentHash = currentHash;
             if (window.stateManager) {
                 window.stateManager.markClean();
             }
-            showToast('Bestand opgeslagen');
+            lastSaveTime = Date.now();
+            if (!silent) {
+                showToast('Bestand opgeslagen');
+            }
+            updateTitleBar();
             if (callback) callback();
         } else {
             showToast('Fout bij opslaan: ' + result.error, true);
+        }
+    }
+    
+    // Auto-save when file is already open
+    function setupAutoSave() {
+        if (!currentFilePath) return;
+        
+        // Clear existing interval
+        if (autoSaveInterval) {
+            clearTimeout(autoSaveInterval);
+        }
+        
+        // Set new auto-save
+        autoSaveInterval = setTimeout(() => {
+            if (currentFilePath && isDirty()) {
+                electronSave(null, true); // Silent save
+            }
+        }, AUTO_SAVE_DELAY);
+    }
+    
+    // Check if there are unsaved changes
+    function isDirty() {
+        return window.stateManager?.state?.project?.isDirty || 
+               (typeof getUnsavedChanges === 'function' && getUnsavedChanges());
+    }
+    
+    // Update title bar with file name and save status
+    function updateTitleBar() {
+        if (!currentFilePath) return;
+        
+        const fileName = currentFilePath.split(/[\\/]/).pop();
+        const dirty = isDirty();
+        const title = `${fileName}${dirty ? ' •' : ''} - Mindmap`;
+        
+        // Update window title via Electron API
+        if (window.electronAPI.setTitle) {
+            window.electronAPI.setTitle(title);
+        }
+        
+        // Update status in UI
+        const statusEl = document.getElementById('file-status');
+        if (statusEl) {
+            statusEl.textContent = dirty ? 'Niet opgeslagen' : 'Opgeslagen';
+            statusEl.className = dirty ? 'status-unsaved' : 'status-saved';
         }
     }
     
@@ -163,6 +325,12 @@
             const result = await window.electronAPI.saveFile(filePath, data);
             
             if (result.success) {
+                // Initialize content tracking for new file
+                const dataStr = JSON.stringify(data);
+                lastSavedContent = dataStr;
+                lastContentHash = hashContent(dataStr);
+                lastVersionTime = Date.now();
+                
                 if (window.stateManager) {
                     window.stateManager.markClean();
                 }
@@ -175,7 +343,7 @@
     }
     
     // Electron-specific open function
-    async function electronOpen() {
+    async function electronOpen(filePathToOpen) {
         // Check for unsaved changes
         if (window.stateManager && window.stateManager.state.project.isDirty) {
             if (!confirm('Er zijn niet-opgeslagen wijzigingen. Doorgaan zonder op te slaan?')) {
@@ -183,7 +351,7 @@
             }
         }
         
-        const filePath = await window.electronAPI.showOpenDialog();
+        const filePath = filePathToOpen || await window.electronAPI.showOpenDialog();
         
         if (filePath) {
             const result = await window.electronAPI.loadFile(filePath);
@@ -212,11 +380,22 @@
                     loadMindmapData(result.data);
                 }
                 
+                // Initialize content tracking for version history
+                const dataStr = JSON.stringify(prepareDataForSave());
+                lastSavedContent = dataStr;
+                lastContentHash = hashContent(dataStr);
+                lastVersionTime = Date.now();
+                
                 if (window.stateManager) {
                     window.stateManager.markClean();
                 }
                 window.electronAPI.setUnsavedChanges(false);
                 showToast('Bestand geladen');
+                
+                // Start collaboration if available
+                if (window.Collaboration && window.Collaboration.initialized) {
+                    window.Collaboration.onFileOpened(filePath);
+                }
             } else {
                 showToast('Fout bij laden: ' + result.error, true);
             }
@@ -278,9 +457,19 @@
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             if (e.shiftKey) {
-                electronSaveAs();
+                // Shift+Ctrl+S for Save As
+                if (typeof showSmartSaveDialog === 'function') {
+                    showSmartSaveDialog(true); // Force save-as mode
+                } else {
+                    electronSaveAs();
+                }
             } else {
-                electronSave();
+                // Ctrl+S for normal save - use smart dialog
+                if (typeof showSmartSaveDialog === 'function') {
+                    showSmartSaveDialog();
+                } else {
+                    electronSave();
+                }
             }
         }
         
