@@ -10,8 +10,7 @@ node_modules/
 Thumbs.db
 
 # Package files (not needed for static web hosting)
-package.json
-package-lock.json
+# package.json and package-lock.json are now tracked for Electron builds
 
 # IDE files
 .vscode/
