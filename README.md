@@ -1,8 +1,8 @@
 # Mindmap Brainstorm Tool
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/github/package-json/v/markwind/mindmap-electron)
-![Downloads](https://img.shields.io/github/downloads/markwind/mindmap-electron/total)
+![Version](https://img.shields.io/github/package-json/v/thehighnotes/mindmap)
+![Downloads](https://img.shields.io/github/downloads/thehighnotes/mindmap/total)
 ![Platform](https://img.shields.io/badge/platform-Windows%20|%20macOS%20|%20Linux-green)
 
 A powerful, intuitive mindmap application for visual brainstorming and organizing ideas. Works both as a standalone Electron desktop app and as a web application.
@@ -20,19 +20,19 @@ A powerful, intuitive mindmap application for visual brainstorming and organizin
 - **Offline First** - Full functionality without internet connection
 
 ### Advanced Features
-- **AI Integration** - Generate ideas and expand nodes with AI assistance
+- **Modern Interface** - Clean, intuitive user interface
 - **File Association** - Open .mindmap and .mindmap2 files directly
 - **Cross-platform** - Native apps for Windows, macOS, and Linux
 - **Import/Export** - Support for various mindmap formats
 - **Undo/Redo** - Complete history management
-- **Search & Filter** - Quickly find nodes in complex mindmaps
+- **Navigation** - Easy navigation through complex mindmaps
 - **Zoom Controls** - Navigate large mindmaps with ease
-- **Auto-layout** - Automatic node arrangement algorithms
+- **Flexible Layout** - Arrange nodes freely on canvas
 
 ## Installation
 
 ### Download Pre-built Binary
-Download the latest release for your platform from the [Releases page](https://github.com/markwind/mindmap-electron/releases).
+Download the latest release for your platform from the [Releases page](https://github.com/thehighnotes/mindmap/releases).
 
 - **Windows**: Download the `.exe` portable version or installer
 - **macOS**: Download the `.dmg` file
@@ -48,8 +48,8 @@ Download the latest release for your platform from the [Releases page](https://g
 #### Steps
 ```bash
 # Clone the repository
-git clone https://github.com/markwind/mindmap-electron.git
-cd mindmap-electron
+git clone https://github.com/thehighnotes/mindmap.git
+cd mindmap
 
 # Install dependencies
 npm install
@@ -105,7 +105,7 @@ mindmap-electron/
 │   └── preload.js     # Preload script
 ├── js/                # Application logic
 │   ├── core.js        # Core mindmap functionality
-│   ├── ai-service.js  # AI integration
+│   ├── export.js      # Export functionality
 │   ├── collaboration.js # Real-time collaboration
 │   └── smart-save.js  # Version control system
 ├── css/               # Stylesheets
@@ -116,12 +116,11 @@ mindmap-electron/
 ## Configuration
 
 ### Settings
-Access settings through the menu or press `Ctrl+,` to customize:
-- Theme (Light/Dark/System)
-- Auto-save interval
-- Export quality
-- AI service preferences
-- Collaboration settings
+The application stores preferences locally including:
+- Theme preferences
+- Auto-save settings
+- Export options
+- Collaboration preferences
 
 ### File Formats
 - `.mindmap2` - Modern JSON-based format with full feature support
@@ -137,7 +136,7 @@ Access settings through the menu or press `Ctrl+,` to customize:
 - **CSS3** - Modern styling with animations
 - **HTML5** - Semantic markup
 - **Local Storage** - Persistent settings
-- **WebSockets** - Real-time collaboration
+- **WebRTC** - Real-time collaboration support
 
 ### Contributing
 Contributions are welcome! Please follow these steps:
@@ -152,9 +151,6 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 
 ## Testing
 ```bash
-# Run tests (when available)
-npm test
-
 # Run in development mode with debugging
 npm run dev
 ```
@@ -172,15 +168,9 @@ See `package.json` for detailed build configuration. The app supports:
 
 ## Support
 
-### Documentation
-- [User Guide](https://github.com/markwind/mindmap-electron/wiki/User-Guide)
-- [API Documentation](https://github.com/markwind/mindmap-electron/wiki/API)
-- [FAQ](https://github.com/markwind/mindmap-electron/wiki/FAQ)
-
 ### Getting Help
-- **Issues**: [GitHub Issues](https://github.com/markwind/mindmap-electron/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/markwind/mindmap-electron/discussions)
-- **Email**: support@mindmap.example.com
+- **Issues**: [GitHub Issues](https://github.com/thehighnotes/mindmap/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/thehighnotes/mindmap/discussions)
 
 ## Roadmap
 
@@ -188,7 +178,7 @@ See `package.json` for detailed build configuration. The app supports:
 - [ ] Cloud sync (optional premium feature)
 - [ ] Mobile applications
 - [ ] Plugin system
-- [ ] Advanced AI features
+- [ ] AI-powered features
 - [ ] Template library
 - [ ] Presentation mode
 - [ ] Mind map animations
@@ -208,11 +198,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Author
 
 **Mark Wind**
-- GitHub: [@markwind](https://github.com/markwind)
+- GitHub: [@thehighnotes](https://github.com/thehighnotes)
 
-## Changelog
+## Releases
 
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.
+See the [Releases page](https://github.com/thehighnotes/mindmap/releases) for version history.
 
 ---
 
