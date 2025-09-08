@@ -30,13 +30,31 @@ jobs:
                const coredemo = require('@actions/core')
                return await coredemo.getIDToken()
            result-encoding: string
+      - name: Prepare Web Files
+        run: |
+          # Create a dist-web directory with only necessary files for web deployment
+          mkdir -p dist-web
+          
+          # Copy only essential web files (no node_modules, no electron files)
+          cp index.html dist-web/
+          cp -r css dist-web/
+          cp -r js dist-web/
+          cp -r assets dist-web/ 2>/dev/null || true
+          
+          # Copy web configuration
+          cp staticwebapp.config.json dist-web/ 2>/dev/null || true
+          
+          # List size for verification
+          echo "Deployment size:"
+          du -sh dist-web/
+          
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_CALM_ISLAND_033A1A303 }}
           action: "upload"
-          app_location: "/"
+          app_location: "/dist-web"
           api_location: ""
           output_location: ""
           skip_app_build: true
