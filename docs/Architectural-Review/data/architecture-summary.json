@@ -1,0 +1,51 @@
+{
+  "generated": "2025-11-30T19:59:01.234Z",
+  "summary": "Mindmap Electron Application - A brainstorming/mindmap tool built with Electron and vanilla JavaScript.",
+  "stats": {
+    "totalFiles": 30,
+    "totalLines": 20316,
+    "totalFunctions": 358,
+    "totalClasses": 14,
+    "avgLinesPerFile": 677
+  },
+  "architecture": {
+    "type": "Electron + Vanilla JS",
+    "mainEntry": "electron/main.js",
+    "renderer": "index.html",
+    "features": [
+      "storage",
+      "events",
+      "json",
+      "electron",
+      "canvas"
+    ]
+  },
+  "hubServices": [],
+  "featureSummary": [
+    {
+      "name": "storage",
+      "fileCount": 9,
+      "healthScore": 0
+    },
+    {
+      "name": "events",
+      "fileCount": 18,
+      "healthScore": 0
+    },
+    {
+      "name": "json",
+      "fileCount": 9,
+      "healthScore": 0
+    },
+    {
+      "name": "electron",
+      "fileCount": 6,
+      "healthScore": 36
+    },
+    {
+      "name": "canvas",
+      "fileCount": 16,
+      "healthScore": 0
+    }
+  ]
+}

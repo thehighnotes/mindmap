@@ -1,0 +1,105 @@
+{
+  "storage": {
+    "name": "storage",
+    "files": [
+      "js/version-control.js",
+      "js/version-browser.js",
+      "js/user-setup.js",
+      "js/storage-utils.js",
+      "js/smart-save.js",
+      "js/onboarding.js",
+      "js/export.js",
+      "js/core.js",
+      "js/collaboration.js"
+    ],
+    "totalLines": 6555,
+    "totalFunctions": 140,
+    "complexityScore": 100,
+    "healthScore": 0
+  },
+  "events": {
+    "name": "events",
+    "files": [
+      "js/version-control.js",
+      "js/version-browser.js",
+      "js/user-setup.js",
+      "js/ui.js",
+      "js/smart-save.js",
+      "js/onboarding.js",
+      "js/nodes.js",
+      "js/mobile-touch.js",
+      "js/mobile-nav.js",
+      "js/export.js",
+      "js/electron-bridge.js",
+      "js/core.js",
+      "js/collaboration.js",
+      "js/app.js",
+      "js/state/initState.js",
+      "js/connections/rendering.js",
+      "js/connections/interaction.js",
+      "js/connections/branches.js"
+    ],
+    "totalLines": 16859,
+    "totalFunctions": 334,
+    "complexityScore": 100,
+    "healthScore": 0
+  },
+  "json": {
+    "name": "json",
+    "files": [
+      "js/version-control.js",
+      "js/version-browser.js",
+      "js/storage-utils.js",
+      "js/smart-save.js",
+      "js/export.js",
+      "js/electron-bridge.js",
+      "js/core.js",
+      "js/collaboration.js",
+      "electron/main.js"
+    ],
+    "totalLines": 7032,
+    "totalFunctions": 141,
+    "complexityScore": 100,
+    "healthScore": 0
+  },
+  "electron": {
+    "name": "electron",
+    "files": [
+      "js/user-setup.js",
+      "js/smart-save.js",
+      "js/electron-bridge.js",
+      "js/collaboration.js",
+      "electron/preload.js",
+      "electron/main.js"
+    ],
+    "totalLines": 2291,
+    "totalFunctions": 62,
+    "complexityScore": 64,
+    "healthScore": 36
+  },
+  "canvas": {
+    "name": "canvas",
+    "files": [
+      "js/ui.js",
+      "js/onboarding.js",
+      "js/nodes.js",
+      "js/mobile-touch.js",
+      "js/mobile-nav.js",
+      "js/export.js",
+      "js/electron-bridge.js",
+      "js/core.js",
+      "js/app.js",
+      "js/state/initState.js",
+      "js/state/StateManager.js",
+      "js/state/StateAdapter.js",
+      "js/state/StateAdapter-v2.js",
+      "js/connections/rendering.js",
+      "js/connections/geometry.js",
+      "js/connections/branches.js"
+    ],
+    "totalLines": 15620,
+    "totalFunctions": 292,
+    "complexityScore": 100,
+    "healthScore": 0
+  }
+}

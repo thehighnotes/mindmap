@@ -1,0 +1,329 @@
+{
+  "nodes": [
+    {
+      "id": "js/version-control.js",
+      "label": "version-control.js",
+      "lines": 1127,
+      "functions": 7,
+      "classes": 0,
+      "features": [
+        "storage",
+        "events",
+        "json"
+      ]
+    },
+    {
+      "id": "js/version-browser.js",
+      "label": "version-browser.js",
+      "lines": 453,
+      "functions": 2,
+      "classes": 1,
+      "features": [
+        "storage",
+        "events",
+        "json"
+      ]
+    },
+    {
+      "id": "js/user-setup.js",
+      "label": "user-setup.js",
+      "lines": 227,
+      "functions": 3,
+      "classes": 0,
+      "features": [
+        "storage",
+        "events",
+        "electron"
+      ]
+    },
+    {
+      "id": "js/ui.js",
+      "label": "ui.js",
+      "lines": 3169,
+      "functions": 69,
+      "classes": 3,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/storage-utils.js",
+      "label": "storage-utils.js",
+      "lines": 300,
+      "functions": 1,
+      "classes": 0,
+      "features": [
+        "storage",
+        "json"
+      ]
+    },
+    {
+      "id": "js/smart-save.js",
+      "label": "smart-save.js",
+      "lines": 418,
+      "functions": 14,
+      "classes": 0,
+      "features": [
+        "storage",
+        "events",
+        "electron",
+        "json"
+      ]
+    },
+    {
+      "id": "js/onboarding.js",
+      "label": "onboarding.js",
+      "lines": 523,
+      "functions": 20,
+      "classes": 0,
+      "features": [
+        "storage",
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/nodes.js",
+      "label": "nodes.js",
+      "lines": 2219,
+      "functions": 41,
+      "classes": 0,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/module-loader.js",
+      "label": "module-loader.js",
+      "lines": 93,
+      "functions": 4,
+      "classes": 0,
+      "features": []
+    },
+    {
+      "id": "js/mobile-touch.js",
+      "label": "mobile-touch.js",
+      "lines": 1806,
+      "functions": 12,
+      "classes": 3,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/mobile-nav.js",
+      "label": "mobile-nav.js",
+      "lines": 657,
+      "functions": 10,
+      "classes": 1,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/export.js",
+      "label": "export.js",
+      "lines": 1734,
+      "functions": 36,
+      "classes": 0,
+      "features": [
+        "storage",
+        "events",
+        "canvas",
+        "json"
+      ]
+    },
+    {
+      "id": "js/electron-bridge.js",
+      "label": "electron-bridge.js",
+      "lines": 505,
+      "functions": 17,
+      "classes": 0,
+      "features": [
+        "events",
+        "canvas",
+        "electron",
+        "json"
+      ]
+    },
+    {
+      "id": "js/core.js",
+      "label": "core.js",
+      "lines": 1421,
+      "functions": 36,
+      "classes": 2,
+      "features": [
+        "storage",
+        "events",
+        "canvas",
+        "json"
+      ]
+    },
+    {
+      "id": "js/collaboration.js",
+      "label": "collaboration.js",
+      "lines": 352,
+      "functions": 21,
+      "classes": 0,
+      "features": [
+        "storage",
+        "events",
+        "electron",
+        "json"
+      ]
+    },
+    {
+      "id": "js/app.js",
+      "label": "app.js",
+      "lines": 356,
+      "functions": 3,
+      "classes": 0,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/utils/idGenerator.js",
+      "label": "idGenerator.js",
+      "lines": 55,
+      "functions": 0,
+      "classes": 0,
+      "features": []
+    },
+    {
+      "id": "js/state/initState.js",
+      "label": "initState.js",
+      "lines": 174,
+      "functions": 3,
+      "classes": 0,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/state/StateManager.js",
+      "label": "StateManager.js",
+      "lines": 405,
+      "functions": 0,
+      "classes": 1,
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/state/StateAdapter.js",
+      "label": "StateAdapter.js",
+      "lines": 335,
+      "functions": 0,
+      "classes": 1,
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/state/StateAdapter-v2.js",
+      "label": "StateAdapter-v2.js",
+      "lines": 417,
+      "functions": 0,
+      "classes": 1,
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/connections/utils.js",
+      "label": "utils.js",
+      "lines": 194,
+      "functions": 0,
+      "classes": 0,
+      "features": []
+    },
+    {
+      "id": "js/connections/rendering.js",
+      "label": "rendering.js",
+      "lines": 822,
+      "functions": 13,
+      "classes": 1,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/connections/interaction.js",
+      "label": "interaction.js",
+      "lines": 375,
+      "functions": 7,
+      "classes": 0,
+      "features": [
+        "events"
+      ]
+    },
+    {
+      "id": "js/connections/geometry.js",
+      "label": "geometry.js",
+      "lines": 556,
+      "functions": 12,
+      "classes": 0,
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "id": "js/connections/editor.js",
+      "label": "editor.js",
+      "lines": 162,
+      "functions": 0,
+      "classes": 0,
+      "features": []
+    },
+    {
+      "id": "js/connections/core.js",
+      "label": "core.js",
+      "lines": 151,
+      "functions": 0,
+      "classes": 0,
+      "features": []
+    },
+    {
+      "id": "js/connections/branches.js",
+      "label": "branches.js",
+      "lines": 521,
+      "functions": 20,
+      "classes": 0,
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "id": "electron/preload.js",
+      "label": "preload.js",
+      "lines": 67,
+      "functions": 0,
+      "classes": 0,
+      "features": [
+        "electron"
+      ]
+    },
+    {
+      "id": "electron/main.js",
+      "label": "main.js",
+      "lines": 722,
+      "functions": 7,
+      "classes": 0,
+      "features": [
+        "electron",
+        "json"
+      ]
+    }
+  ],
+  "edges": [],
+  "hubServices": []
+}

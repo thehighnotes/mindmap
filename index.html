@@ -16,7 +16,7 @@
                 <span></span>
                 <span></span>
             </button>
-            <h1>Mindmap <span class="version" id="version-number">v0.940</span>
+            <h1>Mindmap <span class="version" id="version-number">v0.950</span>
                 <button class="version-info-btn" id="version-info-btn" title="Wat is nieuw in deze versie">
                     <span class="version-info-text">Wat is nieuw</span>
                     <span class="version-info-icon">🆕</span>
@@ -204,8 +204,16 @@
                     <select id="node-shape">
                         <option value="rectangle">Rechthoek</option>
                         <option value="rounded">Afgerond</option>
+                        <option value="pill">Pill / Capsule</option>
                         <option value="circle">Cirkel</option>
+                        <option value="ellipse">Ellips</option>
                         <option value="diamond">Ruit</option>
+                        <option value="hexagon">Hexagon</option>
+                        <option value="octagon">Octagon</option>
+                        <option value="parallelogram">Parallelogram</option>
+                        <option value="cloud">Wolk</option>
+                        <option value="star">Ster</option>
+                        <option value="banner">Banner</option>
                     </select>
                 </div>
             </div>
@@ -879,25 +887,126 @@
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="releases-platform-tabs">
+                    <button class="platform-tab active" data-platform="all">Alle updates</button>
+                    <button class="platform-tab" data-platform="electron">Desktop (Electron)</button>
+                    <button class="platform-tab" data-platform="web">Web/Cloud</button>
+                </div>
                 <div class="releases-container">
-                    <div class="release-item">
+                    <!-- v0.950 - Both platforms -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
-                            <span class="release-version">v0.940</span>
+                            <span class="release-version">v0.950</span>
                             <span class="release-date">Huidige versie</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
-                            <li>🖥️ <strong>Hybride architectuur:</strong> Dezelfde app werkt nu als website, Azure web app, én Electron desktop applicatie!</li>
-                            <li>💾 <strong>Native desktop integratie:</strong> Open/save dialogen, file associations, en menu integratie in Electron</li>
-                            <li>🏗️ <strong>Moderne architectuur:</strong> StateManager systeem, unieke ID generatie, en .mindmap2 formaat</li>
-                            <li>👆 <strong>Twee-vinger drag:</strong> Verbeterde touch navigatie op tablets met twee-vinger pan support</li>
-                            <li>🚀 <strong>Auto-detectie:</strong> App detecteert automatisch of het in browser of Electron draait</li>
-                            <li>📦 <strong>Portable app:</strong> Windows versie beschikbaar als portable executable</li>
+                            <li data-platform="both">🔷 <strong>8 nieuwe vormen:</strong> Pill, Ellips, Hexagon, Octagon, Parallelogram, Wolk, Ster en Banner</li>
+                            <li data-platform="both">📝 <strong>Tekst afkappen:</strong> Lange titels worden automatisch afgekort met ... voor nettere weergave</li>
+                            <li data-platform="both">💬 <strong>Hover tooltips:</strong> Beweeg over een node om de volledige titel en beschrijving te zien</li>
+                            <li data-platform="both">🎨 <strong>Betere tekst in vormen:</strong> Tekst past zich nu beter aan binnen cirkels, sterren en andere vormen</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.945 - Electron only -->
+                    <div class="release-item" data-platforms="electron">
+                        <div class="release-header">
+                            <span class="release-version">v0.945</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                            </span>
+                            <button class="release-expand-btn" data-version="0.945" title="Meer details">
+                                <span class="expand-icon">▼</span> Meer
+                            </button>
+                        </div>
+                        <ul class="release-features">
+                            <li>👤 <strong>Gebruikersbeheer:</strong> Persoonlijke naamregistratie bij eerste gebruik</li>
+                            <li>🤝 <strong>Team samenwerking:</strong> Zie wie er aan hetzelfde bestand werkt (soft lock systeem)</li>
+                            <li>💾 <strong>Auto-save:</strong> Automatisch opslaan na 5 seconden bij wijzigingen</li>
+                            <li>📚 <strong>Versie geschiedenis:</strong> Automatische backups elke 10 minuten (max 20 versies)</li>
+                            <li>🔍 <strong>Externe wijzigingen:</strong> Waarschuwing wanneer bestand extern is gewijzigd</li>
+                        </ul>
+                        <div class="release-details" id="release-details-0.945" style="display: none;">
+                            <div class="release-details-content">
+                                <h4>👤 Gebruikersbeheer</h4>
+                                <ul>
+                                    <li>Welkomstscherm met persoonlijke naamregistratie bij eerste keer opstarten</li>
+                                    <li>Naam wordt permanent opgeslagen en gebruikt door de hele app</li>
+                                    <li>Automatisch vooringevuld bij het opslaan van bestanden</li>
+                                </ul>
+
+                                <h4>🤝 Team Samenwerking (Soft Lock Systeem)</h4>
+                                <ul>
+                                    <li>Realtime samenwerking indicatie: zie wie er nog meer aan hetzelfde bestand werkt</li>
+                                    <li><strong>Visuele statusweergave:</strong>
+                                        <ul>
+                                            <li>🟢 Groen = Actief aan het bewerken (&lt; 1 minuut)</li>
+                                            <li>🟡 Geel = Inactief (1-2 minuten)</li>
+                                            <li>🔴 Rood = Mogelijk weg (2-5 minuten)</li>
+                                        </ul>
+                                    </li>
+                                    <li>Niet-blokkerend: je kunt altijd blijven werken</li>
+                                    <li>Automatische opschoning: lock bestanden worden na 5 minuten verwijderd</li>
+                                    <li>Netwerk drive ondersteuning: perfect voor gedeelde netwerkschijven</li>
+                                </ul>
+
+                                <h4>💾 Geavanceerd Bestandsbeheer</h4>
+                                <ul>
+                                    <li>Auto-save: automatisch opslaan na 5 seconden bij wijzigingen</li>
+                                    <li>Versie geschiedenis: automatische backups elke 10 minuten (max 20 versies)</li>
+                                    <li>Slimme wijziging detectie: slaat alleen op bij echte inhoudelijke wijzigingen</li>
+                                    <li>Recent geopende bestanden: menu met laatste 10 bestanden</li>
+                                    <li>Externe wijzigingen detectie: waarschuwing wanneer bestand extern is gewijzigd</li>
+                                    <li>Bestand locatie openen: "Open in Verkenner" optie in menu</li>
+                                </ul>
+
+                                <h4>🎨 Verbeterde Gebruikerservaring</h4>
+                                <ul>
+                                    <li>Unified save flow: alle opslagacties gebruiken dezelfde slimme dialoog</li>
+                                    <li>Metadata verzameling: auteur en beschrijving bij elke save</li>
+                                    <li>Visuele save status: titelbalk toont • voor niet-opgeslagen wijzigingen</li>
+                                </ul>
+
+                                <h4>🔧 Technische Details</h4>
+                                <ul>
+                                    <li>Content hashing: efficiënte detectie van wijzigingen</li>
+                                    <li>Heartbeat systeem: 30 seconden update interval voor collaboratie</li>
+                                    <li>Session management: unieke sessie ID's voor meerdere gebruikers</li>
+                                    <li>Electron-store integratie: persistente opslag van gebruikersgegevens</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- v0.940 - Both but more Electron focused -->
+                    <div class="release-item" data-platforms="electron web">
+                        <div class="release-header">
+                            <span class="release-version">v0.940</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
+                        </div>
+                        <ul class="release-features">
+                            <li data-platform="both">🏗️ <strong>Moderne architectuur:</strong> StateManager systeem, unieke ID generatie, en .mindmap2 formaat</li>
+                            <li data-platform="both">👆 <strong>Twee-vinger drag:</strong> Verbeterde touch navigatie op tablets met twee-vinger pan support</li>
+                            <li data-platform="electron">🖥️ <strong>Desktop integratie:</strong> Native open/save dialogen, file associations, en menu integratie</li>
+                            <li data-platform="electron">📦 <strong>Portable app:</strong> Windows versie beschikbaar als portable executable</li>
+                            <li data-platform="electron">🚀 <strong>Auto-detectie:</strong> App detecteert automatisch of het in browser of Electron draait</li>
+                        </ul>
+                    </div>
+
+                    <!-- v0.932 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.932</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>📍 <strong>Duidelijker onderscheid:</strong> "Project Historie" voor jouw saves, "Wat is nieuw" voor app updates</li>
@@ -905,50 +1014,75 @@
                             <li>🆕 <strong>Release overzicht:</strong> Complete geschiedenis van alle app verbeteringen</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.931 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.931</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>📋 <strong>Releases modal:</strong> Nieuwe sectie om alle app updates te bekijken</li>
                             <li>📚 <strong>Versiegeschiedenis:</strong> Uitgebreide beschrijvingen van elke release</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.930 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.930</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>🎯 <strong>Slim nodes plaatsen:</strong> Houd CTRL ingedrukt en sleep een node naar een verbindingslijn om deze automatisch tussen te voegen</li>
                             <li>🔗 <strong>Intelligente verbindingen:</strong> Verbindingen herschikken zich automatisch wanneer je nodes verplaatst of toevoegt</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.923 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.923</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>🎨 <strong>Uitgebreide kleuren:</strong> Kies uit 12 standaardkleuren of maak je eigen kleur met de kleurenkiezer</li>
                             <li>✨ <strong>Visuele verbetering:</strong> Nodes hebben nu duidelijkere randen en betere kleurcontrasten</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.921 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.921</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>📱 <strong>Mobiel vriendelijk:</strong> Touch gestures werken nu soepeler op telefoons en tablets</li>
                             <li>⚡ <strong>Sneller laden:</strong> Projecten starten direct op zonder vertraging bij het laden</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.920 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.920</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>📚 <strong>Help systeem:</strong> Nieuwe help met tabs voor beginners, tools, sneltoetsen en meer</li>
@@ -956,20 +1090,30 @@
                             <li>💾 <strong>.mindmap formaat:</strong> Verbeterde bestandsopslag met versiegeschiedenis</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.915 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.915</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>🚀 <strong>Snellere verbindingen:</strong> Verbindingslijnen tekenen nu veel vloeiender</li>
                             <li>✅ <strong>Stabiele updates:</strong> Node verbindingen blijven behouden bij wijzigingen</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.910 - v0.914 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.910 - v0.914</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>📱 <strong>Mobiele revolutie:</strong> Complete herontwerp voor touch bediening</li>
@@ -978,10 +1122,15 @@
                             <li>📋 <strong>Context menu:</strong> Houd ingedrukt voor opties op mobiel</li>
                         </ul>
                     </div>
-                    
-                    <div class="release-item">
+
+                    <!-- v0.900 - v0.909 - Both -->
+                    <div class="release-item" data-platforms="electron web">
                         <div class="release-header">
                             <span class="release-version">v0.900 - v0.909</span>
+                            <span class="platform-badges">
+                                <span class="platform-badge electron">Desktop</span>
+                                <span class="platform-badge web">Web</span>
+                            </span>
                         </div>
                         <ul class="release-features">
                             <li>📚 <strong>Versie systeem:</strong> Bewaar meerdere versies van je mindmap</li>

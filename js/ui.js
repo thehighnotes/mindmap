@@ -1219,24 +1219,129 @@ function setupEventListeners() {
     const releasesModal = document.getElementById('releases-modal');
     const closeReleases = document.getElementById('close-releases');
     const menuReleasesBtn = document.getElementById('menu-releases-btn');
-    
+
+    // Platform filtering for releases
+    function initReleasePlatformFilters() {
+        const tabs = document.querySelectorAll('.platform-tab');
+        const releaseItems = document.querySelectorAll('.release-item');
+
+        // Detect current platform and set default tab
+        const isElectron = typeof window.electronAPI !== 'undefined';
+        if (isElectron) {
+            document.body.classList.add('is-electron');
+        }
+
+        // Set default tab based on platform
+        const defaultPlatform = isElectron ? 'electron' : 'web';
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const platform = this.dataset.platform;
+
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                // Filter releases
+                filterReleases(platform);
+            });
+        });
+
+        function filterReleases(platform) {
+            releaseItems.forEach(item => {
+                const platforms = item.dataset.platforms || '';
+                const platformList = platforms.split(' ');
+
+                if (platform === 'all') {
+                    // Show all releases
+                    item.classList.remove('hidden');
+                    // Show all features
+                    item.querySelectorAll('.release-features li').forEach(li => {
+                        li.classList.remove('hidden');
+                    });
+                } else if (platformList.includes(platform)) {
+                    // Show this release
+                    item.classList.remove('hidden');
+
+                    // Filter individual features
+                    item.querySelectorAll('.release-features li').forEach(li => {
+                        const featurePlatform = li.dataset.platform;
+                        if (!featurePlatform || featurePlatform === 'both' || featurePlatform === platform) {
+                            li.classList.remove('hidden');
+                        } else {
+                            li.classList.add('hidden');
+                        }
+                    });
+                } else {
+                    // Hide this release entirely
+                    item.classList.add('hidden');
+                }
+            });
+        }
+
+        // Auto-select platform tab on modal open
+        return function selectDefaultTab() {
+            const defaultTab = document.querySelector(`.platform-tab[data-platform="${defaultPlatform}"]`);
+            if (defaultTab) {
+                defaultTab.click();
+            }
+        };
+    }
+
+    // Initialize release expand buttons for detailed version info
+    function initReleaseExpandButtons() {
+        const expandButtons = document.querySelectorAll('.release-expand-btn');
+
+        expandButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const version = this.dataset.version;
+                const detailsEl = document.getElementById(`release-details-${version}`);
+
+                if (!detailsEl) return;
+
+                const isExpanded = this.classList.contains('expanded');
+
+                if (isExpanded) {
+                    // Collapse
+                    this.classList.remove('expanded');
+                    this.innerHTML = '<span class="expand-icon">▼</span> Meer';
+                    detailsEl.style.display = 'none';
+                } else {
+                    // Expand
+                    this.classList.add('expanded');
+                    this.innerHTML = '<span class="expand-icon">▼</span> Minder';
+                    detailsEl.style.display = 'block';
+                }
+            });
+        });
+    }
+
+    let selectDefaultPlatformTab = null;
+    if (releasesModal) {
+        selectDefaultPlatformTab = initReleasePlatformFilters();
+    }
+
     // Version info button click
     if (versionInfoBtn) {
         versionInfoBtn.addEventListener('click', function() {
             releasesModal.style.display = 'flex';
+            if (selectDefaultPlatformTab) selectDefaultPlatformTab();
         });
     }
-    
+
     // Version number click
     if (versionNumber) {
         versionNumber.addEventListener('click', function() {
             releasesModal.style.display = 'flex';
+            if (selectDefaultPlatformTab) selectDefaultPlatformTab();
         });
     }
-    
+
     if (menuReleasesBtn) {
         menuReleasesBtn.addEventListener('click', function() {
             releasesModal.style.display = 'flex';
+            if (selectDefaultPlatformTab) selectDefaultPlatformTab();
             // Close hamburger menu
             const hamburgerMenu = document.getElementById('hamburger-menu');
             if (hamburgerMenu) {
@@ -1244,13 +1349,13 @@ function setupEventListeners() {
             }
         });
     }
-    
+
     if (closeReleases) {
         closeReleases.addEventListener('click', function() {
             releasesModal.style.display = 'none';
         });
     }
-    
+
     // Close modal when clicking outside
     if (releasesModal) {
         releasesModal.addEventListener('click', function(e) {
@@ -1258,7 +1363,7 @@ function setupEventListeners() {
                 releasesModal.style.display = 'none';
             }
         });
-        
+
         // Close button in modal header
         const closeModalBtn = releasesModal.querySelector('.close-modal');
         if (closeModalBtn) {
@@ -1266,8 +1371,11 @@ function setupEventListeners() {
                 releasesModal.style.display = 'none';
             });
         }
+
+        // Release expand buttons (for detailed version info)
+        initReleaseExpandButtons();
     }
-    
+
     // Toon beginners tips knop
     if (showTipsBtn) {
         showTipsBtn.addEventListener('click', function() {

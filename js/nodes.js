@@ -37,34 +37,7 @@ function createNode(title, content, color, x, y, shape = 'rectangle', parentNode
     nodeEl.style.borderColor = color;
     
     // Stel nodestyle in op basis van vorm
-    switch(shape) {
-        case 'rounded':
-            nodeEl.style.borderRadius = '10px';
-            break;
-        case 'circle':
-            nodeEl.style.borderRadius = '50%';
-            nodeEl.style.width = '120px';
-            nodeEl.style.height = '120px';
-            nodeEl.style.display = 'flex';
-            nodeEl.style.flexDirection = 'column';
-            nodeEl.style.justifyContent = 'center';
-            nodeEl.style.alignItems = 'center';
-            break;
-        case 'diamond':
-            nodeEl.classList.add('diamond-node');
-            nodeEl.style.transform = 'rotate(45deg)';
-            nodeEl.style.width = '120px';
-            nodeEl.style.height = '120px';
-            nodeEl.style.display = 'flex';
-            nodeEl.style.flexDirection = 'column';
-            nodeEl.style.justifyContent = 'center';
-            nodeEl.style.alignItems = 'center';
-            nodeEl.style.textAlign = 'center';
-            break;
-        default: // rectangle
-            nodeEl.style.borderRadius = '3px';
-            break;
-    }
+    applyNodeShape(nodeEl, shape);
     
     // Maak de inhoud van de node
     let innerContent = '';
@@ -636,56 +609,19 @@ function saveNodeEdits() {
         const nodeEl = document.getElementById(nodeId);
         if (nodeEl) {
             // Reset stijlen (voor vorm wijzigingen)
-            nodeEl.style.transform = '';
-            nodeEl.style.borderRadius = '';
-            nodeEl.style.width = '';
-            nodeEl.style.height = '';
-            nodeEl.style.display = '';
-            nodeEl.style.flexDirection = '';
-            nodeEl.style.justifyContent = '';
-            nodeEl.style.alignItems = '';
-            
+            resetNodeStyles(nodeEl);
+
             // Stel nieuwe stijlen in
             nodeEl.style.borderColor = node.color;
-            
+
             // Pas vorm aan
-            switch(node.shape) {
-                case 'rounded':
-                    nodeEl.style.borderRadius = '10px';
-                    break;
-                case 'circle':
-                    nodeEl.style.borderRadius = '50%';
-                    nodeEl.style.width = '120px';
-                    nodeEl.style.height = '120px';
-                    nodeEl.style.display = 'flex';
-                    nodeEl.style.flexDirection = 'column';
-                    nodeEl.style.justifyContent = 'center';
-                    nodeEl.style.alignItems = 'center';
-                    break;
-                case 'diamond':
-                    nodeEl.style.transform = 'rotate(45deg)';
-                    nodeEl.style.width = '120px';
-                    nodeEl.style.height = '120px';
-                    break;
-                default: // rectangle
-                    nodeEl.style.borderRadius = '3px';
-                    break;
-            }
-            
+            applyNodeShape(nodeEl, node.shape);
+
             // Update inhoud
-            let innerContent = '';
-            
-            if (node.shape === 'diamond') {
-                innerContent = `
-                    <div class="node-title">${node.title}</div>
-                    ${node.content ? `<div class="node-content">${node.content}</div>` : ''}
-                `;
-            } else {
-                innerContent = `
-                    <div class="node-title">${node.title}</div>
-                    ${node.content ? `<div class="node-content">${node.content}</div>` : ''}
-                `;
-            }
+            let innerContent = `
+                <div class="node-title">${node.title}</div>
+                ${node.content ? `<div class="node-content">${node.content}</div>` : ''}
+            `;
             
             // Bewaar de inhoud en voeg plusjes weer toe
             const addButtons = `
@@ -2216,4 +2152,325 @@ function hideDropPreview() {
     if (preview) {
         preview.remove();
     }
+}
+
+// ==========================
+// SHAPE HANDLING FUNCTIONS
+// ==========================
+
+/**
+ * Reset all shape-related styles on a node element
+ * @param {HTMLElement} nodeEl - The node DOM element
+ */
+function resetNodeStyles(nodeEl) {
+    // Remove all shape-specific classes
+    nodeEl.classList.remove(
+        'diamond-node', 'pill-node', 'ellipse-node', 'hexagon-node',
+        'octagon-node', 'parallelogram-node', 'cloud-node', 'star-node',
+        'banner-node', 'circle-node'
+    );
+
+    // Reset inline styles
+    nodeEl.style.transform = '';
+    nodeEl.style.borderRadius = '';
+    nodeEl.style.width = '';
+    nodeEl.style.height = '';
+    nodeEl.style.minWidth = '';
+    nodeEl.style.minHeight = '';
+    nodeEl.style.display = '';
+    nodeEl.style.flexDirection = '';
+    nodeEl.style.justifyContent = '';
+    nodeEl.style.alignItems = '';
+    nodeEl.style.textAlign = '';
+    nodeEl.style.clipPath = '';
+    nodeEl.style.padding = '';
+    // Reset clip-path color styling
+    nodeEl.style.background = '';
+    nodeEl.style.backgroundColor = '';
+    nodeEl.style.boxShadow = '';
+    nodeEl.style.border = '';
+    delete nodeEl.dataset.nodeColor;
+}
+
+/**
+ * Apply shape styling to a node element
+ * @param {HTMLElement} nodeEl - The node DOM element
+ * @param {string} shape - The shape name
+ */
+function applyNodeShape(nodeEl, shape) {
+    // Get the border color (node color) to use for clip-path shapes
+    const nodeColor = nodeEl.style.borderColor || '#4CAF50';
+
+    switch(shape) {
+        case 'rounded':
+            nodeEl.style.borderRadius = '10px';
+            break;
+
+        case 'pill':
+            nodeEl.classList.add('pill-node');
+            break;
+
+        case 'circle':
+            nodeEl.classList.add('circle-node');
+            nodeEl.style.borderRadius = '50%';
+            nodeEl.style.width = '120px';
+            nodeEl.style.height = '120px';
+            nodeEl.style.display = 'flex';
+            nodeEl.style.flexDirection = 'column';
+            nodeEl.style.justifyContent = 'center';
+            nodeEl.style.alignItems = 'center';
+            break;
+
+        case 'ellipse':
+            nodeEl.classList.add('ellipse-node');
+            break;
+
+        case 'diamond':
+            nodeEl.classList.add('diamond-node');
+            nodeEl.style.transform = 'rotate(45deg)';
+            nodeEl.style.width = '120px';
+            nodeEl.style.height = '120px';
+            nodeEl.style.display = 'flex';
+            nodeEl.style.flexDirection = 'column';
+            nodeEl.style.justifyContent = 'center';
+            nodeEl.style.alignItems = 'center';
+            nodeEl.style.textAlign = 'center';
+            break;
+
+        case 'hexagon':
+            nodeEl.classList.add('hexagon-node');
+            applyClipPathColor(nodeEl, nodeColor);
+            break;
+
+        case 'octagon':
+            nodeEl.classList.add('octagon-node');
+            applyClipPathColor(nodeEl, nodeColor);
+            break;
+
+        case 'parallelogram':
+            nodeEl.classList.add('parallelogram-node');
+            break;
+
+        case 'cloud':
+            nodeEl.classList.add('cloud-node');
+            break;
+
+        case 'star':
+            nodeEl.classList.add('star-node');
+            applyClipPathColor(nodeEl, nodeColor);
+            break;
+
+        case 'banner':
+            nodeEl.classList.add('banner-node');
+            applyClipPathColor(nodeEl, nodeColor);
+            break;
+
+        default: // rectangle
+            nodeEl.style.borderRadius = '3px';
+            break;
+    }
+}
+
+/**
+ * Apply color styling for clip-path shapes (which don't show borders)
+ * Uses the node color as a tinted background
+ * @param {HTMLElement} nodeEl - The node DOM element
+ * @param {string} color - The color to apply
+ */
+function applyClipPathColor(nodeEl, color) {
+    // Convert color to RGB for manipulation
+    const rgb = hexToRgb(color) || { r: 76, g: 175, b: 80 }; // Default green
+
+    // Create a tinted background using the color
+    // Dark tint for the background
+    const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`;
+    // Lighter version for gradient effect
+    const lightColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
+
+    nodeEl.style.backgroundColor = bgColor;
+    nodeEl.style.background = `linear-gradient(135deg, ${lightColor} 0%, ${bgColor} 100%)`;
+    nodeEl.style.border = 'none'; // Clip-path clips the border anyway
+
+    // Add a subtle box-shadow using the color for depth
+    nodeEl.style.boxShadow = `0 4px 12px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)`;
+
+    // Store the color for reference
+    nodeEl.dataset.nodeColor = color;
+}
+
+/**
+ * Convert hex color to RGB object
+ * @param {string} hex - Hex color string
+ * @returns {object|null} RGB object or null
+ */
+function hexToRgb(hex) {
+    // Handle rgb/rgba format
+    if (hex.startsWith('rgb')) {
+        const match = hex.match(/(\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+            return { r: parseInt(match[1]), g: parseInt(match[2]), b: parseInt(match[3]) };
+        }
+        return null;
+    }
+
+    // Handle hex format
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+// ==========================
+// TOOLTIP SYSTEM FOR NODES
+// ==========================
+
+let nodeTooltipTimeout = null;
+let currentTooltipNode = null;
+
+/**
+ * Initialize node tooltip system
+ * Call this after DOM is ready
+ */
+function initNodeTooltips() {
+    // Create tooltip element if it doesn't exist
+    if (!document.getElementById('node-tooltip')) {
+        const tooltip = document.createElement('div');
+        tooltip.id = 'node-tooltip';
+        tooltip.className = 'node-tooltip';
+        tooltip.innerHTML = `
+            <div class="tooltip-title"></div>
+            <div class="tooltip-content"></div>
+        `;
+        document.body.appendChild(tooltip);
+    }
+
+    // Add event delegation for node hover
+    const canvas = document.getElementById('canvas');
+    if (canvas) {
+        canvas.addEventListener('mouseover', handleNodeMouseOver);
+        canvas.addEventListener('mouseout', handleNodeMouseOut);
+        canvas.addEventListener('mousemove', updateTooltipPosition);
+    }
+}
+
+/**
+ * Handle mouse over on nodes
+ */
+function handleNodeMouseOver(e) {
+    const nodeEl = e.target.closest('.node');
+    if (!nodeEl) return;
+
+    // Don't show tooltip while dragging or editing
+    if (isDragging || e.target.isContentEditable) return;
+
+    const nodeId = nodeEl.id;
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Check if text is truncated (title or content is long)
+    const titleEl = nodeEl.querySelector('.node-title');
+    const contentEl = nodeEl.querySelector('.node-content');
+
+    const isTitleTruncated = titleEl && (titleEl.scrollWidth > titleEl.clientWidth || node.title.length > 25);
+    const hasContent = node.content && node.content.trim().length > 0;
+
+    // Only show tooltip if there's something useful to show
+    if (!isTitleTruncated && !hasContent) return;
+
+    currentTooltipNode = nodeId;
+
+    // Delay showing tooltip
+    nodeTooltipTimeout = setTimeout(() => {
+        showNodeTooltip(node, e.clientX, e.clientY);
+    }, 500); // 500ms delay
+}
+
+/**
+ * Handle mouse out on nodes
+ */
+function handleNodeMouseOut(e) {
+    const nodeEl = e.target.closest('.node');
+    const relatedNode = e.relatedTarget?.closest?.('.node');
+
+    // If moving to another element within the same node, don't hide
+    if (nodeEl && relatedNode && nodeEl === relatedNode) return;
+
+    hideNodeTooltip();
+}
+
+/**
+ * Show tooltip for a node
+ */
+function showNodeTooltip(node, x, y) {
+    const tooltip = document.getElementById('node-tooltip');
+    if (!tooltip) return;
+
+    const titleEl = tooltip.querySelector('.tooltip-title');
+    const contentEl = tooltip.querySelector('.tooltip-content');
+
+    titleEl.textContent = node.title;
+
+    if (node.content && node.content.trim()) {
+        contentEl.textContent = node.content;
+        contentEl.style.display = 'block';
+    } else {
+        contentEl.style.display = 'none';
+    }
+
+    // Position tooltip
+    tooltip.style.left = (x + 15) + 'px';
+    tooltip.style.top = (y + 15) + 'px';
+
+    // Make sure tooltip doesn't go off screen
+    requestAnimationFrame(() => {
+        const rect = tooltip.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            tooltip.style.left = (x - rect.width - 15) + 'px';
+        }
+        if (rect.bottom > window.innerHeight) {
+            tooltip.style.top = (y - rect.height - 15) + 'px';
+        }
+    });
+
+    tooltip.classList.add('visible');
+}
+
+/**
+ * Hide node tooltip
+ */
+function hideNodeTooltip() {
+    if (nodeTooltipTimeout) {
+        clearTimeout(nodeTooltipTimeout);
+        nodeTooltipTimeout = null;
+    }
+
+    currentTooltipNode = null;
+
+    const tooltip = document.getElementById('node-tooltip');
+    if (tooltip) {
+        tooltip.classList.remove('visible');
+    }
+}
+
+/**
+ * Update tooltip position as mouse moves
+ */
+function updateTooltipPosition(e) {
+    if (!currentTooltipNode) return;
+
+    const tooltip = document.getElementById('node-tooltip');
+    if (!tooltip || !tooltip.classList.contains('visible')) return;
+
+    tooltip.style.left = (e.clientX + 15) + 'px';
+    tooltip.style.top = (e.clientY + 15) + 'px';
+}
+
+// Initialize tooltips when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNodeTooltips);
+} else {
+    // DOM is already ready
+    setTimeout(initNodeTooltips, 100);
 }

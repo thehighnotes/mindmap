@@ -1,6 +1,6 @@
 {
   "name": "mindmap-electron",
-  "version": "0.94.5",
+  "version": "0.95.0",
   "description": "Mindmap Brainstorm Tool - Electron Application",
   "main": "electron/main.js",
   "scripts": {
@@ -10,7 +10,19 @@
     "dist": "electron-builder --publish=never",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "assistant": "node scripts/code-assistant.js",
+    "assistant:interactive": "node scripts/code-assistant.js --interactive",
+    "assistant:refresh": "node scripts/code-assistant.js --refresh",
+    "docs:init": "node scripts/doc-memory.js init",
+    "docs:rebuild": "node scripts/doc-memory.js rebuild",
+    "docs:update": "node scripts/doc-memory.js update",
+    "docs:search": "node scripts/doc-memory.js search",
+    "docs:stats": "node scripts/doc-memory.js stats",
+    "arch:full": "node scripts/architecture-analyzer.js --full",
+    "arch:query": "node scripts/architecture-analyzer.js --query",
+    "arch:server": "node scripts/architecture-analyzer.js --server",
+    "setup:assistant": "bash scripts/setup-assistant.sh"
   },
   "keywords": [
     "mindmap",
@@ -21,8 +33,12 @@
   "author": "Mark Wind",
   "license": "MIT",
   "devDependencies": {
+    "better-sqlite3": "^12.5.0",
+    "chalk": "^5.6.2",
     "electron": "^27.3.11",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "glob": "^13.0.0",
+    "minimist": "^1.2.8"
   },
   "build": {
     "appId": "com.markwind.mindmap",

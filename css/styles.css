@@ -590,6 +590,199 @@ body {
     transform: translate(-50%, -50%) rotate(-45deg) !important;
 }
 
+/* ========================================
+   NEW SHAPE STYLES
+   ======================================== */
+
+/* Pill / Capsule shape */
+.node.pill-node {
+    border-radius: 50px !important;
+    min-width: 140px;
+    padding: 12px 20px;
+}
+
+/* Ellipse shape */
+.node.ellipse-node {
+    border-radius: 50%;
+    min-width: 160px;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+/* Hexagon shape - using clip-path */
+.node.hexagon-node {
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+    min-width: 140px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px 30px;
+    border: none !important;
+}
+
+/* Octagon shape */
+.node.octagon-node {
+    clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    min-width: 130px;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 25px;
+    border: none !important;
+}
+
+/* Parallelogram shape */
+.node.parallelogram-node {
+    transform: skewX(-10deg);
+    min-width: 150px;
+    padding: 12px 25px;
+}
+
+.node.parallelogram-node .node-title,
+.node.parallelogram-node .node-content {
+    transform: skewX(10deg); /* Counter-skew text */
+}
+
+/* Cloud shape - using border-radius trick */
+.node.cloud-node {
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    min-width: 160px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px 25px;
+    box-shadow:
+        inset -8px -8px 0 0 rgba(255,255,255,0.15),
+        0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Star shape - 5-pointed */
+.node.star-node {
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    min-width: 140px;
+    min-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 35px;
+    border: none !important;
+}
+
+/* Banner / ribbon shape */
+.node.banner-node {
+    clip-path: polygon(0% 15%, 5% 0%, 95% 0%, 100% 15%, 100% 85%, 95% 100%, 5% 100%, 0% 85%);
+    min-width: 160px;
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 15px 20px;
+    border: none !important;
+}
+
+/* ========================================
+   TEXT TRUNCATION & TOOLTIP SUPPORT
+   ======================================== */
+
+/* Base node title - truncation for long text */
+.node .node-title {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Allow wrapping on hover or when expanded */
+.node:hover .node-title,
+.node.expanded .node-title {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Node content - always truncate with ellipsis */
+.node .node-content {
+    max-width: 200px;
+    max-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* Fixed-size shapes need special text handling */
+.node.circle-node .node-title,
+.node.hexagon-node .node-title,
+.node.octagon-node .node-title,
+.node.star-node .node-title {
+    max-width: 80px;
+    font-size: 0.85em;
+    line-height: 1.2;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+/* ========================================
+   NODE TOOLTIP (for full text on hover)
+   ======================================== */
+
+.node-tooltip {
+    position: fixed;
+    background: #2d2d2d;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    max-width: 300px;
+    word-wrap: break-word;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    border: 1px solid #444;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.node-tooltip.visible {
+    opacity: 1;
+}
+
+.node-tooltip .tooltip-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #4CAF50;
+    border-bottom: 1px solid #444;
+    padding-bottom: 4px;
+}
+
+.node-tooltip .tooltip-content {
+    color: #ccc;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 /* Add-node buttons op de randen van nodes */
 .add-node-btn {
     position: absolute;
@@ -2837,8 +3030,50 @@ body {
 }
 
 /* Releases Modal */
+
+/* Platform filter tabs */
+.releases-platform-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 0 10px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 12px;
+}
+
+.platform-tab {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.platform-tab:hover {
+    background: #333;
+    color: #fff;
+}
+
+.platform-tab.active {
+    background: #4CAF50;
+    border-color: #4CAF50;
+    color: #fff;
+}
+
+/* Auto-select platform tab based on environment */
+body.is-electron .platform-tab[data-platform="electron"] {
+    border-color: #4CAF50;
+}
+
+body:not(.is-electron) .platform-tab[data-platform="web"] {
+    border-color: #2196F3;
+}
+
 .releases-container {
-    max-height: 60vh;
+    max-height: 55vh;
     overflow-y: auto;
     padding: 10px;
 }
@@ -2849,6 +3084,11 @@ body {
     border-radius: 8px;
     padding: 16px;
     margin-bottom: 16px;
+    transition: opacity 0.2s ease;
+}
+
+.release-item.hidden {
+    display: none;
 }
 
 .release-item:last-child {
@@ -2858,8 +3098,9 @@ body {
 .release-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 12px;
     margin-bottom: 12px;
+    flex-wrap: wrap;
 }
 
 .release-version {
@@ -2877,6 +3118,32 @@ body {
     border-radius: 4px;
 }
 
+/* Platform badges */
+.platform-badges {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.platform-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.platform-badge.electron {
+    background: #3d5a80;
+    color: #a8dadc;
+}
+
+.platform-badge.web {
+    background: #2d6a4f;
+    color: #95d5b2;
+}
+
 .release-features {
     margin: 0;
     padding-left: 20px;
@@ -2886,6 +3153,112 @@ body {
     color: #ddd;
     margin: 6px 0;
     font-size: 14px;
+    transition: opacity 0.2s ease;
+}
+
+.release-features li.hidden {
+    display: none;
+}
+
+/* Electron-only feature indicator */
+.release-features li[data-platform="electron"]::before {
+    content: "🖥️ ";
+    font-size: 12px;
+}
+
+/* Hide electron-only items in web mode when filtered */
+body:not(.is-electron) .release-features li[data-platform="electron"].filter-hidden {
+    display: none;
+}
+
+/* Release expand button */
+.release-expand-btn {
+    background: rgba(76, 175, 80, 0.2);
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    color: #4CAF50;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.release-expand-btn:hover {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: rgba(76, 175, 80, 0.6);
+    transform: translateY(-1px);
+}
+
+.release-expand-btn.expanded {
+    background: rgba(76, 175, 80, 0.4);
+}
+
+.release-expand-btn .expand-icon {
+    transition: transform 0.2s ease;
+    font-size: 10px;
+}
+
+.release-expand-btn.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+/* Release details (expandable section) */
+.release-details {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #444;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+    }
+}
+
+.release-details-content {
+    padding: 0 10px;
+}
+
+.release-details-content h4 {
+    color: #4CAF50;
+    margin: 15px 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.release-details-content h4:first-child {
+    margin-top: 0;
+}
+
+.release-details-content ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.release-details-content ul ul {
+    margin-top: 5px;
+    padding-left: 15px;
+}
+
+.release-details-content li {
+    color: #bbb;
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 4px 0;
+}
+
+.release-details-content strong {
+    color: #ddd;
 }
 
 /* Version info button under version number */

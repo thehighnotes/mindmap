@@ -90,20 +90,48 @@ if (typeof ConnectionModules !== 'undefined') {
         window.getNodeCenter = function(node) {
             let width = 120;
             let height = 60;
-            
+
             // Pas breedte en hoogte aan op basis van vorm
-            if (node.shape === 'circle') {
-                width = height = 120;
-            } else if (node.shape === 'diamond') {
-                width = height = 120;
+            switch(node.shape) {
+                case 'circle':
+                    width = height = 120;
+                    break;
+                case 'diamond':
+                    width = height = 120;
+                    break;
+                case 'hexagon':
+                    width = 140;
+                    height = 120;
+                    break;
+                case 'octagon':
+                    width = height = 130;
+                    break;
+                case 'star':
+                    width = height = 140;
+                    break;
+                case 'ellipse':
+                    width = 160;
+                    height = 80;
+                    break;
+                case 'cloud':
+                    width = 160;
+                    height = 100;
+                    break;
+                case 'banner':
+                    width = 160;
+                    height = 70;
+                    break;
+                case 'pill':
+                case 'parallelogram':
+                case 'rectangle':
+                case 'rounded':
+                default:
+                    // Voor rechthoekige nodes, bereken de werkelijke breedte op basis van tekst
+                    const actualWidth = calculateActualNodeWidth(node);
+                    width = Math.max(width, actualWidth);
+                    break;
             }
-            
-            // Voor rechthoekige nodes, bereken de werkelijke breedte op basis van tekst
-            if (node.shape === 'rectangle' || node.shape === 'rounded') {
-                const actualWidth = calculateActualNodeWidth(node);
-                width = Math.max(width, actualWidth); // Gebruik minimaal 120px, maar meer als nodig
-            }
-            
+
             return {
                 x: node.x + width / 2,
                 y: node.y + height / 2
@@ -167,57 +195,127 @@ if (typeof ConnectionModules !== 'undefined') {
             // Bepaal werkelijke afmetingen van de node
             let width = 120;
             let height = 60;
-            
-            if (node.shape === 'circle') {
-                width = height = 120;
-            } else if (node.shape === 'diamond') {
-                width = height = 120;
-            } else if (node.shape === 'rectangle' || node.shape === 'rounded') {
-                // Gebruik werkelijke breedte voor betere edge point berekening
-                width = calculateActualNodeWidth(node);
+
+            switch(node.shape) {
+                case 'circle':
+                    width = height = 120;
+                    break;
+                case 'diamond':
+                    width = height = 120;
+                    break;
+                case 'hexagon':
+                    width = 140;
+                    height = 120;
+                    break;
+                case 'octagon':
+                    width = height = 130;
+                    break;
+                case 'star':
+                    width = height = 140;
+                    break;
+                case 'ellipse':
+                    width = 160;
+                    height = 80;
+                    break;
+                case 'cloud':
+                    width = 160;
+                    height = 100;
+                    break;
+                case 'banner':
+                    width = 160;
+                    height = 70;
+                    break;
+                case 'pill':
+                case 'parallelogram':
+                case 'rectangle':
+                case 'rounded':
+                default:
+                    width = calculateActualNodeWidth(node);
+                    break;
             }
-            
+
             let radius;
-            
+
             // Bepaal de radius op basis van de vorm en de hoek
-            if (node.shape === 'circle') {
-                radius = 60; // Circle radius
-            } else if (node.shape === 'diamond') {
-                // Voor een ruit is de radius afhankelijk van de hoek
-                const normalizedAngle = (angle + Math.PI * 2) % (Math.PI * 2);
-                const rotatedAngle = normalizedAngle - Math.PI / 4; // Diamond is rotated 45 degrees
-                radius = 50 / Math.max(Math.abs(Math.cos(rotatedAngle)), Math.abs(Math.sin(rotatedAngle)));
-            } else {
-                // Rechthoekige vormen - nauwkeurigere berekening
-                const halfWidth = width / 2;
-                const halfHeight = height / 2;
-                
-                // Bepaal het snijpunt met de rechthoek
-                const abs_cos = Math.abs(Math.cos(angle));
-                const abs_sin = Math.abs(Math.sin(angle));
-                
-                if (abs_cos * halfHeight <= abs_sin * halfWidth) {
-                    // Snijpunt met horizontale lijn
-                    // Bepaal of het boven of onder is
-                    const sign = Math.sin(angle) >= 0 ? 1 : -1;
-                    const y = sign * halfHeight;
-                    const x = y / Math.tan(angle) || 0;  // Voorkomt deling door nul
-                    
-                    // Bereken de afstand tot het centrum
-                    radius = Math.sqrt(x*x + y*y);
-                } else {
-                    // Snijpunt met verticale lijn
-                    // Bepaal of het links of rechts is
-                    const sign = Math.cos(angle) >= 0 ? 1 : -1;
-                    const x = sign * halfWidth;
-                    const y = x * Math.tan(angle);
-                    
-                    // Bereken de afstand tot het centrum
-                    radius = Math.sqrt(x*x + y*y);
-                }
-                
-                // Kleine correctie voor visuele aansluiting
-                radius -= 1;
+            switch(node.shape) {
+                case 'circle':
+                    radius = 60;
+                    break;
+
+                case 'ellipse':
+                    // Ellipse edge calculation
+                    const a = width / 2;
+                    const b = height / 2;
+                    radius = (a * b) / Math.sqrt(Math.pow(b * Math.cos(angle), 2) + Math.pow(a * Math.sin(angle), 2));
+                    break;
+
+                case 'diamond':
+                    // Voor een ruit is de radius afhankelijk van de hoek
+                    const normalizedAngle = (angle + Math.PI * 2) % (Math.PI * 2);
+                    const rotatedAngle = normalizedAngle - Math.PI / 4;
+                    radius = 50 / Math.max(Math.abs(Math.cos(rotatedAngle)), Math.abs(Math.sin(rotatedAngle)));
+                    break;
+
+                case 'hexagon':
+                    // Hexagon edge - approximate with radius
+                    radius = Math.min(width, height) / 2 - 5;
+                    break;
+
+                case 'octagon':
+                    // Octagon edge - approximate with radius
+                    radius = Math.min(width, height) / 2 - 5;
+                    break;
+
+                case 'star':
+                    // Star outer points radius
+                    radius = Math.min(width, height) / 2 - 10;
+                    break;
+
+                case 'cloud':
+                    // Cloud - approximate as ellipse
+                    const cloudA = width / 2;
+                    const cloudB = height / 2;
+                    radius = (cloudA * cloudB) / Math.sqrt(Math.pow(cloudB * Math.cos(angle), 2) + Math.pow(cloudA * Math.sin(angle), 2));
+                    radius -= 5;
+                    break;
+
+                case 'pill':
+                    // Pill shape - rectangle with rounded ends
+                    const pillHalfWidth = width / 2;
+                    const pillHalfHeight = height / 2;
+                    const pillRadius = pillHalfHeight; // End radius
+
+                    // Check if hitting the rounded end or the flat side
+                    if (Math.abs(Math.cos(angle)) > pillHalfHeight / pillHalfWidth) {
+                        // Hitting the rounded ends
+                        radius = pillRadius;
+                    } else {
+                        // Hitting the flat sides
+                        radius = pillHalfHeight / Math.abs(Math.sin(angle));
+                    }
+                    break;
+
+                default:
+                    // Rechthoekige vormen - nauwkeurigere berekening
+                    const halfWidth = width / 2;
+                    const halfHeight = height / 2;
+
+                    const abs_cos = Math.abs(Math.cos(angle));
+                    const abs_sin = Math.abs(Math.sin(angle));
+
+                    if (abs_cos * halfHeight <= abs_sin * halfWidth) {
+                        const sign = Math.sin(angle) >= 0 ? 1 : -1;
+                        const y = sign * halfHeight;
+                        const x = y / Math.tan(angle) || 0;
+                        radius = Math.sqrt(x*x + y*y);
+                    } else {
+                        const sign = Math.cos(angle) >= 0 ? 1 : -1;
+                        const x = sign * halfWidth;
+                        const y = x * Math.tan(angle);
+                        radius = Math.sqrt(x*x + y*y);
+                    }
+                    radius -= 1;
+                    break;
             }
             
             // Pas de richting aan afhankelijk van of het een bron of doel is

@@ -1,0 +1,934 @@
+{
+  "generated": "2025-11-30T19:59:01.234Z",
+  "summary": "Mindmap Electron Application - A brainstorming/mindmap tool built with Electron and vanilla JavaScript.",
+  "files": [
+    {
+      "path": "js/version-control.js",
+      "lines": 1127,
+      "size": 43752,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "only",
+        "window",
+        "const",
+        "currentNodes",
+        "currentConnections",
+        "function",
+        "tryInitialize"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "json"
+      ]
+    },
+    {
+      "path": "js/version-browser.js",
+      "lines": 453,
+      "size": 16869,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "from",
+        "to"
+      ],
+      "classes": [
+        "to"
+      ],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "json"
+      ]
+    },
+    {
+      "path": "js/user-setup.js",
+      "lines": 227,
+      "size": 7529,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "checkUserSetup",
+        "showUserSetupDialog",
+        "saveUserName"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "electron"
+      ]
+    },
+    {
+      "path": "js/ui.js",
+      "lines": 3169,
+      "size": 118780,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "handleMouseUp",
+        "hasNodeMoved",
+        "distanceFromPointToLineSegment",
+        "resetConnectionCache",
+        "checkWouldCreateCycle",
+        "updateRelatedConnections",
+        "handleMouseMove",
+        "setupContextMenuActions",
+        "handleBranchTarget",
+        "setupConnectionContextMenuActions",
+        "midX",
+        "midY",
+        "setupTitleEditing",
+        "setupEventListeners",
+        "worldX",
+        "worldY",
+        "x",
+        "y",
+        "x",
+        "y",
+        "centerX",
+        "centerY",
+        "blockOtherClicks",
+        "deselectAll",
+        "updateSelectionStatus",
+        "handleCanvasClick",
+        "selectNode",
+        "selectConnection",
+        "setupKeyboardNavigation",
+        "handleAltSelectMode",
+        "setupImprovedEventListeners",
+        "setupCtrlConnectMode",
+        "resetCtrlSelectMode",
+        "showCtrlTooltip",
+        "updateCtrlTooltipPosition",
+        "hideCtrlTooltip",
+        "enhanceNodeInteractions",
+        "integrateUIEnhancements",
+        "setupTouchSupport",
+        "setupMobileOptimizations",
+        "setupBasicTouchSupport",
+        "handleTouchStart",
+        "handleTouchMove",
+        "handleTouchEnd",
+        "handleDoubleTap",
+        "x",
+        "y",
+        "handleGhostClick",
+        "setupMobileKeyboard",
+        "setupTouchConnectionCreation",
+        "startTouchConnection",
+        "setupTouchBranchCreation",
+        "is",
+        "setupTouchModalOptimizations",
+        "setupTouchPerformanceOptimizations",
+        "addTouchStyles",
+        "closeAllContextMenus",
+        "showDropPreview",
+        "hideDropPreview",
+        "setupHamburgerMenu",
+        "toggleHamburgerMenu",
+        "openHamburgerMenu",
+        "closeHamburgerMenu",
+        "initializeHelpSystem",
+        "performHelpSearch",
+        "escapeRegex",
+        "showNoSearchResults",
+        "hideNoSearchResults",
+        "resetHelpModalToFirstTab"
+      ],
+      "classes": [
+        "van",
+        "from",
+        "to"
+      ],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/storage-utils.js",
+      "lines": 300,
+      "size": 9796,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "initializeStorageDefaults"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "json"
+      ]
+    },
+    {
+      "path": "js/smart-save.js",
+      "lines": 418,
+      "size": 16491,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "showSmartSaveDialog",
+        "setupSmartSaveEventListeners",
+        "updateFilenamePreview",
+        "getChangesHTML",
+        "quickSave",
+        "to",
+        "getSmartFilename",
+        "cleanProjectName",
+        "cleanAuthor",
+        "to",
+        "getTimeAgo",
+        "calls",
+        "safeExportWithVersionControl",
+        "safeSaveWithFilePicker"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "electron",
+        "json"
+      ]
+    },
+    {
+      "path": "js/onboarding.js",
+      "lines": 523,
+      "size": 21001,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "initOnboarding",
+        "showWelcomeMessage",
+        "closeWelcome",
+        "startInteractiveTutorial",
+        "createTutorialOverlay",
+        "showStep",
+        "progress",
+        "positionTooltip",
+        "highlightElement",
+        "clearHighlight",
+        "showDemo",
+        "hideDemo",
+        "waitForAction",
+        "nextStep",
+        "previousStep",
+        "skipTutorial",
+        "completeTutorial",
+        "addTutorialMenuItem",
+        "setupStepListeners",
+        "createDemoMindmap"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/nodes.js",
+      "lines": 2219,
+      "size": 80830,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "createNode",
+        "makeEditable",
+        "handleNodeMouseDown",
+        "handleConnectMouseMove",
+        "openNodeEditor",
+        "saveNodeEdits",
+        "showContextMenu",
+        "setRootNode",
+        "deleteNode",
+        "arrangeNodes",
+        "findConnectedComponent",
+        "assignLevelsToComponent",
+        "createBatchChildNodes",
+        "nextIndex",
+        "findOptimalSectorForBulkNodes",
+        "createTemplateNodeGroup",
+        "startDisconnectMode",
+        "handleConnectionDisconnect",
+        "showReconnectionOptions",
+        "closeModal",
+        "handleSmartDisconnect",
+        "exitDisconnectMode",
+        "handleDisconnectEscape",
+        "handleDisconnectOutsideClick",
+        "showDisconnectTooltip",
+        "hideDisconnectTooltip",
+        "disconnectNode",
+        "insertNodeIntoConnection",
+        "canDropNodeIntoConnection",
+        "wouldCreateCircularConnection",
+        "dropNodeIntoConnection",
+        "to",
+        "findNonOverlappingPosition",
+        "hasOverlap",
+        "updateColorSelection",
+        "setupColorSelection",
+        "wouldCreateCircularConnection",
+        "canDropNodeIntoConnection",
+        "dropNodeIntoConnection",
+        "showDropPreview",
+        "hideDropPreview"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/module-loader.js",
+      "lines": 93,
+      "size": 3255,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "registerModule",
+        "initModules",
+        "checkAllFunctionsAvailable",
+        "reset"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": []
+    },
+    {
+      "path": "js/mobile-touch.js",
+      "lines": 1806,
+      "size": 69218,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "dx",
+        "dy",
+        "removeOnOutside",
+        "removeOnOutside",
+        "x",
+        "y",
+        "not",
+        "handleViewportChange",
+        "fixIOSViewport",
+        "removeOnOutside",
+        "initializeModernTouch",
+        "window"
+      ],
+      "classes": [
+        "ModernTouchManager",
+        "in",
+        "to"
+      ],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/mobile-nav.js",
+      "lines": 657,
+      "size": 23326,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "centerX",
+        "centerY",
+        "currentCenterX",
+        "currentCenterY",
+        "worldX",
+        "worldY",
+        "animate",
+        "checkButton",
+        "initializeMobileNavigation",
+        "window"
+      ],
+      "classes": [
+        "MobileNavigationManager"
+      ],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/export.js",
+      "lines": 1734,
+      "size": 65639,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "isOldFormatFile",
+        "convertToNewFormat",
+        "exportToMermaid",
+        "generateId",
+        "importFromMermaid",
+        "to",
+        "saveMindmapAs",
+        "exportToJson",
+        "filename",
+        "exportWithVersionControl",
+        "generateSmartFilename",
+        "extractKeywordFromSummary",
+        "saveWithFilePicker",
+        "savWithFileSystemAPI",
+        "saveWithTraditionalDownload",
+        "importFromJson",
+        "importEnhancedProject",
+        "importLegacyEnhancedProject",
+        "checkForVersionConflicts",
+        "showConflictWarning",
+        "importLegacyFormat",
+        "loadVersionFromProject",
+        "loadMindmapData",
+        "exportAsImage",
+        "getNodeCenter",
+        "getNodeEdgePoint",
+        "normalizedAngle",
+        "midX",
+        "midY",
+        "midX",
+        "midY",
+        "showVersionSelectionDialog",
+        "getTimeAgo",
+        "compareVersions",
+        "to",
+        "initializeAfterLoad"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "canvas",
+        "json"
+      ]
+    },
+    {
+      "path": "js/electron-bridge.js",
+      "lines": 505,
+      "size": 19061,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "setupChangeTracking",
+        "triggerAutoSave",
+        "to",
+        "hashContent",
+        "async",
+        "electronSave",
+        "setupAutoSave",
+        "isDirty",
+        "updateTitleBar",
+        "async",
+        "electronSaveAs",
+        "suggestedName",
+        "async",
+        "electronOpen",
+        "prepareDataForSave",
+        "to",
+        "selectAllNodes"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas",
+        "electron",
+        "json"
+      ]
+    },
+    {
+      "path": "js/core.js",
+      "lines": 1421,
+      "size": 48261,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "initializeReferences",
+        "initCanvas",
+        "initMindmap",
+        "selectToolHandler",
+        "updateToolStates",
+        "updateCanvasTransform",
+        "updateGridVisibility",
+        "setZoomLevel",
+        "centerOnNode",
+        "showToast",
+        "showTemporaryConnectionLine",
+        "sourceX",
+        "sourceY",
+        "mouseX",
+        "mouseY",
+        "midX",
+        "midY",
+        "removeTemporaryConnectionLine",
+        "updateMinimap",
+        "updateMinimapViewport",
+        "visibleLeft",
+        "visibleTop",
+        "clearMindmap",
+        "copySelectedNodes",
+        "pasteNodes",
+        "zoomToSelection",
+        "centerX",
+        "centerY",
+        "saveStateForUndo",
+        "undoLastAction",
+        "createNodeElement",
+        "safeWrap",
+        "is",
+        "getMindmapTitle",
+        "setMindmapTitle",
+        "updateTitleFromInput"
+      ],
+      "classes": [
+        "van",
+        "toe"
+      ],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "canvas",
+        "json"
+      ]
+    },
+    {
+      "path": "js/collaboration.js",
+      "lines": 352,
+      "size": 12384,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "initialize",
+        "generateSessionId",
+        "startCollaboration",
+        "stopCollaboration",
+        "updateLock",
+        "removeLock",
+        "readLocks",
+        "removeExpiredLocks",
+        "checkOtherLocks",
+        "startHeartbeat",
+        "startLockChecking",
+        "setupActivityTracking",
+        "updateActivity",
+        "updateCollaborationBanner",
+        "getLockStatus",
+        "createBanner",
+        "hideBanner",
+        "onFileOpened",
+        "onFileClosed",
+        "onExternalChange",
+        "checkAndInit"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "storage",
+        "events",
+        "electron",
+        "json"
+      ]
+    },
+    {
+      "path": "js/app.js",
+      "lines": 356,
+      "size": 14577,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "showFirstTimeOverlay",
+        "closeOverlay",
+        "escHandler"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/utils/idGenerator.js",
+      "lines": 55,
+      "size": 1628,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [],
+      "dependencies": [],
+      "features": []
+    },
+    {
+      "path": "js/state/initState.js",
+      "lines": 174,
+      "size": 7131,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "initializeStateSystem",
+        "ensureFunctionsWrapped",
+        "setupStateListeners"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/state/StateManager.js",
+      "lines": 405,
+      "size": 13180,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [
+        "StateManager"
+      ],
+      "dependencies": [],
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/state/StateAdapter.js",
+      "lines": 335,
+      "size": 14344,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [
+        "StateAdapter"
+      ],
+      "dependencies": [],
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/state/StateAdapter-v2.js",
+      "lines": 417,
+      "size": 16351,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [
+        "StateAdapterV2"
+      ],
+      "dependencies": [],
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/connections/utils.js",
+      "lines": 194,
+      "size": 9241,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [],
+      "dependencies": [],
+      "features": []
+    },
+    {
+      "path": "js/connections/rendering.js",
+      "lines": 822,
+      "size": 41947,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "midX",
+        "midY",
+        "midX",
+        "midY",
+        "midX",
+        "midY",
+        "handleAddPointClick",
+        "mouseX",
+        "mouseY",
+        "midX",
+        "midY",
+        "updateHintPosition",
+        "onLeave"
+      ],
+      "classes": [
+        "toe"
+      ],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/connections/interaction.js",
+      "lines": 375,
+      "size": 18386,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "handleDrag",
+        "handleDragEnd",
+        "hasControlPointMoved",
+        "midX",
+        "midY",
+        "midX",
+        "midY"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "events"
+      ]
+    },
+    {
+      "path": "js/connections/geometry.js",
+      "lines": 556,
+      "size": 26726,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "progress",
+        "normalizedAngle",
+        "midX",
+        "midY",
+        "midX",
+        "midY",
+        "midX",
+        "midY",
+        "midX",
+        "midY",
+        "branchMidX",
+        "branchMidY"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "canvas"
+      ]
+    },
+    {
+      "path": "js/connections/editor.js",
+      "lines": 162,
+      "size": 6682,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [],
+      "dependencies": [],
+      "features": []
+    },
+    {
+      "path": "js/connections/core.js",
+      "lines": 151,
+      "size": 6579,
+      "imports": [],
+      "exports": [],
+      "functions": [],
+      "classes": [],
+      "dependencies": [],
+      "features": []
+    },
+    {
+      "path": "js/connections/branches.js",
+      "lines": 521,
+      "size": 27389,
+      "imports": [],
+      "exports": [],
+      "functions": [
+        "handleDragMove",
+        "mouseX",
+        "mouseY",
+        "cpX",
+        "cpY",
+        "highlightPotentialTargets",
+        "handleDragEnd",
+        "handleDragEscape",
+        "cleanupBranchDrag",
+        "createBranchedConnection",
+        "midX",
+        "midY",
+        "handleBranchTarget",
+        "handleBranchEscape",
+        "handleBranchMouseMove",
+        "mouseX",
+        "mouseY",
+        "cpX",
+        "cpY",
+        "cleanupBranchingMode"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "events",
+        "canvas"
+      ]
+    },
+    {
+      "path": "electron/preload.js",
+      "lines": 67,
+      "size": 3026,
+      "imports": [
+        "electron"
+      ],
+      "exports": [],
+      "functions": [],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "electron"
+      ]
+    },
+    {
+      "path": "electron/main.js",
+      "lines": 722,
+      "size": 24053,
+      "imports": [
+        "electron",
+        "path",
+        "fs",
+        "electron-store"
+      ],
+      "exports": [],
+      "functions": [
+        "addToRecentFiles",
+        "getRecentFiles",
+        "buildRecentFilesMenu",
+        "updateRecentFilesMenu",
+        "setupFileWatcher",
+        "createWindow",
+        "createMenu"
+      ],
+      "classes": [],
+      "dependencies": [],
+      "features": [
+        "electron",
+        "json"
+      ]
+    }
+  ],
+  "features": {
+    "storage": {
+      "name": "storage",
+      "files": [
+        "js/version-control.js",
+        "js/version-browser.js",
+        "js/user-setup.js",
+        "js/storage-utils.js",
+        "js/smart-save.js",
+        "js/onboarding.js",
+        "js/export.js",
+        "js/core.js",
+        "js/collaboration.js"
+      ],
+      "totalLines": 6555,
+      "totalFunctions": 140,
+      "complexityScore": 100,
+      "healthScore": 0
+    },
+    "events": {
+      "name": "events",
+      "files": [
+        "js/version-control.js",
+        "js/version-browser.js",
+        "js/user-setup.js",
+        "js/ui.js",
+        "js/smart-save.js",
+        "js/onboarding.js",
+        "js/nodes.js",
+        "js/mobile-touch.js",
+        "js/mobile-nav.js",
+        "js/export.js",
+        "js/electron-bridge.js",
+        "js/core.js",
+        "js/collaboration.js",
+        "js/app.js",
+        "js/state/initState.js",
+        "js/connections/rendering.js",
+        "js/connections/interaction.js",
+        "js/connections/branches.js"
+      ],
+      "totalLines": 16859,
+      "totalFunctions": 334,
+      "complexityScore": 100,
+      "healthScore": 0
+    },
+    "json": {
+      "name": "json",
+      "files": [
+        "js/version-control.js",
+        "js/version-browser.js",
+        "js/storage-utils.js",
+        "js/smart-save.js",
+        "js/export.js",
+        "js/electron-bridge.js",
+        "js/core.js",
+        "js/collaboration.js",
+        "electron/main.js"
+      ],
+      "totalLines": 7032,
+      "totalFunctions": 141,
+      "complexityScore": 100,
+      "healthScore": 0
+    },
+    "electron": {
+      "name": "electron",
+      "files": [
+        "js/user-setup.js",
+        "js/smart-save.js",
+        "js/electron-bridge.js",
+        "js/collaboration.js",
+        "electron/preload.js",
+        "electron/main.js"
+      ],
+      "totalLines": 2291,
+      "totalFunctions": 62,
+      "complexityScore": 64,
+      "healthScore": 36
+    },
+    "canvas": {
+      "name": "canvas",
+      "files": [
+        "js/ui.js",
+        "js/onboarding.js",
+        "js/nodes.js",
+        "js/mobile-touch.js",
+        "js/mobile-nav.js",
+        "js/export.js",
+        "js/electron-bridge.js",
+        "js/core.js",
+        "js/app.js",
+        "js/state/initState.js",
+        "js/state/StateManager.js",
+        "js/state/StateAdapter.js",
+        "js/state/StateAdapter-v2.js",
+        "js/connections/rendering.js",
+        "js/connections/geometry.js",
+        "js/connections/branches.js"
+      ],
+      "totalLines": 15620,
+      "totalFunctions": 292,
+      "complexityScore": 100,
+      "healthScore": 0
+    }
+  }
+}
